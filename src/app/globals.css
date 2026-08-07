@@ -167,10 +167,7 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
 }
 .load-del:hover { border-color: var(--coral); color: var(--coral); }
 
-@media (max-width: 820px) {
-  .admin-main { flex-direction: column; padding: 10px; }
-  .admin-side { width: 100%; }
-}
+/* Mobile/responsive rules are consolidated at the bottom of this file. */
 
 /* ---------------- Game ---------------- */
 #game { display: flex; flex-direction: column; }
@@ -178,7 +175,7 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
   display: flex; align-items: center; gap: 14px; padding: 12px 18px;
   border-bottom: 2px solid var(--line);
 }
-.brand { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--ink); }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--ink); white-space: nowrap; }
 .brand span { color: var(--coral); }
 .turn {
   font-weight: 700; font-size: 14px; padding: 7px 15px; border-radius: 999px;
@@ -238,8 +235,8 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
 
 /* ---------------- Overlay ---------------- */
 .overlay {
-  position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
-  background: rgba(247, 239, 225, 0.72); backdrop-filter: blur(5px); animation: fade 0.3s ease;
+  position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+  background: rgba(247, 239, 225, 0.72); backdrop-filter: blur(5px); animation: fade 0.3s ease; padding: 16px;
 }
 @keyframes fade { from { opacity: 0; } }
 .ov-card {
@@ -262,11 +259,43 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ---------------- Responsive (phones / small screens) ---------------- */
 @media (max-width: 820px) {
-  .play { flex-direction: column; padding: 10px; gap: 10px; }
-  .side { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  /* Let each full-screen view scroll internally instead of locking to the viewport. */
+  #game, .admin { display: block; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .gate { overflow-y: auto; align-items: flex-start; padding-top: 28px; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 12; background: var(--bg);
+    flex-wrap: wrap; padding: 8px 12px; gap: 8px 10px;
+  }
+  .brand { font-size: 16px; }
+  .badge-email { max-width: 52vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .play, .admin-main { flex-direction: column; padding: 12px; gap: 12px; }
+
+  /* Size the board by width (10:8) rather than by leftover height. */
+  .board-area, .admin-board-area { flex: none; }
+  .board-wrap, .admin .board-wrap {
+    flex: none; width: 100%; aspect-ratio: 10 / 8; max-height: 78vh; min-height: 0;
+  }
+
+  .side, .admin-side { width: 100%; overflow: visible; }
+  .side { flex-direction: row; flex-wrap: wrap; }
   .side .panel { flex: 1; min-width: 150px; }
   .side .legend { display: none; }
-  .topbar { padding: 9px 13px; gap: 9px; }
-  .brand { font-size: 16px; }
+
+  /* the "waiting" banner flows in-line (no overlap/overflow) on small screens */
+  .waiting {
+    position: static; transform: none; left: auto; margin: 0;
+    white-space: normal; text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .row2 { grid-template-columns: 1fr; }
+  .lobby-card { padding: 24px 20px; }
+  .turn { font-size: 13px; padding: 6px 12px; }
+  .btn.tiny { padding: 6px 10px; font-size: 12px; }
+  .badge-email { display: none; }
 }

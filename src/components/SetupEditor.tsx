@@ -140,7 +140,7 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
         </a>
         <span className="turn silver">Configuration editor</span>
         <div className="right">
-          {email && <span className="badge silver">{email}</span>}
+          {email && <span className="badge silver badge-email">{email}</span>}
           <a href="/" className="btn tiny">
             ← Back to game
           </a>
