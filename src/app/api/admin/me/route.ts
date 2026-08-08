@@ -6,6 +6,6 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const jar = await cookies();
-  const session = verifySession(jar.get(COOKIE)?.value);
+  const session = await verifySession(jar.get(COOKIE)?.value);
   return NextResponse.json({ authed: !!session, email: session?.email ?? null });
 }

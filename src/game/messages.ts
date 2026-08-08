@@ -12,7 +12,7 @@ export interface Names {
 
 // ---- client → server -------------------------------------------------------
 export type ClientMessage =
-  | { type: 'join'; playerId: string; name: string; code?: string; setup?: string; color?: Color | 'random' }
+  | { type: 'join'; playerId: string; name: string; code?: string; setup?: string; color?: Color | 'random'; perMove?: number }
   | { type: 'action'; action: Action }
   | { type: 'rematch'; setup?: string }
   | { type: 'chat'; text: string };
@@ -30,6 +30,8 @@ export type ServerMessage =
       names: Names;
       seated: PlayerSlots;
       online: PlayerSlots;
+      perMoveMs: number; // 0 = no per-move timer
+      turnEndsIn: number | null; // ms left for the current turn, or null if the clock isn't running
     }
   | {
       type: 'move';
@@ -40,7 +42,10 @@ export type ServerMessage =
       board: Board;
       turn: Color;
       winner: Color | null;
+      perMoveMs: number;
+      turnEndsIn: number | null;
     }
+  | { type: 'timeout'; winner: Color } // a player ran out of time
   | { type: 'rematch' }
   | { type: 'reseat'; you: Color | null }
   | { type: 'error'; message: string }

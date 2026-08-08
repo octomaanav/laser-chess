@@ -12,6 +12,7 @@ export default function Lobby({ controller, view }: { controller: GameController
   const [showRules, setShowRules] = useState(false);
   const [invited, setInvited] = useState(false);
   const [names, setNames] = useState<string[]>(SETUP_NAMES);
+  const [perMove, setPerMove] = useState(0); // minutes per move; 0 = no timer
 
   useEffect(() => {
     setName(controller.getStoredName());
@@ -31,7 +32,7 @@ export default function Lobby({ controller, view }: { controller: GameController
 
   const create = () => {
     controller.setName(name);
-    controller.start({ setup, color });
+    controller.start({ setup, color, perMove });
   };
   const join = () => {
     if (!code.trim()) {
@@ -82,6 +83,17 @@ export default function Lobby({ controller, view }: { controller: GameController
               </select>
             </label>
           </div>
+          <label className="field">
+            <span>Time per move</span>
+            <select value={perMove} onChange={(e) => setPerMove(Number(e.target.value))}>
+              <option value={0}>No timer</option>
+              <option value={1}>1 minute</option>
+              <option value={2}>2 minutes</option>
+              <option value={3}>3 minutes</option>
+              <option value={5}>5 minutes</option>
+              <option value={10}>10 minutes</option>
+            </select>
+          </label>
           <button className="btn primary big" onClick={create}>
             Create game &amp; get share link
           </button>

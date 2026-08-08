@@ -9,12 +9,12 @@ export const dynamic = 'force-dynamic';
 
 async function requireAdmin(): Promise<boolean> {
   const jar = await cookies();
-  return !!verifySession(jar.get(COOKIE)?.value);
+  return !!(await verifySession(jar.get(COOKIE)?.value));
 }
 
 // Public: the lobby needs the list of setup names.
-export function GET() {
-  return NextResponse.json({ setups: listSetups() });
+export async function GET() {
+  return NextResponse.json({ setups: await listSetups() });
 }
 
 export async function POST(req: Request) {
@@ -32,14 +32,14 @@ export async function POST(req: Request) {
   const def: SetupDef = { name, pieces: body.pieces };
   const v = validateSetup(def);
   if (v.errors.length) return NextResponse.json({ error: v.errors.join('; ') }, { status: 400 });
-  saveSetup(def);
-  return NextResponse.json({ ok: true, setups: listSetups() });
+  await saveSetup(def);
+  return NextResponse.json({ ok: true, setups: await listSetups() });
 }
 
 export async function DELETE(req: Request) {
   if (!(await requireAdmin())) return NextResponse.json({ error: 'admin login required' }, { status: 401 });
   const name = new URL(req.url).searchParams.get('name') || '';
   if (isDefault(name)) return NextResponse.json({ error: 'cannot delete a built-in setup' }, { status: 400 });
-  if (name) deleteSetup(name);
-  return NextResponse.json({ ok: true, setups: listSetups() });
+  if (name) await deleteSetup(name);
+  return NextResponse.json({ ok: true, setups: await listSetups() });
 }

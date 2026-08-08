@@ -27,6 +27,9 @@ Share a link and play a friend in the browser: no install, no account.
 - **Hand-drawn, responsive UI** — a warm line-art theme that adapts to desktop and mobile.
 - **Built-in board editor** — a small admin tool to visually design and validate custom
   starting positions, with a live "is the opening safe?" check.
+- **Durable persistence (optional Postgres)** — custom setups, the admin secret, and
+  *in-progress games* are written through to a database, so configurations and live matches
+  survive a redeploy/restart. Falls back to local files with zero setup in development.
 
 ## Tech stack
 
@@ -54,7 +57,7 @@ The interesting engineering lives in three places:
 ```
 src/
   game/        shared, pure rules — engine, starting positions, types, wire protocol
-  server/      authoritative WebSocket game server + in-memory room state
+  server/      authoritative WebSocket game server, rooms, admin auth, storage (file/Postgres)
   lib/         canvas renderer + network client
   client/      framework-agnostic game controller (+ a React hook over it)
   components/   React UI

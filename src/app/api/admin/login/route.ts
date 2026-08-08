@@ -15,6 +15,6 @@ export async function POST(req: Request) {
   if (!checkPassword(body.password || '')) return NextResponse.json({ error: 'Incorrect password.' }, { status: 401 });
 
   const res = NextResponse.json({ ok: true, email });
-  res.cookies.set(COOKIE, signSession(email), cookieOptions);
+  res.cookies.set(COOKIE, await signSession(email), cookieOptions);
   return res;
 }

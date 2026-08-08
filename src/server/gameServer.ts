@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import { createGame, listSetups } from './setupStore';
 import { applyAction, opposite } from '../game/engine';
+import { getStore, type PersistedRoom } from './store';
 import type { Color, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
 
@@ -21,6 +22,9 @@ interface Room {
   seats: { red: string | null; silver: string | null };
   names: Names;
   clients: Set<Client>;
+  perMoveMs: number; // 0 = no per-move timer
+  turnStartedAt: number | null;
+  turnTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const rooms = new Map<string, Room>();
@@ -34,13 +38,38 @@ function makeCode(): string {
   return code;
 }
 
-function makeRoom(code: string, setup: string): Room {
+function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
   return {
     code,
-    game: createGame(setup),
+    game,
     seats: { red: null, silver: null },
     names: { red: null, silver: null },
     clients: new Set(),
+    perMoveMs,
+    turnStartedAt: null,
+    turnTimer: null,
+  };
+}
+
+// ---- persistence (so games survive a restart / redeploy / sleep) -----------
+function toPersisted(room: Room): PersistedRoom {
+  return { code: room.code, game: room.game, seats: room.seats, names: room.names, perMoveMs: room.perMoveMs };
+}
+function persist(room: Room) {
+  void getStore()
+    .saveRoom(toPersisted(room))
+    .catch((e) => console.error('saveRoom failed:', e));
+}
+function hydrateRoom(p: PersistedRoom): Room {
+  return {
+    code: p.code,
+    game: p.game,
+    seats: p.seats,
+    names: p.names,
+    clients: new Set(),
+    perMoveMs: p.perMoveMs ?? 0,
+    turnStartedAt: null,
+    turnTimer: null,
   };
 }
 
@@ -48,6 +77,33 @@ function seatOf(room: Room, playerId: string): Color | null {
   if (room.seats.red === playerId) return 'red';
   if (room.seats.silver === playerId) return 'silver';
   return null;
+}
+
+const bothSeated = (room: Room) => !!room.seats.red && !!room.seats.silver;
+
+// ---- per-move clock (authoritative) ---------------------------------------
+function stopTurnClock(room: Room) {
+  if (room.turnTimer) clearTimeout(room.turnTimer);
+  room.turnTimer = null;
+  room.turnStartedAt = null;
+}
+function startTurnClock(room: Room) {
+  stopTurnClock(room);
+  if (room.perMoveMs <= 0 || room.game.winner || !bothSeated(room)) return;
+  room.turnStartedAt = Date.now();
+  room.turnTimer = setTimeout(() => onTimeout(room), room.perMoveMs);
+}
+function turnEndsIn(room: Room): number | null {
+  if (room.perMoveMs <= 0 || !room.turnTimer || room.turnStartedAt == null) return null;
+  return Math.max(0, room.perMoveMs - (Date.now() - room.turnStartedAt));
+}
+function onTimeout(room: Room) {
+  if (room.game.winner) return;
+  room.game.winner = opposite(room.game.turn); // the player on the clock loses
+  stopTurnClock(room);
+  persist(room);
+  broadcast(room, { type: 'timeout', winner: room.game.winner });
+  broadcast(room, snapshot(room));
 }
 
 function presence(room: Room): PlayerSlots {
@@ -67,6 +123,8 @@ function snapshot(room: Room): ServerMessage {
     names: room.names,
     seated: { red: !!room.seats.red, silver: !!room.seats.silver },
     online: presence(room),
+    perMoveMs: room.perMoveMs,
+    turnEndsIn: turnEndsIn(room),
   };
 }
 
@@ -89,7 +147,7 @@ export function createGameWss(): WebSocketServer {
       ws.isAlive = true;
     });
 
-    ws.on('message', (buf) => {
+    ws.on('message', async (buf) => {
       let msg: ClientMessage;
       try {
         msg = JSON.parse(buf.toString());
@@ -97,7 +155,7 @@ export function createGameWss(): WebSocketServer {
         return;
       }
       try {
-        handle(ws, msg);
+        await handle(ws, msg);
       } catch (e) {
         send(ws, { type: 'error', message: String((e as Error).message || e) });
       }
@@ -107,7 +165,11 @@ export function createGameWss(): WebSocketServer {
       const room = ws.room;
       if (!room) return;
       room.clients.delete(ws);
+      // Pause the clock when a seated player drops (they shouldn't lose while gone);
+      // it resumes fresh when they reconnect.
+      if (ws.color) stopTurnClock(room);
       if (room.clients.size === 0) {
+        stopTurnClock(room);
         setTimeout(() => {
           if (room.clients.size === 0) rooms.delete(room.code);
         }, 10 * 60 * 1000);
@@ -131,12 +193,17 @@ export function createGameWss(): WebSocketServer {
       }
     }
   }, 30000);
-  wss.on('close', () => clearInterval(heartbeat));
+  // drop persisted rooms that haven't been touched in a day
+  const sweep = setInterval(() => void getStore().sweepRooms(24 * 60 * 60 * 1000).catch(() => {}), 60 * 60 * 1000);
+  wss.on('close', () => {
+    clearInterval(heartbeat);
+    clearInterval(sweep);
+  });
 
   return wss;
 }
 
-function handle(ws: Client, msg: ClientMessage) {
+async function handle(ws: Client, msg: ClientMessage) {
   if (msg.type === 'join') return onJoin(ws, msg);
   if (msg.type === 'action') return onAction(ws, msg);
   if (msg.type === 'rematch') return onRematch(ws, msg);
@@ -147,7 +214,7 @@ function handle(ws: Client, msg: ClientMessage) {
   }
 }
 
-function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>) {
+async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>) {
   const playerId = String(msg.playerId || '').slice(0, 64);
   if (!playerId) return send(ws, { type: 'error', message: 'missing playerId' });
   ws.playerId = playerId;
@@ -156,11 +223,22 @@ function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>) {
   let code = (msg.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   let room = code ? rooms.get(code) : undefined;
 
+  // not in memory (e.g. after a restart) → try to rehydrate from the store
+  if (!room && code) {
+    const persisted = await getStore().loadRoom(code);
+    room = rooms.get(code) ?? undefined;
+    if (!room && persisted) {
+      room = hydrateRoom(persisted);
+      rooms.set(code, room);
+    }
+  }
+
   if (!room) {
     code = makeCode();
-    const known = listSetups().some((s) => s.name === msg.setup);
+    const known = (await listSetups()).some((s) => s.name === msg.setup);
     const setup = msg.setup && known ? msg.setup : 'Classic';
-    room = makeRoom(code, setup);
+    const minutes = Math.min(60, Math.max(0, Number(msg.perMove) || 0));
+    room = makeRoom(code, await createGame(setup), Math.round(minutes * 60000));
     rooms.set(code, room);
   }
 
@@ -179,8 +257,12 @@ function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>) {
   ws.color = color;
   room.clients.add(ws);
 
+  // (Re)start the clock once a seat is taken and both players are present.
+  if (color && bothSeated(room) && !room.game.winner) startTurnClock(room);
+
   send(ws, { type: 'joined', code: room.code, you: color, spectator: !color });
   broadcast(room, snapshot(room));
+  if (color) persist(room); // seat/name changes are durable
 }
 
 function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
@@ -197,6 +279,11 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
   room.game.winner = result.winner;
   room.game.moveCount++;
 
+  if (result.winner) stopTurnClock(room);
+  else startTurnClock(room); // reset the clock for the next player
+
+  persist(room);
+
   broadcast(room, {
     type: 'move',
     by: ws.color,
@@ -206,13 +293,15 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
     board: result.board,
     turn: result.turn,
     winner: result.winner,
+    perMoveMs: room.perMoveMs,
+    turnEndsIn: turnEndsIn(room),
   });
 }
 
-function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematch' }>) {
+async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematch' }>) {
   const room = ws.room;
   if (!room || !ws.color) return;
-  const known = listSetups().some((s) => s.name === msg.setup);
+  const known = (await listSetups()).some((s) => s.name === msg.setup);
   const setup = msg.setup && known ? msg.setup : room.game.setup;
   const oldSeats = { ...room.seats },
     oldNames = { ...room.names };
@@ -221,7 +310,10 @@ function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematch' }>)
   for (const c of room.clients) {
     if (c.playerId && seatOf(room, c.playerId)) c.color = seatOf(room, c.playerId);
   }
-  room.game = createGame(setup);
+  room.game = await createGame(setup);
+  if (bothSeated(room)) startTurnClock(room);
+  else stopTurnClock(room);
+  persist(room);
   broadcast(room, { type: 'rematch' });
   for (const c of room.clients) send(c, { type: 'reseat', you: c.color ?? null });
   broadcast(room, snapshot(room));

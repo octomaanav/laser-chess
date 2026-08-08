@@ -63,6 +63,7 @@ export class Renderer {
   selection: { x: number; y: number } | null = null;
   targets: Target[] = [];
   handles: Handle[] = [];
+  reviewMark: { x: number; y: number }[] = [];
   geom = { ox: 0, oy: 0, cell: 40, w: 0, h: 0 };
   private _pieceAnim: PieceAnim | null = null;
   private _fx: FxAnim[] = [];
@@ -415,6 +416,16 @@ export class Renderer {
     this.drawFx();
   }
 
+  // Highlight the from/to squares of a reviewed move (history view).
+  setReviewMark(action: Action | null) {
+    this.reviewMark = [];
+    if (action) {
+      this.reviewMark.push({ x: action.x, y: action.y });
+      if (action.type === 'move') this.reviewMark.push({ x: action.tx, y: action.ty });
+    }
+    this.drawFx();
+  }
+
   pick(clientX: number, clientY: number): Pick {
     const r = this.fxCanvas.getBoundingClientRect();
     const px = clientX - r.left,
@@ -445,6 +456,15 @@ export class Renderer {
       ctx.strokeStyle = HIGHLIGHT;
       ctx.lineWidth = 3;
       roundRect(ctx, c.x - s / 2 + 2.5, c.y - s / 2 + 2.5, s - 5, s - 5, 9);
+      ctx.stroke();
+      ctx.restore();
+    }
+    for (const m of this.reviewMark) {
+      const c = this.cellCenterPx(m.x, m.y);
+      ctx.save();
+      ctx.strokeStyle = '#4f83ff';
+      ctx.lineWidth = 3;
+      roundRect(ctx, c.x - s / 2 + 3, c.y - s / 2 + 3, s - 6, s - 6, 8);
       ctx.stroke();
       ctx.restore();
     }

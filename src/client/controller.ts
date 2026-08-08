@@ -2,8 +2,9 @@
 // and the move-animation queue. Exposes an immutable view snapshot so React can
 // subscribe with useSyncExternalStore while the imperative renderer stays smooth.
 import { applyMoveOnly, legalActionsFor } from '@/game/engine';
-import type { Board, Color } from '@/game/types';
+import type { Action, Board, Color, Hit } from '@/game/types';
 import type { ClientMessage, ServerMessage } from '@/game/messages';
+import { colorName } from '@/lib/labels';
 import { Net } from '@/lib/net';
 import { Renderer } from '@/lib/render';
 
@@ -22,8 +23,15 @@ export interface ViewState {
   spectator: boolean;
   turn: Color;
   winner: Color | null;
+  overReason: 'pharaoh' | 'timeout' | null;
   waiting: boolean;
+  bothSeated: boolean;
   players: { red: PlayerView; silver: PlayerView };
+  perMoveMs: number;
+  turnEndsAt: number | null; // client epoch ms when the current turn's clock expires
+  moves: number; // number of moves played
+  reviewIndex: number | null; // null = live; otherwise index into move history
+  reviewLabel: string | null;
   toast: { id: number; text: string } | null;
 }
 
@@ -37,12 +45,26 @@ const INITIAL: ViewState = {
   spectator: false,
   turn: 'silver',
   winner: null,
+  overReason: null,
   waiting: false,
+  bothSeated: false,
   players: { red: blank(), silver: blank() },
+  perMoveMs: 0,
+  turnEndsAt: null,
+  moves: 0,
+  reviewIndex: null,
+  reviewLabel: null,
   toast: null,
 };
 function blank(): PlayerView {
   return { name: null, seated: false, online: false };
+}
+
+interface HistoryEntry {
+  board: Board;
+  action: Action | null;
+  by: Color | null;
+  removed: Hit | null;
 }
 
 export class GameController {
@@ -57,6 +79,7 @@ export class GameController {
   private spectator = false;
   private turn: Color = 'silver';
   private winner: Color | null = null;
+  private overReason: 'pharaoh' | 'timeout' | null = null;
   private roomCode: string | null = null;
   private setup = 'Classic';
   private lastState: Extract<ServerMessage, { type: 'state' }> | null = null;
@@ -64,9 +87,13 @@ export class GameController {
   private selected: { x: number; y: number } | null = null;
   private busy = false;
   private moveQueue: Extract<ServerMessage, { type: 'move' }>[] = [];
-  private joinIntent: { code?: string; setup: string; color: Color | 'random' } | null = null;
+  private joinIntent: { code?: string; setup: string; color: Color | 'random'; perMove: number } | null = null;
   private started = false;
   private toastId = 0;
+  private perMoveMs = 0;
+  private turnEndsAt: number | null = null;
+  private history: HistoryEntry[] = [];
+  private reviewIndex: number | null = null;
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
 
   // ---- external store API ---------------------------------------------------
@@ -78,12 +105,10 @@ export class GameController {
   getServerSnapshot = (): ViewState => INITIAL;
 
   private emit() {
-    const players = {
-      red: this.playerView('red'),
-      silver: this.playerView('silver'),
-    };
+    const players = { red: this.playerView('red'), silver: this.playerView('silver') };
     const seated = this.lastState?.seated;
-    const waiting = !this.spectator && this.screenIsGame() && !!seated && (!seated.red || !seated.silver);
+    const both = !!seated?.red && !!seated?.silver;
+    const waiting = !this.spectator && this.screenIsGame() && !!seated && !both;
     this.snapshot = {
       screen: this.screenIsGame() ? 'game' : 'lobby',
       connected: this.snapshot.connected,
@@ -94,11 +119,28 @@ export class GameController {
       spectator: this.spectator,
       turn: this.turn,
       winner: this.winner,
+      overReason: this.overReason,
       waiting,
+      bothSeated: both,
       players,
+      perMoveMs: this.perMoveMs,
+      turnEndsAt: this.turnEndsAt,
+      moves: Math.max(0, this.history.length - 1),
+      reviewIndex: this.reviewIndex,
+      reviewLabel: this.reviewLabelFor(),
       toast: this.snapshot.toast,
     };
     for (const cb of this.listeners) cb();
+  }
+
+  private reviewLabelFor(): string | null {
+    if (this.reviewIndex == null) return null;
+    if (this.reviewIndex === 0) return 'Starting position';
+    const h = this.history[this.reviewIndex];
+    if (!h || !h.action || !h.by) return `Move ${this.reviewIndex}`;
+    const verb = h.action.type === 'move' ? 'moved' : 'rotated';
+    const cap = colorName(h.by).slice(0, 1) + colorName(h.by).slice(1);
+    return `Move ${this.reviewIndex}/${this.history.length - 1} · ${cap} ${verb}`;
   }
 
   private screenGame = false;
@@ -146,11 +188,11 @@ export class GameController {
     if (!this.playerName || this.playerName === 'Player') this.playerName = this.getStoredName() || 'Player';
   }
 
-  start(opts: { code?: string; setup?: string; color?: Color | 'random' }) {
+  start(opts: { code?: string; setup?: string; color?: Color | 'random'; perMove?: number }) {
     if (this.started) return;
     this.started = true;
     this.ensureIdentity();
-    this.joinIntent = { color: 'random', setup: 'Classic', ...opts };
+    this.joinIntent = { color: 'random', setup: 'Classic', perMove: 0, ...opts };
     this.screenGame = true;
     this.emit();
 
@@ -163,6 +205,7 @@ export class GameController {
         code: this.joinIntent!.code,
         setup: this.joinIntent!.setup,
         color: this.joinIntent!.color,
+        perMove: this.joinIntent!.perMove,
       });
     });
     this.net.on('message', (m) => this.onMessage(m));
@@ -177,10 +220,11 @@ export class GameController {
   attach(root: HTMLElement): () => void {
     const renderer = new Renderer(root);
     this.renderer = renderer;
+    renderer.flip = this.myColor === 'red';
     const ro = new ResizeObserver(() => renderer.resize());
     ro.observe(root);
     renderer.resize();
-    if (this.board) renderer.setBoard(this.board, { flip: this.myColor === 'red' });
+    this.renderDisplayed();
     renderer.fxCanvas.addEventListener('pointerdown', this.onPointerBound);
 
     return () => {
@@ -191,43 +235,88 @@ export class GameController {
     };
   }
 
+  // Render whatever should currently be shown (a reviewed position, or live).
+  private renderDisplayed() {
+    const r = this.renderer;
+    if (!r) return;
+    if (this.reviewIndex != null && this.history[this.reviewIndex]) {
+      const h = this.history[this.reviewIndex];
+      r.setBoard(h.board, { flip: this.myColor === 'red' });
+      r.setReviewMark(this.reviewIndex > 0 ? h.action : null);
+    } else if (this.board) {
+      r.setBoard(this.board, { flip: this.myColor === 'red' });
+      r.setReviewMark(null);
+    }
+  }
+
   // ---- message handling -----------------------------------------------------
   private onMessage(msg: ServerMessage) {
     switch (msg.type) {
       case 'joined':
         this.roomCode = msg.code;
         this.myColor = msg.you;
-        this.spectator = msg.spectator;
+        this.spectator = !!msg.spectator;
         if (typeof window !== 'undefined') {
           window.history.replaceState(null, '', `${window.location.pathname}?game=${msg.code}`);
         }
-        this.applyPerspective();
+        if (this.renderer) this.renderer.flip = this.myColor === 'red';
+        this.renderDisplayed();
         this.emit();
         break;
       case 'state':
         this.lastState = msg;
+        this.perMoveMs = msg.perMoveMs;
+        this.turnEndsAt = msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
+        if (this.history.length === 0) this.history = [{ board: msg.board, action: null, by: null, removed: null }];
         if (!this.busy) {
           this.turn = msg.turn;
           this.winner = msg.winner;
+          if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
           this.board = msg.board;
-          this.renderer?.setBoard(msg.board, { flip: this.myColor === 'red' });
+          if (this.reviewIndex == null) this.renderDisplayed();
         }
         this.emit();
         break;
       case 'move':
-        this.moveQueue.push(msg);
-        void this.runQueue();
+        this.history.push({ board: msg.board, action: msg.action, by: msg.by, removed: msg.removed });
+        this.perMoveMs = msg.perMoveMs;
+        this.turnEndsAt = msg.winner ? null : msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
+        if (msg.winner) this.overReason = 'pharaoh';
+        if (this.reviewIndex != null) {
+          // reviewing history: apply silently, keep the reviewed board on screen
+          this.board = msg.board;
+          this.turn = msg.turn;
+          this.winner = msg.winner;
+          this.emit();
+        } else {
+          this.moveQueue.push(msg);
+          void this.runQueue();
+        }
+        break;
+      case 'timeout':
+        this.winner = msg.winner;
+        this.overReason = 'timeout';
+        this.turnEndsAt = null;
+        this.selected = null;
+        this.renderer?.clearSelection();
+        this.emit();
         break;
       case 'rematch':
         this.winner = null;
+        this.overReason = null;
+        this.turnEndsAt = null;
         this.selected = null;
+        this.history = [];
+        this.reviewIndex = null;
         this.renderer?.clearSelection();
+        this.renderer?.setReviewMark(null);
         this.emit();
         break;
       case 'reseat':
         this.myColor = msg.you;
         this.spectator = !msg.you;
-        this.applyPerspective();
+        if (this.renderer) this.renderer.flip = this.myColor === 'red';
+        this.renderDisplayed();
         this.emit();
         break;
       case 'error':
@@ -236,10 +325,6 @@ export class GameController {
       case 'chat':
         break;
     }
-  }
-
-  private applyPerspective() {
-    if (this.renderer && this.board) this.renderer.setBoard(this.board, { flip: this.myColor === 'red' });
   }
 
   private async runQueue(): Promise<void> {
@@ -256,7 +341,7 @@ export class GameController {
 
   private async processMove(msg: Extract<ServerMessage, { type: 'move' }>) {
     const r = this.renderer;
-    if (r && this.board) {
+    if (r && this.board && this.reviewIndex == null) {
       const start = this.board;
       const pre = applyMoveOnly(start, msg.action);
       await r.animatePieceAction(msg.action, start, pre);
@@ -272,10 +357,39 @@ export class GameController {
     this.emit();
   }
 
+  // ---- move-history review (view-only; no undo) -----------------------------
+  reviewPrev() {
+    if (this.history.length <= 1) return;
+    const from = this.reviewIndex == null ? this.history.length - 1 : this.reviewIndex;
+    this.enterReview(Math.max(0, from - 1));
+  }
+  reviewNext() {
+    if (this.reviewIndex == null) return;
+    const next = this.reviewIndex + 1;
+    if (next >= this.history.length - 1) this.reviewLive();
+    else this.enterReview(next);
+  }
+  reviewLive() {
+    this.reviewIndex = null;
+    this.renderDisplayed();
+    this.emit();
+  }
+  private enterReview(idx: number) {
+    this.reviewIndex = idx;
+    this.selected = null;
+    this.renderer?.clearSelection();
+    this.renderDisplayed();
+    this.emit();
+  }
+
   // ---- input ----------------------------------------------------------------
   private onPointer(e: PointerEvent) {
     const r = this.renderer;
     if (!r || !this.board) return;
+    if (this.reviewIndex != null) {
+      this.toast('Return to the live game to move');
+      return;
+    }
     if (this.busy || this.spectator || this.winner) return;
     const pick = r.pick(e.clientX, e.clientY);
     if (!pick) return this.deselect();

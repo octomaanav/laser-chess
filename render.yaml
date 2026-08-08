@@ -23,3 +23,7 @@ services:
       # Your admin password — Render will prompt you to enter this (kept secret, not committed).
       - key: ADMIN_PASSWORD
         sync: false
+      # Optional: a Postgres URL (e.g. free Neon/Supabase) to persist setups + live games
+      # across redeploys. Leave blank to keep games in memory. Tables auto-create on boot.
+      - key: DATABASE_URL
+        sync: false

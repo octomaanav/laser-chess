@@ -6,6 +6,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { getStore } from './store';
 
 export const COOKIE = 'lc_admin';
 const DEFAULT_PASSWORD = 'laserchess';
@@ -36,42 +37,29 @@ export function checkPassword(password: string): boolean {
   return crypto.timingSafeEqual(a, b);
 }
 
-// ---- session secret (persisted, random) -----------------------------------
+// ---- session secret (durable, via the Store) ------------------------------
 let cachedSecret: string | null = null;
-function getSecret(): string {
+async function getSecret(): Promise<string> {
   if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
   if (cachedSecret) return cachedSecret;
-  const f = path.join(process.cwd(), 'data', 'adminSecret.json');
-  try {
-    const s = JSON.parse(fs.readFileSync(f, 'utf8')).sessionSecret;
-    if (s) return (cachedSecret = s);
-  } catch {
-    /* generate below */
-  }
-  cachedSecret = crypto.randomBytes(32).toString('hex');
-  try {
-    fs.mkdirSync(path.dirname(f), { recursive: true });
-    fs.writeFileSync(f, JSON.stringify({ sessionSecret: cachedSecret }, null, 2));
-  } catch {
-    /* ignore — falls back to in-memory secret for this run */
-  }
+  cachedSecret = await getStore().getSecret();
   return cachedSecret;
 }
 
 // ---- signed session cookie ------------------------------------------------
 const b64url = (s: string) => Buffer.from(s).toString('base64url');
-const hmac = (payload: string) => crypto.createHmac('sha256', getSecret()).update(payload).digest('base64url');
+const hmac = async (payload: string) => crypto.createHmac('sha256', await getSecret()).update(payload).digest('base64url');
 
-export function signSession(email: string): string {
+export async function signSession(email: string): Promise<string> {
   const payload = b64url(JSON.stringify({ email, exp: Date.now() + MAX_AGE_S * 1000 }));
-  return `${payload}.${hmac(payload)}`;
+  return `${payload}.${await hmac(payload)}`;
 }
 
-export function verifySession(token: string | undefined | null): { email: string } | null {
+export async function verifySession(token: string | undefined | null): Promise<{ email: string } | null> {
   if (!token) return null;
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
-  const expected = hmac(payload);
+  const expected = await hmac(payload);
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;

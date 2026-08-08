@@ -233,6 +233,32 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
 .legend .chip { width: 10px; height: 10px; border-radius: 3px; flex: none; transform: translateY(1px); }
 .legend .hint { font-size: 12px; color: var(--teal-ink); margin: 12px 0 0; line-height: 1.5; }
 
+/* ---------------- Turn-coloured background ---------------- */
+#game { transition: background 0.5s ease; }
+#game.turn-silver { background: radial-gradient(1100px 560px at 50% -10%, rgba(47, 176, 171, 0.18), transparent) no-repeat, var(--bg); }
+#game.turn-red { background: radial-gradient(1100px 560px at 50% -10%, rgba(239, 90, 64, 0.16), transparent) no-repeat, var(--bg); }
+
+/* ---------------- Move timer ---------------- */
+.clock {
+  font-family: var(--font-display); font-weight: 700; font-size: 15px;
+  padding: 6px 13px; border-radius: 999px; background: #fff; border: 2px solid var(--line);
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.clock.low { color: #fff; background: var(--coral); border-color: var(--coral); animation: pop 1s ease-in-out infinite; }
+
+/* ---------------- Move history / review ---------------- */
+.review-banner {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 6;
+  background: rgba(79, 131, 255, 0.14); border: 2px solid rgba(79, 131, 255, 0.5); color: #2b4db3;
+  padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 10px; white-space: nowrap;
+}
+.linkbtn { background: none; border: none; color: #2b4db3; font-weight: 800; cursor: pointer; text-decoration: underline; font-size: 13px; }
+.review-panel .review-row { display: flex; align-items: center; gap: 8px; }
+.review-label { flex: 1; text-align: center; font-size: 13px; font-weight: 600; color: var(--ink); }
+.btn.nav { padding: 8px 12px; font-size: 14px; line-height: 1; }
+.live-btn { width: 100%; margin-top: 8px; color: var(--coral-ink); border-color: rgba(239, 90, 64, 0.4); }
+
 /* ---------------- Overlay ---------------- */
 .overlay {
   position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
@@ -285,10 +311,10 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
   .side .panel { flex: 1; min-width: 150px; }
   .side .legend { display: none; }
 
-  /* the "waiting" banner flows in-line (no overlap/overflow) on small screens */
-  .waiting {
+  /* the "waiting"/"review" banners flow in-line (no overlap/overflow) on small screens */
+  .waiting, .review-banner {
     position: static; transform: none; left: auto; margin: 0;
-    white-space: normal; text-align: center;
+    white-space: normal; text-align: center; justify-content: center;
   }
 }
 

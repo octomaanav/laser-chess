@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color } from '@/game/types';
 import { opposite } from '@/game/engine';
@@ -12,8 +13,9 @@ export default function GamePlay({ controller, view }: { controller: GameControl
 
   const turnText = winner ? `${colorName(winner)} wins` : yours ? 'Your move' : `${colorName(turn)} to move`;
   const turnClass = `turn ${winner ?? turn}${yours ? ' you' : ''}`;
+  const reviewing = view.reviewIndex != null;
 
-  // Board renders with my colour at the bottom (spectators see silver at bottom).
+  // Board renders with my colour at the bottom (spectators see teal at bottom).
   const bottomColor: Color = myColor ?? 'silver';
   const topColor = opposite(bottomColor);
 
@@ -30,13 +32,14 @@ export default function GamePlay({ controller, view }: { controller: GameControl
   };
 
   return (
-    <section id="game" className="screen">
+    <section id="game" className={`screen turn-${winner ?? turn}`}>
       <header className="topbar">
         <div className="brand-row">
           <LogoMark size={24} />
           <span className="brand">Laser Chess</span>
         </div>
         <div className={turnClass}>{view.connected ? turnText : 'Connecting…'}</div>
+        {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
         <div className="right">
           <span className={`badge ${spectator ? 'spec' : myColor ?? 'spec'}`}>
             {spectator ? 'Spectating' : `You: ${colorName(myColor as Color)}`}
@@ -56,23 +59,53 @@ export default function GamePlay({ controller, view }: { controller: GameControl
               <b>Waiting for an opponent…</b> Share your link to invite someone.
             </div>
           )}
+          {reviewing && (
+            <div className="review-banner">
+              🔍 {view.reviewLabel}
+              <button className="linkbtn" onClick={() => controller.reviewLive()}>
+                Back to live
+              </button>
+            </div>
+          )}
           <Board controller={controller} />
           <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
         </div>
 
         <aside className="side">
-          <div className="panel share">
-            <div className="panel-title">Invite a friend</div>
-            <div className="share-row">
-              <input readOnly value={view.shareLink} onClick={(e) => (e.target as HTMLInputElement).select()} />
-              <button className="btn" onClick={copyLink}>
-                Copy
-              </button>
+          {!spectator && !view.bothSeated && (
+            <div className="panel share">
+              <div className="panel-title">Invite a friend</div>
+              <div className="share-row">
+                <input readOnly value={view.shareLink} onClick={(e) => (e.target as HTMLInputElement).select()} />
+                <button className="btn" onClick={copyLink}>
+                  Copy
+                </button>
+              </div>
+              <div className="code-line">
+                Room code: <b>{view.roomCode ?? '—'}</b>
+              </div>
             </div>
-            <div className="code-line">
-              Room code: <b>{view.roomCode ?? '—'}</b>
+          )}
+
+          {view.moves > 0 && (
+            <div className="panel review-panel">
+              <div className="panel-title">Moves · {view.moves}</div>
+              <div className="review-row">
+                <button className="btn nav" onClick={() => controller.reviewPrev()} title="previous move">
+                  ◀
+                </button>
+                <span className="review-label">{view.reviewLabel ?? 'Live'}</span>
+                <button className="btn nav" onClick={() => controller.reviewNext()} disabled={!reviewing} title="next move">
+                  ▶
+                </button>
+              </div>
+              {reviewing && (
+                <button className="btn tiny live-btn" onClick={() => controller.reviewLive()}>
+                  ● Back to live
+                </button>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="panel legend">
             <div className="panel-title">Pieces</div>
@@ -118,6 +151,23 @@ export default function GamePlay({ controller, view }: { controller: GameControl
   );
 }
 
+function MoveTimer({ endsAt }: { endsAt: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const ms = Math.max(0, endsAt - now);
+  const total = Math.ceil(ms / 1000);
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return (
+    <span className={`clock${ms <= 10000 ? ' low' : ''}`}>
+      ⏱ {mm}:{String(ss).padStart(2, '0')}
+    </span>
+  );
+}
+
 function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerView; active: boolean; you: boolean }) {
   const name = info.seated ? info.name || colorName(color) : 'Waiting…';
   return (
@@ -127,17 +177,29 @@ function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerVie
       </span>
       <span className="nm">{name}</span>
       {you && <span className="tag">(you)</span>}
-      {info.seated && <span className="conn" data-on={info.online} style={{ background: info.online ? '#37b26a' : '#c9bfa8' }} />}
+      {info.seated && <span className="conn" style={{ background: info.online ? '#37b26a' : '#c9bfa8' }} />}
     </div>
   );
 }
 
 function WinOverlay({ controller, view }: { controller: GameController; view: ViewState }) {
-  const { winner, spectator, myColor } = view;
+  const { winner, spectator, myColor, overReason } = view;
   const won = !spectator && winner === myColor;
+  const byTimeout = overReason === 'timeout';
+  const loser = colorName(opposite(winner!));
   const emoji = spectator ? '🎉' : won ? '🏆' : '💥';
   const title = spectator ? `${colorName(winner!)} wins!` : won ? 'Victory!' : 'Defeat';
-  const sub = spectator ? 'The game is over.' : won ? 'You struck the enemy Pharaoh.' : 'Your Pharaoh was hit.';
+  const sub = spectator
+    ? byTimeout
+      ? `${loser} ran out of time.`
+      : 'The game is over.'
+    : won
+      ? byTimeout
+        ? 'Your opponent ran out of time.'
+        : 'You struck the enemy Pharaoh.'
+      : byTimeout
+        ? 'You ran out of time.'
+        : 'Your Pharaoh was hit.';
   return (
     <div className="overlay">
       <div className="ov-card">
