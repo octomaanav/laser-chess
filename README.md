@@ -69,10 +69,12 @@ server.mts     custom server: Next request handler + WebSocket upgrade routing
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:3030
 ```
 
-Open the link in two browser tabs to play both sides.
+To play both sides locally, open the game in a normal window **and** an incognito
+window (each needs its own identity — two tabs in the same window share one player,
+which is what lets you close/reopen a tab and reconnect to your seat).
 
 ## How to play
 

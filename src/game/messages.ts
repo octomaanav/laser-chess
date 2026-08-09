@@ -32,6 +32,8 @@ export type ServerMessage =
       online: PlayerSlots;
       perMoveMs: number; // 0 = no per-move timer
       turnEndsIn: number | null; // ms left for the current turn, or null if the clock isn't running
+      forfeitOf: Color | null; // a disconnected player who will forfeit, or null
+      forfeitEndsIn: number | null; // ms until that forfeit, or null
     }
   | {
       type: 'move';
@@ -46,6 +48,7 @@ export type ServerMessage =
       turnEndsIn: number | null;
     }
   | { type: 'timeout'; winner: Color } // a player ran out of time
+  | { type: 'forfeit'; winner: Color } // opponent disconnected and didn't return in time
   | { type: 'rematch' }
   | { type: 'reseat'; you: Color | null }
   | { type: 'error'; message: string }

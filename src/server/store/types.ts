@@ -1,6 +1,6 @@
 // Storage abstraction. Two backends implement this: a file backend (local dev,
 // zero setup) and a Postgres backend (production, via DATABASE_URL).
-import type { GameState, SetupDef } from '../../game/types';
+import type { Color, GameState, SetupDef } from '../../game/types';
 
 export interface PersistedRoom {
   code: string;
@@ -8,6 +8,8 @@ export interface PersistedRoom {
   seats: { red: string | null; silver: string | null };
   names: { red: string | null; silver: string | null };
   perMoveMs: number;
+  forfeitColor?: Color | null; // a disconnected player with a running forfeit clock
+  forfeitDeadline?: number | null; // epoch ms the forfeit fires (survives restart)
 }
 
 export interface Store {
