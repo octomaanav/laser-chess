@@ -23,12 +23,14 @@ export interface ViewState {
   spectator: boolean;
   turn: Color;
   winner: Color | null;
-  overReason: 'pharaoh' | 'timeout' | null;
+  overReason: 'pharaoh' | 'timeout' | 'forfeit' | null;
   waiting: boolean;
   bothSeated: boolean;
   players: { red: PlayerView; silver: PlayerView };
   perMoveMs: number;
   turnEndsAt: number | null; // client epoch ms when the current turn's clock expires
+  forfeitOf: Color | null; // a disconnected player about to forfeit
+  forfeitEndsAt: number | null; // client epoch ms when that forfeit fires
   moves: number; // number of moves played
   reviewIndex: number | null; // null = live; otherwise index into move history
   reviewLabel: string | null;
@@ -51,6 +53,8 @@ const INITIAL: ViewState = {
   players: { red: blank(), silver: blank() },
   perMoveMs: 0,
   turnEndsAt: null,
+  forfeitOf: null,
+  forfeitEndsAt: null,
   moves: 0,
   reviewIndex: null,
   reviewLabel: null,
@@ -79,7 +83,7 @@ export class GameController {
   private spectator = false;
   private turn: Color = 'silver';
   private winner: Color | null = null;
-  private overReason: 'pharaoh' | 'timeout' | null = null;
+  private overReason: 'pharaoh' | 'timeout' | 'forfeit' | null = null;
   private roomCode: string | null = null;
   private setup = 'Classic';
   private lastState: Extract<ServerMessage, { type: 'state' }> | null = null;
@@ -92,6 +96,8 @@ export class GameController {
   private toastId = 0;
   private perMoveMs = 0;
   private turnEndsAt: number | null = null;
+  private forfeitOf: Color | null = null;
+  private forfeitEndsAt: number | null = null;
   private history: HistoryEntry[] = [];
   private reviewIndex: number | null = null;
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
@@ -125,6 +131,8 @@ export class GameController {
       players,
       perMoveMs: this.perMoveMs,
       turnEndsAt: this.turnEndsAt,
+      forfeitOf: this.forfeitOf,
+      forfeitEndsAt: this.forfeitEndsAt,
       moves: Math.max(0, this.history.length - 1),
       reviewIndex: this.reviewIndex,
       reviewLabel: this.reviewLabelFor(),
@@ -179,13 +187,26 @@ export class GameController {
 
   private ensureIdentity() {
     if (typeof window === 'undefined') return;
-    let id = window.sessionStorage.getItem('lc_pid');
+    // Persistent (localStorage) so a closed/reopened tab keeps the same identity
+    // and can reclaim its seat. Two players in one browser need separate profiles
+    // (e.g. a normal + an incognito window) since they'd share this id.
+    let id = window.localStorage.getItem('lc_pid');
     if (!id) {
       id = 'u' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      window.sessionStorage.setItem('lc_pid', id);
+      window.localStorage.setItem('lc_pid', id);
     }
     this.playerId = id;
     if (!this.playerName || this.playerName === 'Player') this.playerName = this.getStoredName() || 'Player';
+  }
+
+  // Have we been seated in this room before (from this browser)? Used to decide
+  // whether to auto-rejoin on returning to a /?game=CODE link.
+  wasInRoom(code: string): boolean {
+    if (typeof window === 'undefined' || !code) return false;
+    return window.localStorage.getItem('lc_room_' + code.toUpperCase()) != null;
+  }
+  private rememberRoom(code: string, color: Color) {
+    if (typeof window !== 'undefined') window.localStorage.setItem('lc_room_' + code.toUpperCase(), color);
   }
 
   start(opts: { code?: string; setup?: string; color?: Color | 'random'; perMove?: number }) {
@@ -256,6 +277,7 @@ export class GameController {
         this.roomCode = msg.code;
         this.myColor = msg.you;
         this.spectator = !!msg.spectator;
+        if (msg.you) this.rememberRoom(msg.code, msg.you); // enables seamless auto-rejoin later
         if (typeof window !== 'undefined') {
           window.history.replaceState(null, '', `${window.location.pathname}?game=${msg.code}`);
         }
@@ -267,6 +289,8 @@ export class GameController {
         this.lastState = msg;
         this.perMoveMs = msg.perMoveMs;
         this.turnEndsAt = msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
+        this.forfeitOf = msg.forfeitOf;
+        this.forfeitEndsAt = msg.forfeitEndsIn != null ? Date.now() + msg.forfeitEndsIn : null;
         if (this.history.length === 0) this.history = [{ board: msg.board, action: null, by: null, removed: null }];
         if (!this.busy) {
           this.turn = msg.turn;
@@ -301,10 +325,20 @@ export class GameController {
         this.renderer?.clearSelection();
         this.emit();
         break;
+      case 'forfeit':
+        this.winner = msg.winner;
+        this.overReason = 'forfeit';
+        this.turnEndsAt = null;
+        this.selected = null;
+        this.renderer?.clearSelection();
+        this.emit();
+        break;
       case 'rematch':
         this.winner = null;
         this.overReason = null;
         this.turnEndsAt = null;
+        this.forfeitOf = null;
+        this.forfeitEndsAt = null;
         this.selected = null;
         this.history = [];
         this.reviewIndex = null;

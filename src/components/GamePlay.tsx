@@ -18,6 +18,9 @@ export default function GamePlay({ controller, view }: { controller: GameControl
   // Board renders with my colour at the bottom (spectators see teal at bottom).
   const bottomColor: Color = myColor ?? 'silver';
   const topColor = opposite(bottomColor);
+  // Opponent was here but dropped mid-game — show a reconnect notice.
+  const oppOffline =
+    !spectator && view.bothSeated && !winner && view.players[topColor].seated && !view.players[topColor].online;
 
   const copyLink = async () => {
     try {
@@ -59,6 +62,16 @@ export default function GamePlay({ controller, view }: { controller: GameControl
               <b>Waiting for an opponent…</b> Share your link to invite someone.
             </div>
           )}
+          {!winner && view.forfeitOf && view.forfeitEndsAt != null ? (
+            <ForfeitBanner
+              label={spectator ? colorName(view.forfeitOf) : view.forfeitOf === myColor ? 'You' : 'Your opponent'}
+              endsAt={view.forfeitEndsAt}
+            />
+          ) : oppOffline ? (
+            <div className="waiting disconnected">
+              <b>Opponent disconnected</b> — waiting to reconnect…
+            </div>
+          ) : null}
           {reviewing && (
             <div className="review-banner">
               🔍 {view.reviewLabel}
@@ -168,6 +181,20 @@ function MoveTimer({ endsAt }: { endsAt: number }) {
   );
 }
 
+function ForfeitBanner({ label, endsAt }: { label: string; endsAt: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const secs = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  return (
+    <div className="waiting disconnected">
+      <b>{label} disconnected.</b> Forfeit in {secs}s unless they reconnect…
+    </div>
+  );
+}
+
 function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerView; active: boolean; you: boolean }) {
   const name = info.seated ? info.name || colorName(color) : 'Waiting…';
   return (
@@ -186,20 +213,27 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
   const { winner, spectator, myColor, overReason } = view;
   const won = !spectator && winner === myColor;
   const byTimeout = overReason === 'timeout';
+  const byForfeit = overReason === 'forfeit';
   const loser = colorName(opposite(winner!));
   const emoji = spectator ? '🎉' : won ? '🏆' : '💥';
   const title = spectator ? `${colorName(winner!)} wins!` : won ? 'Victory!' : 'Defeat';
   const sub = spectator
     ? byTimeout
       ? `${loser} ran out of time.`
-      : 'The game is over.'
+      : byForfeit
+        ? `${loser} disconnected.`
+        : 'The game is over.'
     : won
       ? byTimeout
         ? 'Your opponent ran out of time.'
-        : 'You struck the enemy Pharaoh.'
+        : byForfeit
+          ? 'Your opponent left the game.'
+          : 'You struck the enemy Pharaoh.'
       : byTimeout
         ? 'You ran out of time.'
-        : 'Your Pharaoh was hit.';
+        : byForfeit
+          ? 'You were disconnected too long.'
+          : 'Your Pharaoh was hit.';
   return (
     <div className="overlay">
       <div className="ov-card">

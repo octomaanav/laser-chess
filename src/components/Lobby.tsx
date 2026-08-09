@@ -21,6 +21,8 @@ export default function Lobby({ controller, view }: { controller: GameController
     if (g) {
       setCode(g);
       setInvited(true);
+      // Returning to a game this browser already played → reconnect seamlessly.
+      if (controller.wasInRoom(g)) controller.start({ code: g });
     }
     fetch('/api/setups')
       .then((r) => r.json())

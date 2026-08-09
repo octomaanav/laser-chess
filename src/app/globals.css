@@ -218,6 +218,18 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
   background: rgba(245, 183, 63, 0.16); border: 2px solid rgba(245, 183, 63, 0.55);
   color: #9a6b13; padding: 8px 16px; border-radius: 12px; font-size: 13px; white-space: nowrap; font-weight: 500;
 }
+.waiting.disconnected {
+  position: static;
+  transform: none;
+  align-self: center;
+  max-width: 92%;
+  white-space: normal;
+  text-align: center;
+  margin: 2px 0 12px; /* breathing room before the board */
+  background: rgba(239, 90, 64, 0.15);
+  border-color: rgba(239, 90, 64, 0.5);
+  color: #b93a24;
+}
 
 .side { width: 270px; display: flex; flex-direction: column; gap: 14px; overflow: auto; }
 .panel { background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 15px; }

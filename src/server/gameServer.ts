@@ -25,9 +25,16 @@ interface Room {
   perMoveMs: number; // 0 = no per-move timer
   turnStartedAt: number | null;
   turnTimer: ReturnType<typeof setTimeout> | null;
+  forfeitTimer: ReturnType<typeof setTimeout> | null;
+  forfeitColor: Color | null; // who is about to forfeit (the disconnected player)
+  forfeitDeadline: number | null; // epoch ms when the forfeit fires
 }
 
 const rooms = new Map<string, Room>();
+
+// If a seated player disconnects while their opponent is present, they have this
+// long to return before forfeiting the game. Override with FORFEIT_MS.
+const DISCONNECT_FORFEIT_MS = Number(process.env.FORFEIT_MS) || 90_000;
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function makeCode(): string {
@@ -48,12 +55,23 @@ function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
     perMoveMs,
     turnStartedAt: null,
     turnTimer: null,
+    forfeitTimer: null,
+    forfeitColor: null,
+    forfeitDeadline: null,
   };
 }
 
 // ---- persistence (so games survive a restart / redeploy / sleep) -----------
 function toPersisted(room: Room): PersistedRoom {
-  return { code: room.code, game: room.game, seats: room.seats, names: room.names, perMoveMs: room.perMoveMs };
+  return {
+    code: room.code,
+    game: room.game,
+    seats: room.seats,
+    names: room.names,
+    perMoveMs: room.perMoveMs,
+    forfeitColor: room.forfeitColor,
+    forfeitDeadline: room.forfeitDeadline,
+  };
 }
 function persist(room: Room) {
   void getStore()
@@ -70,6 +88,9 @@ function hydrateRoom(p: PersistedRoom): Room {
     perMoveMs: p.perMoveMs ?? 0,
     turnStartedAt: null,
     turnTimer: null,
+    forfeitTimer: null,
+    forfeitColor: p.forfeitColor ?? null,
+    forfeitDeadline: p.forfeitDeadline ?? null,
   };
 }
 
@@ -90,6 +111,8 @@ function stopTurnClock(room: Room) {
 function startTurnClock(room: Room) {
   stopTurnClock(room);
   if (room.perMoveMs <= 0 || room.game.winner || !bothSeated(room)) return;
+  const on = presence(room);
+  if (!on.red || !on.silver) return; // don't run the move clock while a player is offline
   room.turnStartedAt = Date.now();
   room.turnTimer = setTimeout(() => onTimeout(room), room.perMoveMs);
 }
@@ -103,6 +126,51 @@ function onTimeout(room: Room) {
   stopTurnClock(room);
   persist(room);
   broadcast(room, { type: 'timeout', winner: room.game.winner });
+  broadcast(room, snapshot(room));
+}
+
+// ---- disconnect handling / forfeit ----------------------------------------
+function clearForfeit(room: Room) {
+  if (room.forfeitTimer) clearTimeout(room.forfeitTimer);
+  room.forfeitTimer = null;
+  room.forfeitColor = null;
+  room.forfeitDeadline = null;
+}
+// Arm the OS timer to fire at the (already-decided) forfeit deadline. Idempotent —
+// safe to call on every presence change / after rehydrating from the store.
+function armForfeit(room: Room) {
+  if (room.forfeitTimer) clearTimeout(room.forfeitTimer);
+  room.forfeitTimer = null;
+  if (room.forfeitColor == null || room.forfeitDeadline == null) return;
+  room.forfeitTimer = setTimeout(() => doForfeit(room), Math.max(0, room.forfeitDeadline - Date.now()));
+}
+// Decide whether a forfeit countdown should be running — WITHOUT resetting one that's
+// already ticking. The deadline is anchored to when the player first went offline, so
+// the opponent reloading (or the server restarting) never restarts the clock.
+function refreshForfeit(room: Room) {
+  if (room.game.winner || !bothSeated(room)) return clearForfeit(room);
+  const online = presence(room);
+  if (room.forfeitColor) {
+    if (online[room.forfeitColor]) clearForfeit(room); // they came back → cancel
+    else armForfeit(room); // still gone → keep the existing deadline
+    return;
+  }
+  // no countdown yet → start one for a seated player who is now offline
+  const offline: Color | null = !online.red && room.seats.red ? 'red' : !online.silver && room.seats.silver ? 'silver' : null;
+  if (!offline) return;
+  room.forfeitColor = offline;
+  room.forfeitDeadline = Date.now() + DISCONNECT_FORFEIT_MS;
+  armForfeit(room);
+}
+function doForfeit(room: Room) {
+  const loser = room.forfeitColor;
+  room.forfeitTimer = null;
+  if (room.game.winner || !loser || presence(room)[loser]) return clearForfeit(room);
+  room.game.winner = opposite(loser);
+  clearForfeit(room);
+  stopTurnClock(room);
+  persist(room);
+  broadcast(room, { type: 'forfeit', winner: room.game.winner });
   broadcast(room, snapshot(room));
 }
 
@@ -125,6 +193,8 @@ function snapshot(room: Room): ServerMessage {
     online: presence(room),
     perMoveMs: room.perMoveMs,
     turnEndsIn: turnEndsIn(room),
+    forfeitOf: room.forfeitColor,
+    forfeitEndsIn: room.forfeitColor && room.forfeitDeadline ? Math.max(0, room.forfeitDeadline - Date.now()) : null,
   };
 }
 
@@ -165,16 +235,23 @@ export function createGameWss(): WebSocketServer {
       const room = ws.room;
       if (!room) return;
       room.clients.delete(ws);
-      // Pause the clock when a seated player drops (they shouldn't lose while gone);
-      // it resumes fresh when they reconnect.
+      // Pause the move clock while a player is gone (they shouldn't lose on it).
       if (ws.color) stopTurnClock(room);
-      if (room.clients.size === 0) {
-        stopTurnClock(room);
+      // Start/keep the forfeit countdown (anchored to the first drop — never reset here),
+      // then persist so the deadline survives even a server restart.
+      refreshForfeit(room);
+      persist(room);
+      if (room.clients.size > 0) broadcast(room, snapshot(room));
+      else {
+        // no one connected → drop from memory after a while (the store row remains so the
+        // game can be rehydrated, forfeit deadline included, if someone returns)
         setTimeout(() => {
-          if (room.clients.size === 0) rooms.delete(room.code);
+          if (room.clients.size === 0) {
+            clearForfeit(room);
+            stopTurnClock(room);
+            rooms.delete(room.code);
+          }
         }, 10 * 60 * 1000);
-      } else {
-        broadcast(room, snapshot(room));
       }
     });
   });
@@ -259,6 +336,7 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
 
   // (Re)start the clock once a seat is taken and both players are present.
   if (color && bothSeated(room) && !room.game.winner) startTurnClock(room);
+  refreshForfeit(room); // a returning player cancels their own forfeit; keeps the opponent's ticking
 
   send(ws, { type: 'joined', code: room.code, you: color, spectator: !color });
   broadcast(room, snapshot(room));
