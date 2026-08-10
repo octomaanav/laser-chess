@@ -2,6 +2,10 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '@/client/useSession';
 import LogoMark from '@/components/LogoMark';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // First-run onboarding after an OAuth sign-in: let the new user choose their own
 // @username (pre-filled with a suggestion) instead of keeping the email-derived one.
@@ -48,44 +52,39 @@ export default function WelcomePage() {
     }
   };
 
-  if (loading) return <div className="gate"><div className="gate-loading">Setting up your account…</div></div>;
+  if (loading) return <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Setting up your account…</div>;
   if (!user) {
     if (typeof window !== 'undefined') window.location.href = '/';
     return null;
   }
 
   return (
-    <div className="gate">
-      <form className="lobby-card gate-card" onSubmit={finish}>
-        <div className="lobby-head">
-          <h1 className="logo">
-            <LogoMark size={30} /> Welcome!
-          </h1>
-        </div>
-        <p className="sub">Pick a username — this is how other players will find you. You can change it later in Account.</p>
-
-        <label className="field">
-          <span>Username</span>
-          <input
-            type="text"
-            autoFocus
-            maxLength={20}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="@handle"
-          />
-          <small className="field-hint">3–20 characters · letters, numbers, and underscores.</small>
-        </label>
-        <label className="field">
-          <span>Display name</span>
-          <input type="text" maxLength={24} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Shown in games" />
-        </label>
-
-        {err && <div className="save-msg err">{err}</div>}
-        <button className="btn primary big" type="submit" disabled={busy}>
-          {busy ? 'Saving…' : 'Continue'}
-        </button>
-      </form>
+    <div className="flex min-h-dvh items-center justify-center p-5">
+      <Card className="glow-primary w-full max-w-md border-border/70 bg-card/80 backdrop-blur">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-display text-2xl">
+            <LogoMark size={26} /> Welcome!
+          </CardTitle>
+          <CardDescription>Pick a username — this is how other players will find you. You can change it later in Account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={finish} className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" autoFocus maxLength={20} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="@handle" />
+              <p className="text-xs text-muted-foreground">3–20 characters · letters, numbers, and underscores.</p>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="display">Display name</Label>
+              <Input id="display" maxLength={24} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Shown in games" />
+            </div>
+            {err && <p className="text-sm font-medium text-destructive">{err}</p>}
+            <Button type="submit" className="glow-primary w-full" disabled={busy}>
+              {busy ? 'Saving…' : 'Continue'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

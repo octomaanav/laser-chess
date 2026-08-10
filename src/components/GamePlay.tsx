@@ -1,24 +1,52 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight, Clock, Copy, LogOut, Radio } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color } from '@/game/types';
 import { opposite } from '@/game/engine';
 import { colorName } from '@/lib/labels';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import Board from './Board';
 import LogoMark, { PersonIcon } from './LogoMark';
+import ThemeToggle from './ThemeToggle';
+
+// Full, static class strings per player color (Tailwind can't see interpolated names).
+const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
+  red: {
+    tint: 'border-player-red/40 bg-player-red/10 text-player-red',
+    seat: 'border-player-red/50 bg-player-red/10',
+    solid: 'bg-player-red',
+  },
+  silver: {
+    tint: 'border-player-teal/40 bg-player-teal/10 text-player-teal',
+    seat: 'border-player-teal/50 bg-player-teal/10',
+    solid: 'bg-player-teal',
+  },
+};
+const YOURS_TINT = 'border-laser/40 bg-laser/10 text-laser';
+
+const LEGEND = [
+  { color: '#f5b73f', name: 'Pharaoh', desc: 'protect it at all costs.' },
+  { color: 'var(--player-red)', name: 'Pyramid', desc: 'single mirror, deflects 90°.' },
+  { color: 'var(--player-teal)', name: 'Scarab', desc: 'double mirror, indestructible; can swap.' },
+  { color: '#64708a', name: 'Anubis', desc: 'shielded front, vulnerable behind.' },
+  { color: '#9aa6bd', name: 'Sphinx', desc: 'your laser; rotate only.' },
+];
 
 export default function GamePlay({ controller, view }: { controller: GameController; view: ViewState }) {
   const { myColor, spectator, turn, winner } = view;
   const yours = !spectator && turn === myColor && !winner;
 
   const turnText = winner ? `${colorName(winner)} wins` : yours ? 'Your move' : `${colorName(turn)} to move`;
-  const turnClass = `turn ${winner ?? turn}${yours ? ' you' : ''}`;
   const reviewing = view.reviewIndex != null;
 
-  // Board renders with my colour at the bottom (spectators see teal at bottom).
   const bottomColor: Color = myColor ?? 'silver';
   const topColor = opposite(bottomColor);
-  // Opponent was here but dropped mid-game — show a reconnect notice.
   const oppOffline =
     !spectator && view.bothSeated && !winner && view.players[topColor].seated && !view.players[topColor].online;
 
@@ -30,37 +58,47 @@ export default function GamePlay({ controller, view }: { controller: GameControl
       controller.toast('Copy failed — select and copy the link');
     }
   };
-  const leave = () => {
-    window.location.href = window.location.pathname;
-  };
+  const leave = () => (window.location.href = window.location.pathname);
+
+  const turnPill = winner ? PLAYER[winner].tint : yours ? YOURS_TINT : PLAYER[turn].tint;
 
   return (
-    <section id="game" className={`screen turn-${winner ?? turn}`}>
-      <header className="topbar">
-        <div className="brand-row">
-          <LogoMark size={24} />
-          <span className="brand">Laser Chess</span>
+    <section className="flex h-dvh flex-col overflow-hidden">
+      <header className="flex items-center gap-3 border-b border-border/70 px-4 py-2.5">
+        <a href="/" className="flex items-center gap-2 text-foreground">
+          <LogoMark size={22} />
+          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
+        </a>
+        <div className={cn('rounded-full border px-3 py-1 text-sm font-semibold', turnPill)}>
+          {view.connected ? turnText : 'Connecting…'}
         </div>
-        <div className={turnClass}>{view.connected ? turnText : 'Connecting…'}</div>
         {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
-        <div className="right">
-          <span className={`badge ${spectator ? 'spec' : myColor ?? 'spec'}`}>
-            {spectator ? 'Spectating' : `You: ${colorName(myColor as Color)}`}
-          </span>
-          <span className={`conn ${view.connected ? 'ok' : 'bad'}`} title="connection" />
-          <button className="btn tiny" onClick={leave}>
-            Leave
-          </button>
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
+          <Badge
+            variant="outline"
+            className={cn('font-medium', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
+          >
+            {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
+          </Badge>
+          <span
+            className={cn('size-2.5 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
+            title={view.connected ? 'connected' : 'disconnected'}
+          />
+          <Button variant="outline" size="sm" onClick={leave}>
+            <LogOut className="size-4" /> Leave
+          </Button>
         </div>
       </header>
 
-      <main className="play">
-        <div className="board-area">
+      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-2 p-3">
           <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
+
           {view.waiting && (
-            <div className="waiting">
+            <Banner tone="info">
               <b>Waiting for an opponent…</b> Share your link to invite someone.
-            </div>
+            </Banner>
           )}
           {!winner && view.forfeitOf && view.forfeitEndsAt != null ? (
             <ForfeitBanner
@@ -68,86 +106,65 @@ export default function GamePlay({ controller, view }: { controller: GameControl
               endsAt={view.forfeitEndsAt}
             />
           ) : oppOffline ? (
-            <div className="waiting disconnected">
+            <Banner tone="warn">
               <b>Opponent disconnected</b> — waiting to reconnect…
-            </div>
+            </Banner>
           ) : null}
+
           <Board controller={controller} />
           <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
         </div>
 
-        <aside className="side">
+        <aside className="flex shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/70 p-3 lg:w-80 lg:border-l lg:border-t-0">
           {!spectator && !view.bothSeated && (
-            <div className="panel share">
-              <div className="panel-title">Invite a friend</div>
-              <div className="share-row">
-                <input readOnly value={view.shareLink} onClick={(e) => (e.target as HTMLInputElement).select()} />
-                <button className="btn" onClick={copyLink}>
-                  Copy
-                </button>
+            <Card className="gap-3 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invite a friend</div>
+              <div className="flex gap-2">
+                <Input readOnly value={view.shareLink} onClick={(e) => (e.target as HTMLInputElement).select()} className="text-xs" />
+                <Button variant="secondary" size="sm" onClick={copyLink}>
+                  <Copy className="size-4" /> Copy
+                </Button>
               </div>
-              <div className="code-line">
-                Room code: <b>{view.roomCode ?? '—'}</b>
+              <div className="text-sm text-muted-foreground">
+                Room code: <b className="font-mono tracking-widest text-foreground">{view.roomCode ?? '—'}</b>
               </div>
-            </div>
+            </Card>
           )}
 
           {view.moves > 0 && (
-            <div className="panel review-panel">
-              <div className="panel-title">Moves · {view.moves}</div>
-              <div className="review-row">
-                <button className="btn nav" onClick={() => controller.reviewPrev()} title="previous move">
-                  ◀
-                </button>
-                <span className="review-label">{view.reviewLabel ?? 'Live'}</span>
-                <button className="btn nav" onClick={() => controller.reviewNext()} disabled={!reviewing} title="next move">
-                  ▶
-                </button>
+            <Card className="gap-3 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Moves · {view.moves}</div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => controller.reviewPrev()} title="previous move">
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <span className="flex-1 text-center text-xs text-muted-foreground">{view.reviewLabel ?? 'Live'}</span>
+                <Button variant="outline" size="icon" onClick={() => controller.reviewNext()} disabled={!reviewing} title="next move">
+                  <ChevronRight className="size-4" />
+                </Button>
               </div>
               {reviewing && (
-                <button className="btn tiny live-btn" onClick={() => controller.reviewLive()}>
-                  ● Back to live
-                </button>
+                <Button size="sm" className="w-full" onClick={() => controller.reviewLive()}>
+                  <Radio className="size-4" /> Back to live
+                </Button>
               )}
-            </div>
+            </Card>
           )}
 
-          <div className="panel legend">
-            <div className="panel-title">Pieces</div>
-            <ul>
-              <li>
-                <span className="chip" style={{ background: '#f5b73f' }} />
-                <span>
-                  <b>Pharaoh</b> — protect it at all costs.
-                </span>
-              </li>
-              <li>
-                <span className="chip" style={{ background: '#ef5a40' }} />
-                <span>
-                  <b>Pyramid</b> — single mirror, deflects 90°.
-                </span>
-              </li>
-              <li>
-                <span className="chip" style={{ background: '#2fb0ab' }} />
-                <span>
-                  <b>Scarab</b> — double mirror, indestructible; can swap.
-                </span>
-              </li>
-              <li>
-                <span className="chip" style={{ background: '#23262e' }} />
-                <span>
-                  <b>Anubis</b> — shielded front, vulnerable behind.
-                </span>
-              </li>
-              <li>
-                <span className="chip" style={{ background: '#8b8471' }} />
-                <span>
-                  <b>Sphinx</b> — your laser; rotate only.
-                </span>
-              </li>
+          <Card className="hidden gap-3 p-4 lg:flex">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pieces</div>
+            <ul className="flex flex-col gap-2 text-sm">
+              {LEGEND.map((p) => (
+                <li key={p.name} className="flex items-center gap-2.5">
+                  <span className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/15" style={{ background: p.color }} />
+                  <span className="text-muted-foreground">
+                    <b className="text-foreground">{p.name}</b> — {p.desc}
+                  </span>
+                </li>
+              ))}
             </ul>
-            <p className="hint">Tap a piece → tap a dot to move, or the ↻ handles to rotate.</p>
-          </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">Tap a piece → tap a dot to move, or the ↻ handles to rotate.</p>
+          </Card>
         </aside>
       </main>
 
@@ -167,9 +184,28 @@ function MoveTimer({ endsAt }: { endsAt: number }) {
   const mm = Math.floor(total / 60);
   const ss = total % 60;
   return (
-    <span className={`clock${ms <= 10000 ? ' low' : ''}`}>
-      ⏱ {mm}:{String(ss).padStart(2, '0')}
+    <span
+      className={cn(
+        'flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-sm font-semibold tabular-nums',
+        ms <= 10000 ? 'border-destructive/50 bg-destructive/10 text-destructive' : 'border-border bg-secondary text-foreground',
+      )}
+    >
+      <Clock className="size-3.5" />
+      {mm}:{String(ss).padStart(2, '0')}
     </span>
+  );
+}
+
+function Banner({ tone, children }: { tone: 'info' | 'warn'; children: React.ReactNode }) {
+  return (
+    <div
+      className={cn(
+        'w-full max-w-md rounded-lg border px-3 py-2 text-center text-sm',
+        tone === 'warn' ? 'border-destructive/40 bg-destructive/10 text-destructive' : 'border-laser/30 bg-laser/10 text-foreground',
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -181,22 +217,27 @@ function ForfeitBanner({ label, endsAt }: { label: string; endsAt: number }) {
   }, []);
   const secs = Math.max(0, Math.ceil((endsAt - now) / 1000));
   return (
-    <div className="waiting disconnected">
+    <Banner tone="warn">
       <b>{label} disconnected.</b> Forfeit in {secs}s unless they reconnect…
-    </div>
+    </Banner>
   );
 }
 
 function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerView; active: boolean; you: boolean }) {
   const name = info.seated ? info.name || colorName(color) : 'Waiting…';
   return (
-    <div className={`seat-label${active ? ' turn-on' : ''}`}>
-      <span className={`avatar ${color}`}>
-        <PersonIcon size={14} />
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+        active ? PLAYER[color].seat : 'border-border bg-secondary/60',
+      )}
+    >
+      <span className={cn('grid size-6 place-items-center rounded-full text-background', PLAYER[color].solid)}>
+        <PersonIcon size={13} />
       </span>
-      <span className="nm">{name}</span>
-      {you && <span className="tag">(you)</span>}
-      {info.seated && <span className="conn" style={{ background: info.online ? '#37b26a' : '#c9bfa8' }} />}
+      <span className="font-medium text-foreground">{name}</span>
+      {you && <span className="text-xs text-muted-foreground">(you)</span>}
+      {info.seated && <span className={cn('size-2 rounded-full', info.online ? 'bg-emerald-400' : 'bg-muted-foreground/50')} />}
     </div>
   );
 }
@@ -231,38 +272,40 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
   const oppName = view.players[oppColor].name || colorName(oppColor);
 
   return (
-    <div className="overlay">
-      <div className="ov-card">
-        <div className="ov-emoji">{emoji}</div>
-        <div className={`ov-title ${winner}`}>{title}</div>
-        <div className="ov-sub">{sub}</div>
-        {!spectator && rematchOpp && !rematchMine && <div className="ov-note">{oppName} wants a rematch</div>}
-        {!spectator && rematchMine && !rematchOpp && <div className="ov-note">Waiting for {oppName} to accept…</div>}
-        <div className="ov-actions">
+    <Dialog open>
+      <DialogContent className="glow-primary sm:max-w-sm [&>button]:hidden">
+        <DialogHeader className="items-center text-center">
+          <div className="text-5xl">{emoji}</div>
+          <DialogTitle className={cn('font-display text-3xl', winner === 'red' ? 'text-player-red' : 'text-player-teal')}>{title}</DialogTitle>
+          <p className="text-sm text-muted-foreground">{sub}</p>
+        </DialogHeader>
+        {!spectator && rematchOpp && !rematchMine && <p className="text-center text-sm text-laser">{oppName} wants a rematch</p>}
+        {!spectator && rematchMine && !rematchOpp && <p className="text-center text-sm text-muted-foreground">Waiting for {oppName} to accept…</p>}
+        <DialogFooter className="sm:flex-col sm:space-x-0">
           {!spectator &&
             (rematchOpp && !rematchMine ? (
-              <>
-                <button className="btn primary" onClick={() => controller.rematch()}>
+              <div className="flex gap-2">
+                <Button className="glow-primary flex-1" onClick={() => controller.rematch()}>
                   Accept rematch
-                </button>
-                <button className="btn" onClick={() => controller.declineRematch()}>
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={() => controller.declineRematch()}>
                   Decline
-                </button>
-              </>
+                </Button>
+              </div>
             ) : rematchMine ? (
-              <button className="btn" onClick={() => controller.declineRematch()}>
+              <Button variant="outline" className="w-full" onClick={() => controller.declineRematch()}>
                 Cancel request
-              </button>
+              </Button>
             ) : (
-              <button className="btn primary" onClick={() => controller.rematch()}>
+              <Button className="glow-primary w-full" onClick={() => controller.rematch()}>
                 Rematch (swap sides)
-              </button>
+              </Button>
             ))}
-          <button className="btn" onClick={() => (window.location.href = window.location.pathname)}>
+          <Button variant="ghost" className="w-full" onClick={() => (window.location.href = window.location.pathname)}>
             New game
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

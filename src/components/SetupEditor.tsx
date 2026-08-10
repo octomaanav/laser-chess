@@ -1,9 +1,19 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Eraser, LogOut, Trash2 } from 'lucide-react';
 import { Renderer } from '@/lib/render';
 import { buildBoardFromDef, mirrorColor, validateSetup } from '@/game/setups';
 import type { Color, EditablePiece, PieceType, SetupDef } from '@/game/types';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import LogoMark from './LogoMark';
+import ThemeToggle from './ThemeToggle';
+
+const PanelTitle = ({ children }: { children: React.ReactNode }) => (
+  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</div>
+);
 
 const TYPES: { type: PieceType; label: string }[] = [
   { type: 'pyramid', label: 'Pyramid' },
@@ -130,130 +140,153 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
   };
 
   const cnt = (c: Color, t: PieceType) => val.counts[c][t] || 0;
+  const brushHex = color === 'red' ? 'var(--player-red)' : 'var(--player-teal)';
+  const checkTone = val.errors.length
+    ? 'border-destructive/40 bg-destructive/5'
+    : val.safe && !val.warnings.length
+      ? 'border-player-teal/40 bg-player-teal/5'
+      : 'border-amber-500/40 bg-amber-500/5';
 
   return (
-    <div className="admin">
-      <header className="topbar">
-        <a href="/" className="brand-row" style={{ textDecoration: 'none' }}>
-          <LogoMark size={24} />
-          <span className="brand">Laser Chess</span>
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <header className="flex items-center gap-3 border-b border-border/70 px-4 py-2.5">
+        <a href="/" className="flex items-center gap-2 text-foreground">
+          <LogoMark size={22} />
+          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
         </a>
-        <span className="turn silver">Configuration editor</span>
-        <div className="right">
-          {email && <span className="badge silver badge-email">{email}</span>}
-          <a href="/" className="btn tiny">
-            ← Back to game
-          </a>
+        <span className="rounded-full border border-laser/40 bg-laser/10 px-3 py-1 text-sm font-semibold text-laser">
+          Configuration editor
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {email && <span className="hidden text-xs text-muted-foreground md:inline">{email}</span>}
+          <ThemeToggle />
+          <Button asChild variant="outline" size="sm">
+            <a href="/">← Back to game</a>
+          </Button>
           {onLogout && (
-            <button className="btn tiny" onClick={onLogout}>
-              Log out
-            </button>
+            <Button variant="outline" size="sm" onClick={onLogout}>
+              <LogOut className="size-4" /> Log out
+            </Button>
           )}
         </div>
       </header>
 
-      <main className="admin-main">
-        <div className="admin-board-area">
-          <div className="seat-label">
-            <span className="avatar red" />
-            <span className="nm">Red — top player</span>
+      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-2 p-3">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-sm">
+            <span className="size-2.5 rounded-full bg-player-red" /> Red — top player
           </div>
-          <div ref={rootRef} className="board-wrap" />
-          <div className="seat-label">
-            <span className="avatar silver" />
-            <span className="nm">Teal — bottom player</span>
+          <div ref={rootRef} className="relative min-h-0 w-full flex-1" />
+          <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-sm">
+            <span className="size-2.5 rounded-full bg-player-teal" /> Teal — bottom player
           </div>
         </div>
 
-        <aside className="admin-side">
-          <div className="panel">
-            <div className="panel-title">Brush</div>
-            <div className="seg">
-              <button className={`seg-btn ${color === 'red' ? 'on red' : ''}`} onClick={() => { setColor('red'); setErase(false); }}>
+        <aside className="flex w-full shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/70 p-3 lg:w-80 lg:border-l lg:border-t-0">
+          <Card className="gap-3 p-4">
+            <PanelTitle>Brush</PanelTitle>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { setColor('red'); setErase(false); }}
+                className={cn(color === 'red' && !erase && 'border-player-red bg-player-red/15 text-player-red')}
+              >
                 Red
-              </button>
-              <button className={`seg-btn ${color === 'silver' ? 'on silver' : ''}`} onClick={() => { setColor('silver'); setErase(false); }}>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => { setColor('silver'); setErase(false); }}
+                className={cn(color === 'silver' && !erase && 'border-player-teal bg-player-teal/15 text-player-teal')}
+              >
                 Teal
-              </button>
+              </Button>
             </div>
-            <div className="type-grid">
+            <div className="grid grid-cols-2 gap-2">
               {TYPES.map((t) => (
-                <button
+                <Button
                   key={t.type}
-                  className={`type-btn ${!erase && type === t.type ? 'on' : ''}`}
+                  variant="outline"
                   onClick={() => { setType(t.type); setErase(false); }}
+                  className={cn('justify-start', !erase && type === t.type && 'border-primary ring-1 ring-primary/40')}
                 >
-                  <span className="tsw" style={{ background: color === 'red' ? '#ef5a40' : '#2fb0ab' }} />
+                  <span className="size-3.5 rounded-[4px] ring-1 ring-white/15" style={{ background: brushHex }} />
                   {t.label}
-                </button>
+                </Button>
               ))}
-              <button className={`type-btn ${erase ? 'on erase' : ''}`} onClick={() => setErase(true)}>
-                🧽 Erase
-              </button>
+              <Button
+                variant="outline"
+                onClick={() => setErase(true)}
+                className={cn('justify-start', erase && 'border-destructive bg-destructive/10 text-destructive')}
+              >
+                <Eraser className="size-4" /> Erase
+              </Button>
             </div>
-            <p className="tip">
-              Click an empty square to place. Click a matching piece to <b>rotate</b> it 90°. Click with a different brush to
-              replace.
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Click an empty square to place. Click a matching piece to <b className="text-foreground">rotate</b> it 90°.
+              Click with a different brush to replace.
             </p>
-          </div>
+          </Card>
 
-          <div className="panel">
-            <div className="panel-title">Board</div>
-            <div className="btn-row">
-              <button className="btn" onClick={() => setPieces(mirrorColor(pieces, 'red'))}>Mirror Red→Teal</button>
-              <button className="btn" onClick={() => setPieces(mirrorColor(pieces, 'silver'))}>Mirror Teal→Red</button>
+          <Card className="gap-2 p-4">
+            <PanelTitle>Board</PanelTitle>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setPieces(mirrorColor(pieces, 'red'))}>Mirror Red→Teal</Button>
+              <Button variant="secondary" size="sm" onClick={() => setPieces(mirrorColor(pieces, 'silver'))}>Mirror Teal→Red</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setPieces([]); setMsg(null); }}>Clear</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setPieces([]); setName('MySetup'); setMsg(null); }}>New</Button>
             </div>
-            <div className="btn-row">
-              <button className="btn" onClick={() => { setPieces([]); setMsg(null); }}>Clear</button>
-              <button className="btn" onClick={() => { setPieces([]); setName('MySetup'); setMsg(null); }}>New</button>
-            </div>
-          </div>
+          </Card>
 
-          <div className={`panel check ${val.errors.length ? 'bad' : val.safe && !val.warnings.length ? 'good' : 'warn'}`}>
-            <div className="panel-title">Validation</div>
-            <div className="counts">
-              <span>Red:</span> P{cnt('red', 'pharaoh')} · X{cnt('red', 'sphinx')} · A{cnt('red', 'anubis')} · S{cnt('red', 'scarab')} · Y{cnt('red', 'pyramid')}
+          <Card className={cn('gap-1.5 p-4', checkTone)}>
+            <PanelTitle>Validation</PanelTitle>
+            <div className="text-sm">
+              <span className="text-muted-foreground">Red:</span> P{cnt('red', 'pharaoh')} · X{cnt('red', 'sphinx')} · A
+              {cnt('red', 'anubis')} · S{cnt('red', 'scarab')} · Y{cnt('red', 'pyramid')}
             </div>
-            <div className="counts">
-              <span>Teal:</span> P{cnt('silver', 'pharaoh')} · X{cnt('silver', 'sphinx')} · A{cnt('silver', 'anubis')} · S{cnt('silver', 'scarab')} · Y{cnt('silver', 'pyramid')}
+            <div className="text-sm">
+              <span className="text-muted-foreground">Teal:</span> P{cnt('silver', 'pharaoh')} · X{cnt('silver', 'sphinx')} · A
+              {cnt('silver', 'anubis')} · S{cnt('silver', 'scarab')} · Y{cnt('silver', 'pyramid')}
             </div>
-            <div className="laser-line">Opening laser: {val.safe ? '✅ safe (destroys nothing)' : '❌ hits a piece'}</div>
-            {val.redHit && <div className="laser-line err">Red beam → {val.redHit}</div>}
-            {val.silverHit && <div className="laser-line err">Teal beam → {val.silverHit}</div>}
+            <div className="text-sm">Opening laser: {val.safe ? '✅ safe (destroys nothing)' : '❌ hits a piece'}</div>
+            {val.redHit && <div className="text-sm text-destructive">Red beam → {val.redHit}</div>}
+            {val.silverHit && <div className="text-sm text-destructive">Teal beam → {val.silverHit}</div>}
             {val.errors.map((e, i) => (
-              <div key={i} className="laser-line err">⚠ {e}</div>
+              <div key={i} className="text-sm text-destructive">⚠ {e}</div>
             ))}
             {val.warnings.map((w, i) => (
-              <div key={i} className="laser-line warnline">• {w}</div>
+              <div key={i} className="text-sm text-amber-400">• {w}</div>
             ))}
-          </div>
+          </Card>
 
-          <div className="panel">
-            <div className="panel-title">Save</div>
-            <div className="btn-row">
-              <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-              <button className="btn primary" disabled={!!val.errors.length || !name.trim()} onClick={save}>
+          <Card className="gap-2 p-4">
+            <PanelTitle>Save</PanelTitle>
+            <div className="flex gap-2">
+              <Input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+              <Button className="glow-primary" disabled={!!val.errors.length || !name.trim()} onClick={save}>
                 Save
-              </button>
+              </Button>
             </div>
-            {msg && <div className={`save-msg ${msg.kind}`}>{msg.text}</div>}
-          </div>
+            {msg && <p className={cn('text-sm font-medium', msg.kind === 'ok' ? 'text-laser' : 'text-destructive')}>{msg.text}</p>}
+          </Card>
 
-          <div className="panel">
-            <div className="panel-title">Load existing</div>
-            <div className="load-list">
+          <Card className="gap-2 p-4">
+            <PanelTitle>Load existing</PanelTitle>
+            <div className="flex flex-col gap-1.5">
               {list.map((s) => (
-                <div key={s.name} className="load-item">
-                  <button className="load-name" onClick={() => load(s)}>
+                <div key={s.name} className="flex items-center gap-2">
+                  <button
+                    className="flex-1 rounded-md border border-border bg-secondary/50 px-3 py-2 text-left text-sm font-medium hover:border-laser/50"
+                    onClick={() => load(s)}
+                  >
                     {s.name}
                   </button>
-                  <button className="load-del" title="delete" onClick={() => del(s.name)}>
-                    ✕
-                  </button>
+                  <Button variant="ghost" size="icon" title="delete" onClick={() => del(s.name)}>
+                    <Trash2 className="size-4 text-muted-foreground" />
+                  </Button>
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         </aside>
       </main>
     </div>

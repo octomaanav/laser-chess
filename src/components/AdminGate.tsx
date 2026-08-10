@@ -2,6 +2,10 @@
 import { useEffect, useState } from 'react';
 import SetupEditor from './SetupEditor';
 import LogoMark from './LogoMark';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type Status = 'loading' | 'in' | 'out';
 
@@ -50,37 +54,40 @@ export default function AdminGate() {
     setStatus('out');
   };
 
-  if (status === 'loading') {
-    return <div className="gate"><div className="gate-loading">Checking access…</div></div>;
-  }
-
+  if (status === 'loading') return <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Checking access…</div>;
   if (status === 'in') return <SetupEditor email={email} onLogout={logout} />;
 
   return (
-    <div className="gate">
-      <form className="lobby-card gate-card" onSubmit={login}>
-        <div className="lobby-head">
-          <h1 className="logo">
-            <LogoMark size={30} /> Admin
-          </h1>
-        </div>
-        <p className="sub">Sign in to edit starting configurations. Admins only.</p>
-        <label className="field">
-          <span>Email</span>
-          <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-        </label>
-        <label className="field">
-          <span>Password</span>
-          <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-        </label>
-        {err && <div className="save-msg err">{err}</div>}
-        <button className="btn primary big" type="submit" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-        <div className="foot" style={{ marginTop: 14 }}>
-          <a href="/" className="foot-link">← Back to game</a>
-        </div>
-      </form>
+    <div className="flex min-h-dvh items-center justify-center p-5">
+      <Card className="glow-primary w-full max-w-sm border-border/70 bg-card/80 backdrop-blur">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-display text-xl">
+            <LogoMark size={24} /> Admin
+          </CardTitle>
+          <CardDescription>Sign in to edit starting configurations. Admins only.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={login} className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="pw">Password</Label>
+              <Input id="pw" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            </div>
+            {err && <p className="text-sm font-medium text-destructive">{err}</p>}
+            <Button type="submit" className="glow-primary w-full" disabled={busy}>
+              {busy ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
+          <div className="mt-4 text-center">
+            <a href="/" className="text-sm font-medium text-laser hover:underline">
+              ← Back to game
+            </a>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

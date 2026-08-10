@@ -24,7 +24,8 @@ Share a link and play a friend in the browser: no install, no account.
   they can never drift out of sync.
 - **Smooth 60 fps canvas rendering** — layered canvases and a hand-tuned animation loop
   keep the travelling laser beam and explosions fluid. No game or graphics libraries.
-- **Hand-drawn, responsive UI** — a warm line-art theme that adapts to desktop and mobile.
+- **Sleek dark-neon UI** — a cohesive "laser" design system (Tailwind CSS + shadcn/ui) with an
+  electric-cyan accent that adapts to desktop and mobile.
 - **Built-in board editor** — a small admin tool to visually design and validate custom
   starting positions, with a live "is the opening safe?" check.
 - **Durable persistence (optional Postgres)** — custom setups, the admin secret, and
@@ -36,7 +37,7 @@ Share a link and play a friend in the browser: no install, no account.
 
 ## Tech stack
 
-`Next.js (App Router)` · `React 19` · `TypeScript` · custom `Node` server · `ws` (WebSockets) · HTML5 `Canvas`
+`Next.js (App Router)` · `React 19` · `TypeScript` · `Tailwind CSS` · `shadcn/ui` · custom `Node` server · `ws` (WebSockets) · HTML5 `Canvas`
 
 The rules engine, the renderer, and the networking are all written from scratch — no chess/game
 engine and no realtime SaaS.

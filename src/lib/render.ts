@@ -8,17 +8,116 @@
 import { COLS, ROWS } from '@/game/engine';
 import type { Action, Board, Color, LaserPoint, MoveAction, Piece } from '@/game/types';
 
-const INK = '#23262e';
-const BOARD_FILL = '#fffaf0';
-const GRID = 'rgba(35,38,46,0.42)';
-const HATCH: Record<Color, string> = { red: 'rgba(233,90,66,0.16)', silver: 'rgba(43,176,170,0.18)' };
-const FILL: Record<Color, string> = { red: '#ef5a40', silver: '#2fb0ab' };
-const HIGHLIGHT = '#f5b73f';
-const MIRROR_SHINE = 'rgba(255,255,255,0.7)';
-const BEAM: Record<Color, { core: string; halo: string; hot: string }> = {
-  red: { core: '#ee4a30', halo: 'rgba(238,74,48,0.22)', hot: '#fff3ee' },
-  silver: { core: '#14a8a2', halo: 'rgba(20,168,162,0.22)', hot: '#effffd' },
+// The board palette follows the app theme. DARK = neon (near-black board, light
+// ink, cyan accents); LIGHT = the original warm look (cream board, dark ink,
+// coral/teal). Values are swapped into the mutable module vars by applyThemePalette.
+type Beam = { core: string; halo: string; hot: string };
+interface Palette {
+  ink: string;
+  boardFill: string;
+  grid: string;
+  hatch: Record<Color, string>;
+  fill: Record<Color, string>;
+  highlight: string;
+  mirrorShine: string;
+  beam: Record<Color, Beam>;
+  boardShadow: string;
+  boardOutline: string;
+  selFill: string;
+  dotFill: string;
+  dotGlow: string;
+  dotRing: string;
+  handleBase: string;
+  handleShadow: string;
+  handleRing: string;
+}
+
+const DARK: Palette = {
+  ink: '#e9edf5',
+  boardFill: '#12141c',
+  grid: 'rgba(233,237,245,0.10)',
+  hatch: { red: 'rgba(255,90,69,0.12)', silver: 'rgba(47,212,206,0.12)' },
+  fill: { red: '#ff5a45', silver: '#2fd4ce' },
+  highlight: '#22d3ee',
+  mirrorShine: 'rgba(255,255,255,0.85)',
+  beam: {
+    red: { core: '#ff6a52', halo: 'rgba(255,90,69,0.30)', hot: '#fff0ed' },
+    silver: { core: '#3ce6df', halo: 'rgba(47,212,206,0.30)', hot: '#effffd' },
+  },
+  boardShadow: 'rgba(34,211,238,0.22)',
+  boardOutline: 'rgba(34,211,238,0.38)',
+  selFill: 'rgba(34,211,238,0.15)',
+  dotFill: 'rgba(34,211,238,0.55)',
+  dotGlow: 'rgba(34,211,238,0.7)',
+  dotRing: 'rgba(233,237,245,0.9)',
+  handleBase: '#141824',
+  handleShadow: 'rgba(34,211,238,0.45)',
+  handleRing: '#22d3ee',
 };
+
+const LIGHT: Palette = {
+  ink: '#23262e',
+  boardFill: '#fffaf0',
+  grid: 'rgba(35,38,46,0.42)',
+  hatch: { red: 'rgba(233,90,66,0.16)', silver: 'rgba(43,176,170,0.18)' },
+  fill: { red: '#ef5a40', silver: '#2fb0ab' },
+  highlight: '#f5b73f',
+  mirrorShine: 'rgba(255,255,255,0.7)',
+  beam: {
+    red: { core: '#ee4a30', halo: 'rgba(238,74,48,0.22)', hot: '#fff3ee' },
+    silver: { core: '#14a8a2', halo: 'rgba(20,168,162,0.22)', hot: '#effffd' },
+  },
+  boardShadow: 'rgba(60,45,25,0.16)',
+  boardOutline: '#23262e',
+  selFill: 'rgba(245,183,63,0.18)',
+  dotFill: 'rgba(35,38,46,0.5)',
+  dotGlow: 'rgba(0,0,0,0)',
+  dotRing: 'rgba(255,255,255,0.85)',
+  handleBase: '#fffaf0',
+  handleShadow: 'rgba(60,45,25,0.25)',
+  handleRing: '#23262e',
+};
+
+// Mutable, theme-swapped at runtime; all draw code below reads these.
+let INK = DARK.ink;
+let BOARD_FILL = DARK.boardFill;
+let GRID = DARK.grid;
+let HATCH = DARK.hatch;
+let FILL = DARK.fill;
+let HIGHLIGHT = DARK.highlight;
+let MIRROR_SHINE = DARK.mirrorShine;
+let BEAM = DARK.beam;
+let BOARD_SHADOW = DARK.boardShadow;
+let BOARD_OUTLINE = DARK.boardOutline;
+let SEL_FILL = DARK.selFill;
+let DOT_FILL = DARK.dotFill;
+let DOT_GLOW = DARK.dotGlow;
+let DOT_RING = DARK.dotRing;
+let HANDLE_BASE = DARK.handleBase;
+let HANDLE_SHADOW = DARK.handleShadow;
+let HANDLE_RING = DARK.handleRing;
+
+function applyThemePalette(dark: boolean) {
+  const p = dark ? DARK : LIGHT;
+  INK = p.ink;
+  BOARD_FILL = p.boardFill;
+  GRID = p.grid;
+  HATCH = p.hatch;
+  FILL = p.fill;
+  HIGHLIGHT = p.highlight;
+  MIRROR_SHINE = p.mirrorShine;
+  BEAM = p.beam;
+  BOARD_SHADOW = p.boardShadow;
+  BOARD_OUTLINE = p.boardOutline;
+  SEL_FILL = p.selFill;
+  DOT_FILL = p.dotFill;
+  DOT_GLOW = p.dotGlow;
+  DOT_RING = p.dotRing;
+  HANDLE_BASE = p.handleBase;
+  HANDLE_SHADOW = p.handleShadow;
+  HANDLE_RING = p.handleRing;
+}
+const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 const TAU = Math.PI * 2;
 const SQ2 = Math.SQRT2;
 
@@ -72,6 +171,7 @@ export class Renderer {
   private _running = false;
   private layers: Record<string, { canvas: HTMLCanvasElement; ctx: Ctx }> = {};
   fxCanvas!: HTMLCanvasElement;
+  private _themeObserver: MutationObserver | null = null;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -88,9 +188,22 @@ export class Renderer {
     }
     this.fxCanvas = this.layers.fx.canvas;
     this._loop = this._loop.bind(this);
+
+    // Follow the app theme (light/dark): pick the palette now, and redraw the
+    // board whenever the theme class on <html> changes.
+    applyThemePalette(isDarkTheme());
+    this._themeObserver = new MutationObserver(() => {
+      applyThemePalette(isDarkTheme());
+      this.drawBg();
+      this.drawPieces();
+      this.drawFx();
+    });
+    this._themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   }
 
   destroy() {
+    this._themeObserver?.disconnect();
+    this._themeObserver = null;
     for (const { canvas } of Object.values(this.layers)) canvas.remove();
     this.layers = {};
     this._pieceAnim = null;
@@ -150,11 +263,11 @@ export class Renderer {
     const radius = cell * 0.42;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // soft drop shadow under the board
+    // soft glow/shadow beneath the board so it lifts off the backdrop
     ctx.save();
-    ctx.shadowColor = 'rgba(60,45,25,0.16)';
-    ctx.shadowBlur = cell * 0.6;
-    ctx.shadowOffsetY = cell * 0.16;
+    ctx.shadowColor = BOARD_SHADOW;
+    ctx.shadowBlur = cell * 0.9;
+    ctx.shadowOffsetY = cell * 0.1;
     ctx.fillStyle = BOARD_FILL;
     roundRect(ctx, ox, oy, w, h, radius);
     ctx.fill();
@@ -190,9 +303,9 @@ export class Renderer {
     ctx.stroke();
     ctx.restore();
 
-    // board outline
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = Math.max(2.5, cell * 0.06);
+    // board outline (a thin laser frame in dark, dark ink in light)
+    ctx.strokeStyle = BOARD_OUTLINE;
+    ctx.lineWidth = Math.max(2, cell * 0.05);
     roundRect(ctx, ox, oy, w, h, radius);
     ctx.stroke();
   }
@@ -446,7 +559,7 @@ export class Renderer {
     if (this.selection) {
       const c = this.cellCenterPx(this.selection.x, this.selection.y);
       ctx.save();
-      ctx.fillStyle = 'rgba(245,183,63,0.18)';
+      ctx.fillStyle = SEL_FILL;
       roundRect(ctx, c.x - s / 2 + 2.5, c.y - s / 2 + 2.5, s - 5, s - 5, 9);
       ctx.fill();
       ctx.strokeStyle = HIGHLIGHT;
@@ -463,11 +576,14 @@ export class Renderer {
         roundRect(ctx, t.px - s * 0.36, t.py - s * 0.36, s * 0.72, s * 0.72, 9);
         ctx.stroke();
       } else {
-        ctx.fillStyle = 'rgba(35,38,46,0.5)';
+        ctx.fillStyle = DOT_FILL;
+        ctx.shadowColor = DOT_GLOW;
+        ctx.shadowBlur = s * 0.16;
         ctx.beginPath();
         ctx.arc(t.px, t.py, s * 0.12, 0, TAU);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = DOT_RING;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -482,13 +598,13 @@ export class Renderer {
   }
 
   private _drawHandle(ctx: Ctx, h: Handle) {
-    // button base (with soft shadow)
+    // button base — a glowing disc so it reads as a tappable control
     ctx.save();
     ctx.translate(h.px, h.py);
-    ctx.shadowColor = 'rgba(60,45,25,0.25)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = '#fffaf0';
+    ctx.shadowColor = HANDLE_SHADOW;
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = HANDLE_BASE;
     ctx.beginPath();
     ctx.arc(0, 0, h.r, 0, TAU);
     ctx.fill();
@@ -496,7 +612,7 @@ export class Renderer {
 
     ctx.save();
     ctx.translate(h.px, h.py);
-    ctx.strokeStyle = INK;
+    ctx.strokeStyle = HANDLE_RING;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, 0, h.r, 0, TAU);

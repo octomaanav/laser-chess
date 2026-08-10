@@ -1,10 +1,31 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { ArrowRight, ChevronDown, LogOut, UserRound } from 'lucide-react';
 import type { GameController, ViewState } from '@/client/controller';
 import { useSession } from '@/client/useSession';
 import { SETUP_NAMES } from '@/game/setups';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AuthPanel from './AuthPanel';
 import LogoMark from './LogoMark';
+import ThemeToggle from './ThemeToggle';
+
+const PERKS = [
+  { c: 'bg-laser/15 border-laser/60', t: 'No account needed — just share a link or code' },
+  { c: 'bg-player-red/15 border-player-red/60', t: 'Authoritative server resolves every laser trace' },
+  { c: 'bg-player-teal/15 border-player-teal/60', t: 'Spectators, live presence, reconnect & move timers' },
+];
 
 export default function Lobby({ controller, view }: { controller: GameController; view: ViewState }) {
   const [name, setName] = useState('');
@@ -15,7 +36,7 @@ export default function Lobby({ controller, view }: { controller: GameController
   const [invited, setInvited] = useState(false);
   const [names, setNames] = useState<string[]>(SETUP_NAMES);
   const [perMove, setPerMove] = useState(0); // minutes per move; 0 = no timer
-  const { user, providers, setUser } = useSession();
+  const { user, providers, setUser, logout } = useSession();
   const [showAuth, setShowAuth] = useState(false);
 
   // Signed-in players always play under their account's display name.
@@ -57,159 +78,222 @@ export default function Lobby({ controller, view }: { controller: GameController
   const initial = (user?.displayName || user?.username || '?').trim().charAt(0).toUpperCase();
 
   return (
-    <section id="lobby" className="screen">
-      <header className="topbar">
-        <a className="brand" href="/">
-          <LogoMark size={28} /> <span>Laser Chess</span>
+    <section className="relative flex min-h-dvh flex-col">
+      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
+        <a href="/" className="flex items-center gap-2.5 text-foreground">
+          <LogoMark size={26} />
+          <span className="font-display text-lg font-semibold tracking-tight">Laser Chess</span>
         </a>
-        <nav className="topbar-actions">
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           {user ? (
-            <a className="nav-account" href="/account" title="Manage your account">
-              <span className="nav-avatar">{initial}</span>
-              <span className="nav-handle">@{user.username}</span>
-            </a>
-          ) : (
-            <button type="button" className="nav-signin" onClick={() => setShowAuth(true)}>
-              Sign in
-            </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-9 gap-2 pl-1.5 pr-3">
+                <span className="grid size-6 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                  {initial}
+                </span>
+                <span className="max-w-28 truncate font-mono text-xs">@{user.username}</span>
+                <ChevronDown className="size-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem asChild>
+                <a href="/account">
+                  <UserRound className="size-4" /> Account
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void logout()}>
+                <LogOut className="size-4" /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button variant="outline" onClick={() => setShowAuth(true)}>
+            Sign in
+          </Button>
           )}
-        </nav>
+        </div>
       </header>
 
-      <div className="lobby-main">
-        <div className="lobby-hero">
-          <div className="hero-copy">
-            <span className="eyebrow">
-              <i className="eyebrow-dot" /> Real-time multiplayer · free · no install
-            </span>
-            <h1 className="hero-title">
+      <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8">
+        <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-16">
+          {/* hero */}
+          <div className="mx-auto max-w-lg text-center md:mx-0 md:text-left">
+            <Badge
+              variant="outline"
+              className="mb-6 gap-2 border-laser/30 bg-laser/10 py-1.5 pl-2.5 text-[12px] font-semibold text-laser"
+            >
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-laser opacity-70" />
+                <span className="relative inline-flex size-2 rounded-full bg-laser" />
+              </span>
+              Real-time multiplayer · free · no install
+            </Badge>
+            <h1 className="font-display text-5xl font-bold leading-[1.02] tracking-tight sm:text-6xl">
               Deflect the beam.
               <br />
-              Burn the <span>Pharaoh.</span>
+              Burn the <span className="text-laser text-glow">Pharaoh.</span>
             </h1>
-            <p className="hero-sub">
-              A fast head-to-head duel of mirrors and lasers. Spin up a board, share the link, and play a
-              friend in seconds — right in the browser.
+            <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground md:mx-0">
+              A fast head-to-head duel of mirrors and lasers. Spin up a board, share the link, and play a friend in
+              seconds — right in the browser.
             </p>
-            <ul className="hero-points">
-              <li>No account needed — just share a link or code</li>
-              <li>Authoritative server resolves every laser trace</li>
-              <li>Spectators, live presence, reconnect &amp; move timers</li>
+            <ul className="mx-auto mt-7 hidden max-w-md flex-col gap-3 text-left sm:flex md:mx-0">
+              {PERKS.map((p) => (
+                <li key={p.t} className="flex items-center gap-3 text-sm font-medium text-foreground/90">
+                  <span className={`size-4 shrink-0 rounded-[5px] border-2 ${p.c}`} />
+                  {p.t}
+                </li>
+              ))}
             </ul>
-            <button className="link" onClick={() => setShowRules((s) => !s)}>
-              How to play ▾
-            </button>
-            <div className={`rules${showRules ? ' open' : ''}`}>
-              <p>
-                Each turn: <b>move</b> a piece one square (any direction) <b>or rotate</b> it 90°. Then{' '}
-                <b>your laser fires automatically</b> from your Sphinx.
-              </p>
-              <ul>
-                <li>
-                  <b>Pharaoh</b> — your king. If a laser hits it, you lose.
-                </li>
-                <li>
-                  <b>Pyramid</b> — one mirror; deflects the beam 90°. Hit on a flat side and it&apos;s destroyed.
-                </li>
-                <li>
-                  <b>Scarab</b> — double mirror; always deflects, never dies. Can swap with an adjacent Pyramid/Anubis.
-                </li>
-                <li>
-                  <b>Anubis</b> — shielded on its bright front face; hit from the side or back and it&apos;s destroyed.
-                </li>
-                <li>
-                  <b>Sphinx</b> — your laser cannon in the corner. You can only rotate it.
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className={`lobby-card${invited ? ' invited' : ''}`}>
-            <div className="card-head">
-              <h2 className="card-title">{invited ? 'Join the game' : 'New game'}</h2>
-              <p className="card-sub">
-                {invited ? `You're invited to ${code}. Enter a name and join.` : 'Set it up, then share the link.'}
-              </p>
-            </div>
-
-            <label className="field">
-              <span>Your name</span>
-              <input
-                type="text"
-                maxLength={24}
-                placeholder="Player"
-                value={name}
-                readOnly={!!user}
-                onChange={(e) => setName(e.target.value)}
-              />
-              {user && (
-                <small className="field-hint">
-                  Playing as your account name. <a href="/account">Change in Account</a>.
-                </small>
+            <div className="mt-6">
+              <Button variant="link" className="h-auto p-0 text-laser" onClick={() => setShowRules((s) => !s)}>
+                How to play {showRules ? '▴' : '▾'}
+              </Button>
+              {showRules && (
+                <div className="mt-3 space-y-2 rounded-xl border border-border bg-card/60 p-4 text-left text-[13px] leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-top-1">
+                  <p>
+                    Each turn: <b className="text-foreground">move</b> a piece one square or{' '}
+                    <b className="text-foreground">rotate</b> it 90°. Then your laser fires automatically from your Sphinx.
+                  </p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    <li>
+                      <b className="text-foreground">Pharaoh</b> — your king. If a laser hits it, you lose.
+                    </li>
+                    <li>
+                      <b className="text-foreground">Pyramid</b> — single mirror; deflects 90°. Hit flat and it&apos;s gone.
+                    </li>
+                    <li>
+                      <b className="text-foreground">Scarab</b> — double mirror; never dies. Can swap with a neighbor.
+                    </li>
+                    <li>
+                      <b className="text-foreground">Anubis</b> — shielded in front; vulnerable from side or back.
+                    </li>
+                    <li>
+                      <b className="text-foreground">Sphinx</b> — your laser cannon in the corner. Rotate only.
+                    </li>
+                  </ul>
+                </div>
               )}
-            </label>
-
-            <div className="create-box">
-              <div className="row2">
-                <label className="field">
-                  <span>Board</span>
-                  <select value={setup} onChange={(e) => setSetup(e.target.value)}>
-                    {names.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Play as</span>
-                  <select value={color} onChange={(e) => setColor(e.target.value as 'random' | 'silver' | 'red')}>
-                    <option value="random">Random</option>
-                    <option value="silver">Teal (moves first)</option>
-                    <option value="red">Red</option>
-                  </select>
-                </label>
-              </div>
-              <label className="field">
-                <span>Time per move</span>
-                <select value={perMove} onChange={(e) => setPerMove(Number(e.target.value))}>
-                  <option value={0}>No timer</option>
-                  <option value={1}>1 minute</option>
-                  <option value={2}>2 minutes</option>
-                  <option value={3}>3 minutes</option>
-                  <option value={5}>5 minutes</option>
-                  <option value={10}>10 minutes</option>
-                </select>
-              </label>
-              <button className="btn primary big" onClick={create}>
-                Create game &amp; get share link
-              </button>
-            </div>
-
-            <div className="or">
-              <span>or join a game</span>
-            </div>
-
-            <div className={`join-box${invited ? ' highlight' : ''}`}>
-              <input
-                type="text"
-                maxLength={5}
-                placeholder="CODE"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && join()}
-              />
-              <button className="btn" onClick={join}>
-                Join
-              </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="foot">
-        Teal moves first · <a href="/admin" className="foot-link">Edit starting configurations →</a>
-      </div>
+          {/* play card */}
+          <Card className="glow-primary relative mx-auto w-full max-w-md border-border/70 bg-card/80 backdrop-blur">
+            <CardContent className="flex flex-col gap-4">
+              <div>
+                <h2 className="font-display text-2xl font-bold tracking-tight">{invited ? 'Join the game' : 'New game'}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {invited ? `You're invited to ${code}. Enter a name and join.` : 'Set it up, then share the link.'}
+                </p>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="name">Your name</Label>
+                <Input
+                  id="name"
+                  maxLength={24}
+                  placeholder="Player"
+                  value={name}
+                  readOnly={!!user}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                {user && (
+                  <p className="text-xs text-muted-foreground">
+                    Playing as your account name.{' '}
+                    <a className="text-laser hover:underline" href="/account">
+                      Change in Account
+                    </a>
+                    .
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label>Board</Label>
+                  <Select value={setup} onValueChange={setSetup}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {names.map((n) => (
+                        <SelectItem key={n} value={n}>
+                          {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>Play as</Label>
+                  <Select value={color} onValueChange={(v) => setColor(v as 'random' | 'silver' | 'red')}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="random">Random</SelectItem>
+                      <SelectItem value="silver">Teal (moves first)</SelectItem>
+                      <SelectItem value="red">Red</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>Time per move</Label>
+                <Select value={String(perMove)} onValueChange={(v) => setPerMove(Number(v))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">No timer</SelectItem>
+                    <SelectItem value="1">1 minute</SelectItem>
+                    <SelectItem value="2">2 minutes</SelectItem>
+                    <SelectItem value="3">3 minutes</SelectItem>
+                    <SelectItem value="5">5 minutes</SelectItem>
+                    <SelectItem value="10">10 minutes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button size="lg" className="glow-primary mt-1 w-full font-semibold" onClick={create}>
+                Create game &amp; get share link <ArrowRight className="size-4" />
+              </Button>
+
+              <div className="relative my-1 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                or join a game
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="flex gap-2.5">
+                <Input
+                  maxLength={5}
+                  placeholder="CODE"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && join()}
+                  className="text-center font-mono text-base font-bold uppercase tracking-[0.35em]"
+                />
+                <Button variant="secondary" onClick={join}>
+                  Join
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+
+      <footer className="px-5 py-5 text-center text-xs text-muted-foreground">
+        Teal moves first ·{' '}
+        <a href="/admin" className="font-semibold text-laser hover:underline">
+          Edit starting configurations →
+        </a>
+      </footer>
+
       {showAuth && (
         <AuthPanel
           providers={providers}
