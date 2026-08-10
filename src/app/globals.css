@@ -286,6 +286,7 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
 .ov-title.red { color: var(--coral); }
 .ov-title.silver { color: var(--teal); }
 .ov-sub { color: var(--muted); margin: 6px 0 22px; }
+.ov-note { color: var(--coral-ink); font-weight: 700; font-size: 14px; margin: -8px 0 16px; }
 .ov-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
 /* ---------------- Toast ---------------- */

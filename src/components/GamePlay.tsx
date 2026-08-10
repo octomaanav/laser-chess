@@ -72,14 +72,6 @@ export default function GamePlay({ controller, view }: { controller: GameControl
               <b>Opponent disconnected</b> — waiting to reconnect…
             </div>
           ) : null}
-          {reviewing && (
-            <div className="review-banner">
-              🔍 {view.reviewLabel}
-              <button className="linkbtn" onClick={() => controller.reviewLive()}>
-                Back to live
-              </button>
-            </div>
-          )}
           <Board controller={controller} />
           <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
         </div>
@@ -234,18 +226,38 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
         : byForfeit
           ? 'You were disconnected too long.'
           : 'Your Pharaoh was hit.';
+  const { rematchMine, rematchOpp } = view;
+  const oppColor = myColor ? opposite(myColor) : 'silver';
+  const oppName = view.players[oppColor].name || colorName(oppColor);
+
   return (
     <div className="overlay">
       <div className="ov-card">
         <div className="ov-emoji">{emoji}</div>
         <div className={`ov-title ${winner}`}>{title}</div>
         <div className="ov-sub">{sub}</div>
+        {!spectator && rematchOpp && !rematchMine && <div className="ov-note">{oppName} wants a rematch</div>}
+        {!spectator && rematchMine && !rematchOpp && <div className="ov-note">Waiting for {oppName} to accept…</div>}
         <div className="ov-actions">
-          {!spectator && (
-            <button className="btn primary" onClick={() => controller.rematch()}>
-              Rematch (swap sides)
-            </button>
-          )}
+          {!spectator &&
+            (rematchOpp && !rematchMine ? (
+              <>
+                <button className="btn primary" onClick={() => controller.rematch()}>
+                  Accept rematch
+                </button>
+                <button className="btn" onClick={() => controller.declineRematch()}>
+                  Decline
+                </button>
+              </>
+            ) : rematchMine ? (
+              <button className="btn" onClick={() => controller.declineRematch()}>
+                Cancel request
+              </button>
+            ) : (
+              <button className="btn primary" onClick={() => controller.rematch()}>
+                Rematch (swap sides)
+              </button>
+            ))}
           <button className="btn" onClick={() => (window.location.href = window.location.pathname)}>
             New game
           </button>
