@@ -12,4 +12,4 @@ export function getStore(): Store {
   return store;
 }
 
-export type { Store, PersistedRoom } from './types';
+export type { Store, PersistedRoom, User, OAuthIdentity } from './types';

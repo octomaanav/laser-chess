@@ -30,6 +30,9 @@ Share a link and play a friend in the browser: no install, no account.
 - **Durable persistence (optional Postgres)** — custom setups, the admin secret, and
   *in-progress games* are written through to a database, so configurations and live matches
   survive a redeploy/restart. Falls back to local files with zero setup in development.
+- **Optional accounts** — sign up with email + password, Google, or GitHub to get a unique
+  `@username`. Accounts are the foundation for the planned online matchmaking; quick
+  share-a-link games stay fully anonymous and need no sign-in.
 
 ## Tech stack
 
@@ -57,7 +60,7 @@ The interesting engineering lives in three places:
 ```
 src/
   game/        shared, pure rules — engine, starting positions, types, wire protocol
-  server/      authoritative WebSocket game server, rooms, admin auth, storage (file/Postgres)
+  server/      authoritative WebSocket game server, rooms, auth (accounts + admin), storage (file/Postgres)
   lib/         canvas renderer + network client
   client/      framework-agnostic game controller (+ a React hook over it)
   components/   React UI
@@ -93,3 +96,18 @@ hit the enemy Pharaoh to win.
 Four built-in starting positions ship with the game, and you can design your own in the editor:
 
 ![Board editor](docs/editor.png)
+
+## Accounts & sign-in (optional)
+
+Accounts are optional and exist to power the planned online matchmaking — anyone can still
+create/join quick games by link or code without signing in. A signed-in player gets a unique
+`@username` and plays under their account's display name.
+
+Sign-in methods are self-contained (`node:crypto` for password hashing and the session cookie;
+OAuth is the plain authorization-code flow over `fetch`, no SDK):
+
+- **Email + password** — works out of the box, no configuration.
+- **Google / GitHub** — enabled per provider only when its credentials are set. Register the
+  callback URL `<your-origin>/api/auth/oauth/<provider>/callback` with the provider.
+
+Manage your profile at `/account`; the admin board editor at `/admin` is a separate login.
