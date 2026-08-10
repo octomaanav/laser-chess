@@ -13,5 +13,5 @@ export default function Board({ controller }: { controller: GameController }) {
     return cleanup;
   }, [controller]);
 
-  return <div ref={ref} className="board-wrap" />;
+  return <div ref={ref} className="relative min-h-0 w-full flex-1" />;
 }

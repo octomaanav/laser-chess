@@ -1,20 +1,25 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { ArrowLeft, LogOut } from 'lucide-react';
 import { useSession } from '@/client/useSession';
 import AuthPanel from '@/components/AuthPanel';
 import LogoMark from '@/components/LogoMark';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const PROVIDER_LABELS: Record<string, string> = { google: 'Google', github: 'GitHub' };
 
 export default function AccountPage() {
-  const { user, providers, loading, refresh, logout, setUser } = useSession();
+  const { user, providers, loading, logout, setUser } = useSession();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [linked, setLinked] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ text: string; err: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Load the editable fields + linked providers whenever the signed-in user changes.
   useEffect(() => {
     if (!user) return;
     setUsername(user.username);
@@ -46,62 +51,70 @@ export default function AccountPage() {
     }
   };
 
-  if (loading) return <div className="gate"><div className="gate-loading">Checking access…</div></div>;
-
-  if (!user) {
-    return <AuthPanel providers={providers} onAuthed={(u) => setUser(u)} onClose={() => { window.location.href = '/'; }} />;
-  }
+  if (loading) return <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Checking access…</div>;
+  if (!user) return <AuthPanel providers={providers} onAuthed={(u) => setUser(u)} onClose={() => (window.location.href = '/')} />;
 
   const linkable = (['google', 'github'] as const).filter((p) => providers[p] && !linked.includes(p));
 
   return (
-    <div className="gate">
-      <form className="lobby-card gate-card" onSubmit={save}>
-        <div className="lobby-head">
-          <h1 className="logo">
-            <LogoMark size={30} /> Account
-          </h1>
-        </div>
-        <p className="sub">Signed in as {user.email}</p>
+    <div className="flex min-h-dvh items-center justify-center p-5">
+      <Card className="glow-primary w-full max-w-md border-border/70 bg-card/80 backdrop-blur">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-display text-xl">
+            <LogoMark size={24} /> Account
+          </CardTitle>
+          <CardDescription>Signed in as {user.email}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={save} className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" maxLength={20} value={username} onChange={(e) => setUsername(e.target.value)} />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="display">Display name</Label>
+                <Input id="display" maxLength={24} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+              </div>
+            </div>
 
-        <div className="row2">
-          <label className="field">
-            <span>Username</span>
-            <input type="text" maxLength={20} value={username} onChange={(e) => setUsername(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Display name</span>
-            <input type="text" maxLength={24} value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          </label>
-        </div>
+            <div className="grid gap-1.5">
+              <Label>Linked sign-in</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                {linked.length === 0 && <span className="text-sm text-muted-foreground">Email &amp; password only</span>}
+                {linked.map((p) => (
+                  <Badge key={p} variant="secondary">
+                    {PROVIDER_LABELS[p] ?? p}
+                  </Badge>
+                ))}
+                {linkable.map((p) => (
+                  <Button key={p} asChild size="sm" variant="outline" className="h-7">
+                    <a href={`/api/auth/oauth/${p}?returnTo=/account`}>+ Link {PROVIDER_LABELS[p]}</a>
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-        <div className="field">
-          <span>Linked sign-in</span>
-          <div className="linked-providers">
-            {linked.length === 0 && <em className="muted">Email &amp; password only</em>}
-            {linked.map((p) => (
-              <span key={p} className="provider-chip">{PROVIDER_LABELS[p] ?? p}</span>
-            ))}
-            {linkable.map((p) => (
-              <a key={p} className="provider-chip link" href={`/api/auth/oauth/${p}?returnTo=/account`}>
-                + Link {PROVIDER_LABELS[p]}
-              </a>
-            ))}
+            {msg && <p className={`text-sm font-medium ${msg.err ? 'text-destructive' : 'text-laser'}`}>{msg.text}</p>}
+            <Button type="submit" className="glow-primary w-full" disabled={busy}>
+              {busy ? 'Saving…' : 'Save changes'}
+            </Button>
+          </form>
+
+          <div className="mt-5 flex items-center justify-between border-t border-border pt-4 text-sm">
+            <a href="/" className="flex items-center gap-1.5 font-medium text-laser hover:underline">
+              <ArrowLeft className="size-4" /> Back to game
+            </a>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => void logout().then(() => (window.location.href = '/'))}
+            >
+              <LogOut className="size-4" /> Sign out
+            </button>
           </div>
-        </div>
-
-        {msg && <div className={`save-msg${msg.err ? ' err' : ''}`}>{msg.text}</div>}
-        <button className="btn primary big" type="submit" disabled={busy}>
-          {busy ? 'Saving…' : 'Save changes'}
-        </button>
-
-        <div className="foot" style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between' }}>
-          <a href="/" className="foot-link">← Back to game</a>
-          <button type="button" className="link" onClick={() => { void logout().then(() => { window.location.href = '/'; }); }}>
-            Sign out
-          </button>
-        </div>
-      </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
