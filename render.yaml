@@ -25,5 +25,16 @@ services:
         sync: false
       # Optional: a Postgres URL (e.g. free Neon/Supabase) to persist setups + live games
       # across redeploys. Leave blank to keep games in memory. Tables auto-create on boot.
+      # Also stores user accounts — required if you want accounts to survive a redeploy.
       - key: DATABASE_URL
+        sync: false
+      # Optional OAuth sign-in. Set both id+secret for a provider to enable its button.
+      # Register the callback URL <your-origin>/api/auth/oauth/<provider>/callback.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
         sync: false

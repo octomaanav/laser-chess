@@ -1,9 +1,11 @@
 // Authoritative WebSocket game server. Attaches to an existing HTTP server
 // (the Next.js custom server) and manages rooms in memory.
+import type { IncomingMessage } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 
 import { createGame, listSetups } from './setupStore';
 import { applyAction, opposite } from '../game/engine';
+import { SESSION_COOKIE, verifyUserSession } from './auth/session';
 import { getStore, type PersistedRoom } from './store';
 import type { Color, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
@@ -14,6 +16,8 @@ interface Client extends WebSocket {
   playerId?: string;
   name?: string;
   color?: Color | null;
+  userId?: string | null; // set when the connection carries a valid session cookie
+  accountName?: string | null; // the account's display name (used in place of a free-text name)
 }
 
 interface Room {
@@ -32,6 +36,25 @@ interface Room {
 }
 
 const rooms = new Map<string, Room>();
+
+// ---- account identity (from the session cookie on the WS upgrade) ----------
+// Anonymous quick-play never sets this; it's here so the coming matchmaking
+// system can trust who is connected without changing the join protocol.
+function readCookie(header: string | undefined, name: string): string | undefined {
+  if (!header) return undefined;
+  for (const part of header.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
+  }
+  return undefined;
+}
+async function resolveAccount(req: IncomingMessage): Promise<{ userId: string; name: string } | null> {
+  const session = await verifyUserSession(readCookie(req.headers.cookie, SESSION_COOKIE));
+  if (!session) return null;
+  const user = await getStore().getUserById(session.uid);
+  return user ? { userId: user.id, name: user.displayName } : null;
+}
 
 // If a seated player disconnects while their opponent is present, they have this
 // long to return before forfeiting the game. Override with FORFEIT_MS.
@@ -215,11 +238,20 @@ const send = (ws: Client, msg: ServerMessage) => {
 export function createGameWss(): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
 
-  wss.on('connection', (ws: Client) => {
+  wss.on('connection', (ws: Client, req: IncomingMessage) => {
     ws.isAlive = true;
     ws.on('pong', () => {
       ws.isAlive = true;
     });
+
+    // Resolve the account (if signed in) before their `join` arrives — anonymous
+    // players simply resolve to null and keep their client-chosen name.
+    void resolveAccount(req)
+      .then((acct) => {
+        ws.userId = acct?.userId ?? null;
+        ws.accountName = acct?.name ?? null;
+      })
+      .catch(() => {});
 
     ws.on('message', async (buf) => {
       let msg: ClientMessage;
@@ -304,7 +336,8 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
   const playerId = String(msg.playerId || '').slice(0, 64);
   if (!playerId) return send(ws, { type: 'error', message: 'missing playerId' });
   ws.playerId = playerId;
-  ws.name = String(msg.name || 'Player').slice(0, 24);
+  // A signed-in player always shows under their account's display name.
+  ws.name = (ws.accountName || String(msg.name || 'Player')).slice(0, 24);
 
   let code = (msg.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   let room = code ? rooms.get(code) : undefined;

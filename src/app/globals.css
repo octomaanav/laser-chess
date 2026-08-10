@@ -35,17 +35,105 @@ body {
 
 /* ---------------- Lobby ---------------- */
 #lobby {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 16px; padding: 20px; overflow: auto;
+  display: flex; flex-direction: column;
+  padding: 0; overflow-x: hidden; overflow-y: auto;
 }
+
+/* top navigation bar */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; padding: 18px clamp(18px, 4vw, 40px); width: 100%;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px; text-decoration: none;
+  font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--ink);
+}
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.nav-signin {
+  cursor: pointer; font-family: inherit; font-weight: 700; font-size: 14px;
+  color: #fff; background: var(--ink); border: 2px solid var(--ink);
+  padding: 10px 22px; border-radius: 999px; text-decoration: none;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+.nav-signin:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(35, 38, 46, 0.22); }
+.nav-account {
+  display: flex; align-items: center; gap: 9px; text-decoration: none;
+  padding: 5px 15px 5px 5px; border-radius: 999px; border: 2px solid var(--line);
+  background: #fff; color: var(--ink); font-weight: 700; font-size: 14px;
+  transition: border-color 0.15s ease;
+}
+.nav-account:hover { border-color: var(--teal); }
+.nav-avatar {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--teal); color: #fff; font-weight: 800; font-size: 14px;
+}
+
+/* hero: marketing copy + play card side by side */
+.lobby-main {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 10px clamp(18px, 4vw, 40px) 24px;
+}
+.lobby-hero {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: clamp(28px, 5vw, 64px);
+  align-items: center; width: 100%; max-width: 1060px; min-width: 0; /* shrink as a flex item, don't overflow */
+}
+.lobby-hero > * { min-width: 0; } /* let grid tracks shrink instead of overflowing */
+.hero-copy { max-width: 520px; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.4px; color: var(--teal-ink);
+  background: rgba(47, 176, 171, 0.12); border: 1.5px solid rgba(47, 176, 171, 0.3);
+  padding: 6px 13px; border-radius: 999px; margin-bottom: 20px;
+}
+.eyebrow-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--coral);
+  animation: pulse-dot 1.8s infinite;
+}
+@keyframes pulse-dot {
+  0% { box-shadow: 0 0 0 0 rgba(239, 90, 64, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(239, 90, 64, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 90, 64, 0); }
+}
+.hero-title {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(36px, 5.2vw, 60px); line-height: 1.02; letter-spacing: 0.4px;
+  margin: 0 0 18px; color: var(--ink);
+}
+.hero-title span { color: var(--coral); }
+.hero-sub { color: var(--muted); font-size: 16px; line-height: 1.6; margin: 0 0 22px; max-width: min(44ch, 100%); }
+.hero-points { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 11px; }
+.hero-points li { position: relative; padding-left: 28px; font-size: 14.5px; color: var(--ink); font-weight: 600; }
+.hero-points li::before {
+  content: ''; position: absolute; left: 0; top: 2px; width: 15px; height: 15px; border-radius: 5px;
+  border: 2px solid var(--teal); background: rgba(47, 176, 171, 0.16);
+}
+.hero-points li:nth-child(2)::before { border-color: var(--coral); background: rgba(239, 90, 64, 0.14); }
+.hero-points li:nth-child(3)::before { border-color: var(--yellow); background: rgba(245, 183, 63, 0.18); }
+.hero-copy .link { margin-top: 4px; }
+
 .lobby-card {
-  width: min(440px, 94vw);
+  position: relative;
+  width: 100%; max-width: 440px;
   background: var(--card);
   border: 2px solid var(--line);
   border-radius: 26px;
-  padding: 30px 28px;
+  padding: 28px;
   box-shadow: 0 24px 60px rgba(80, 60, 30, 0.12);
 }
+/* soft coral/teal glow, only behind the homepage play card */
+.lobby-hero .lobby-card { justify-self: end; }
+.lobby-hero .lobby-card::before {
+  content: ''; position: absolute; inset: -2px; border-radius: 26px; z-index: -1;
+  background:
+    radial-gradient(240px 170px at 82% -12%, rgba(239, 90, 64, 0.22), transparent),
+    radial-gradient(240px 170px at 8% 112%, rgba(47, 176, 171, 0.22), transparent);
+  filter: blur(16px);
+}
+.lobby-hero .lobby-card.invited { box-shadow: 0 0 0 3px rgba(245, 183, 63, 0.6), 0 24px 60px rgba(80, 60, 30, 0.14); }
+.card-head { margin-bottom: 18px; }
+.card-title { font-family: var(--font-display); font-weight: 700; font-size: 26px; margin: 0; color: var(--ink); }
+.card-sub { color: var(--muted); font-size: 13.5px; margin: 5px 0 0; line-height: 1.5; }
+
 .lobby-head { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 6px; }
 .logo {
   font-family: var(--font-display); font-weight: 700; font-size: 34px; letter-spacing: 0.5px;
@@ -54,10 +142,19 @@ body {
 .logo span { color: var(--coral); }
 .sub { text-align: center; color: var(--muted); margin: 0 0 22px; font-size: 14px; line-height: 1.5; }
 
-.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+/* stack hero above the card on narrow screens */
+@media (max-width: 880px) {
+  .lobby-hero { grid-template-columns: 1fr; gap: 26px; max-width: 460px; }
+  .hero-copy { max-width: none; text-align: center; margin: 0 auto; }
+  .hero-sub { margin-left: auto; margin-right: auto; }
+  .hero-points { display: none; }
+  .lobby-hero .lobby-card { justify-self: center; }
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; min-width: 0; }
 .field > span { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.3px; }
 input, select {
-  width: 100%; padding: 12px 14px; border-radius: 14px;
+  width: 100%; min-width: 0; padding: 12px 14px; border-radius: 14px;
   background: #fff; color: var(--ink);
   border: 2px solid var(--line); font-size: 15px; font-family: inherit; outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -101,6 +198,7 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
 .foot { color: var(--muted); font-size: 12.5px; }
 .foot-link { color: var(--teal-ink); font-weight: 700; text-decoration: none; }
 .foot-link:hover { text-decoration: underline; }
+#lobby > .foot { text-align: center; padding: 4px 20px 22px; }
 
 /* ---------------- Admin login gate ---------------- */
 .gate { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -338,3 +436,41 @@ input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 4px rgb
   .btn.tiny { padding: 6px 10px; font-size: 12px; }
   .badge-email { display: none; }
 }
+
+/* ---------------- Accounts / auth ---------------- */
+.auth-chip {
+  position: absolute; top: 16px; right: 16px;
+  cursor: pointer; border: 2px solid var(--line); background: #fff; color: var(--teal-ink);
+  padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  font-family: inherit; text-decoration: none; max-width: 45%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; transition: border-color 0.15s ease;
+}
+.auth-chip:hover { border-color: var(--teal); }
+.field-hint { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.field-hint a { color: var(--teal-ink); font-weight: 700; text-decoration: none; }
+.field-hint a:hover { text-decoration: underline; }
+
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(35, 38, 46, 0.42); backdrop-filter: blur(2px); overflow: auto;
+}
+.auth-card { width: min(400px, 94vw); }
+.auth-card .lobby-head { flex-direction: row; align-items: center; justify-content: space-between; }
+.auth-card .logo { font-size: 26px; }
+.auth-close {
+  cursor: pointer; border: none; background: none; color: var(--muted);
+  font-size: 18px; line-height: 1; padding: 4px; border-radius: 8px;
+}
+.auth-close:hover { color: var(--ink); }
+
+.oauth-buttons { display: flex; flex-direction: column; gap: 10px; }
+.btn.oauth { width: 100%; text-align: center; text-decoration: none; }
+
+.linked-providers { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.provider-chip {
+  display: inline-block; border: 2px solid var(--line); background: #fff; color: var(--ink);
+  padding: 6px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; text-decoration: none;
+}
+.provider-chip.link { color: var(--teal-ink); }
+.provider-chip.link:hover { border-color: var(--teal); }
+.muted { color: var(--muted); }
