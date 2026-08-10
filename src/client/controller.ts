@@ -1,8 +1,8 @@
 // Framework-agnostic game controller. Owns the WebSocket, the canvas Renderer,
 // and the move-animation queue. Exposes an immutable view snapshot so React can
 // subscribe with useSyncExternalStore while the imperative renderer stays smooth.
-import { applyMoveOnly, legalActionsFor } from '@/game/engine';
-import type { Action, Board, Color, Hit } from '@/game/types';
+import { applyMoveOnly, legalActionsFor, opposite } from '@/game/engine';
+import type { Action, Board, Color, Hit, LaserPoint } from '@/game/types';
 import type { ClientMessage, ServerMessage } from '@/game/messages';
 import { colorName } from '@/lib/labels';
 import { Net } from '@/lib/net';
@@ -26,6 +26,8 @@ export interface ViewState {
   overReason: 'pharaoh' | 'timeout' | 'forfeit' | null;
   waiting: boolean;
   bothSeated: boolean;
+  rematchMine: boolean; // I've requested a rematch
+  rematchOpp: boolean; // my opponent has requested a rematch
   players: { red: PlayerView; silver: PlayerView };
   perMoveMs: number;
   turnEndsAt: number | null; // client epoch ms when the current turn's clock expires
@@ -50,6 +52,8 @@ const INITIAL: ViewState = {
   overReason: null,
   waiting: false,
   bothSeated: false,
+  rematchMine: false,
+  rematchOpp: false,
   players: { red: blank(), silver: blank() },
   perMoveMs: 0,
   turnEndsAt: null,
@@ -65,10 +69,11 @@ function blank(): PlayerView {
 }
 
 interface HistoryEntry {
-  board: Board;
-  action: Action | null;
+  board: Board; // resolved position AFTER this move
+  action: Action | null; // the move that produced this position (null for the start)
   by: Color | null;
   removed: Hit | null;
+  laser: LaserPoint[] | null; // laser path fired by this move (for replay)
 }
 
 export class GameController {
@@ -100,6 +105,7 @@ export class GameController {
   private forfeitEndsAt: number | null = null;
   private history: HistoryEntry[] = [];
   private reviewIndex: number | null = null;
+  private reviewSeq = 0; // bumped on each navigation to cancel superseded replays
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
 
   // ---- external store API ---------------------------------------------------
@@ -128,6 +134,8 @@ export class GameController {
       overReason: this.overReason,
       waiting,
       bothSeated: both,
+      rematchMine: this.myColor ? !!this.lastState?.rematch?.[this.myColor] : false,
+      rematchOpp: this.myColor ? !!this.lastState?.rematch?.[opposite(this.myColor)] : false,
       players,
       perMoveMs: this.perMoveMs,
       turnEndsAt: this.turnEndsAt,
@@ -291,7 +299,7 @@ export class GameController {
         this.turnEndsAt = msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
         this.forfeitOf = msg.forfeitOf;
         this.forfeitEndsAt = msg.forfeitEndsIn != null ? Date.now() + msg.forfeitEndsIn : null;
-        if (this.history.length === 0) this.history = [{ board: msg.board, action: null, by: null, removed: null }];
+        if (this.history.length === 0) this.history = [{ board: msg.board, action: null, by: null, removed: null, laser: null }];
         if (!this.busy) {
           this.turn = msg.turn;
           this.winner = msg.winner;
@@ -302,7 +310,7 @@ export class GameController {
         this.emit();
         break;
       case 'move':
-        this.history.push({ board: msg.board, action: msg.action, by: msg.by, removed: msg.removed });
+        this.history.push({ board: msg.board, action: msg.action, by: msg.by, removed: msg.removed, laser: msg.laser });
         this.perMoveMs = msg.perMoveMs;
         this.turnEndsAt = msg.winner ? null : msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
         if (msg.winner) this.overReason = 'pharaoh';
@@ -344,6 +352,13 @@ export class GameController {
         this.reviewIndex = null;
         this.renderer?.clearSelection();
         this.renderer?.setReviewMark(null);
+        this.emit();
+        break;
+      case 'rematch-declined':
+        if (msg.by !== this.myColor) {
+          const who = this.lastState?.names?.[msg.by] ?? colorName(msg.by);
+          this.toast(`${who} declined the rematch`);
+        }
         this.emit();
         break;
       case 'reseat':
@@ -392,19 +407,27 @@ export class GameController {
   }
 
   // ---- move-history review (view-only; no undo) -----------------------------
+  // Steps through EVERY move from both players (indices 0..N, N = latest) and
+  // replays that move's piece + laser animation. Index 0 is the start position.
   reviewPrev() {
-    if (this.history.length <= 1) return;
-    const from = this.reviewIndex == null ? this.history.length - 1 : this.reviewIndex;
-    this.enterReview(Math.max(0, from - 1));
+    if (this.busy || this.history.length <= 1) return; // don't interrupt a live move
+    const last = this.history.length - 1;
+    // from live, the first ◀ replays the most recent move (the one you likely missed)
+    const target = this.reviewIndex == null ? last : Math.max(0, this.reviewIndex - 1);
+    this.enterReview(target);
   }
   reviewNext() {
-    if (this.reviewIndex == null) return;
-    const next = this.reviewIndex + 1;
-    if (next >= this.history.length - 1) this.reviewLive();
-    else this.enterReview(next);
+    if (this.busy || this.reviewIndex == null) return;
+    const last = this.history.length - 1;
+    const target = this.reviewIndex + 1;
+    if (target > last) this.reviewLive();
+    else this.enterReview(target);
   }
   reviewLive() {
     this.reviewIndex = null;
+    this.reviewSeq++; // cancel any in-flight replay
+    this.renderer?.cancelAnimations();
+    this.renderer?.setReviewMark(null);
     this.renderDisplayed();
     this.emit();
   }
@@ -412,8 +435,47 @@ export class GameController {
     this.reviewIndex = idx;
     this.selected = null;
     this.renderer?.clearSelection();
-    this.renderDisplayed();
     this.emit();
+    void this.playHistoryMove(idx);
+  }
+
+  private pause(ms: number): Promise<void> {
+    return new Promise((res) => setTimeout(res, ms));
+  }
+
+  // Replay move `idx` by animating from the previous position (piece slide/rotate,
+  // then the laser fired on that turn, then the capture).
+  private async playHistoryMove(idx: number) {
+    const r = this.renderer;
+    const seq = ++this.reviewSeq;
+    if (!r) return;
+    r.cancelAnimations();
+    const h = this.history[idx];
+    if (!h) return;
+    const prevEntry = this.history[idx - 1];
+    // start position (or missing data) → just show it, no animation
+    if (idx === 0 || !h.action || !prevEntry) {
+      r.setBoard(h.board, { flip: this.myColor === 'red' });
+      r.setReviewMark(null);
+      return;
+    }
+    const prev = prevEntry.board;
+    r.setBoard(prev, { flip: this.myColor === 'red' }); // rewind to before the move
+    r.setReviewMark(null);
+    // hold on the old position for a beat so the move reads clearly, then slide slowly
+    await this.pause(250);
+    if (seq !== this.reviewSeq) return;
+    await r.animatePieceAction(h.action, prev, applyMoveOnly(prev, h.action), 550);
+    if (seq !== this.reviewSeq) return; // a newer navigation took over
+    if (h.laser && h.laser.length && h.by) {
+      await r.animateLaser(h.laser, h.by, () => {
+        if (h.removed) void r.explode(h.removed.x, h.removed.y, h.removed.piece.color);
+        r.setBoardQuiet(h.board);
+      });
+      if (seq !== this.reviewSeq) return;
+    }
+    r.setBoardQuiet(h.board);
+    r.setReviewMark(h.action);
   }
 
   // ---- input ----------------------------------------------------------------
@@ -449,5 +511,8 @@ export class GameController {
   // ---- actions from UI ------------------------------------------------------
   rematch() {
     this.send({ type: 'rematch', setup: this.lastState?.setup });
+  }
+  declineRematch() {
+    this.send({ type: 'rematch-decline' });
   }
 }

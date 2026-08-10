@@ -23,6 +23,8 @@ const TAU = Math.PI * 2;
 const SQ2 = Math.SQRT2;
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+// smoothstep: eases in AND out, so a piece clearly starts at rest on its old square
+const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 type Ctx = CanvasRenderingContext2D;
@@ -310,32 +312,26 @@ export class Renderer {
     this.line(ctx, -a * 0.66 + o / SQ2, -a * 0.66 - o / SQ2, a * 0.66 + o / SQ2, a * 0.66 - o / SQ2);
   }
 
-  private anubisPath(ctx: Ctx, w: number, top: number, bot: number, r: number) {
-    ctx.beginPath();
-    ctx.moveTo(-w, bot);
-    ctx.lineTo(-w, top + r);
-    ctx.quadraticCurveTo(-w, top, -w + r, top);
-    ctx.lineTo(w - r, top);
-    ctx.quadraticCurveTo(w, top, w, top + r);
-    ctx.lineTo(w, bot);
-    ctx.closePath();
-  }
   private _anubis(ctx: Ctx, s: number, fill: string) {
     const w = s * 0.32,
       top = -s * 0.34,
-      bot = s * 0.32,
-      r = s * 0.15;
-    this.anubisPath(ctx, w, top, bot, r);
+      bot = s * 0.34,
+      r = s * 0.14;
+    const h = bot - top;
+    // coloured body
+    roundRect(ctx, -w, top, w * 2, h, r);
     ctx.fillStyle = fill;
     ctx.fill();
-    // black base bar (the vulnerable back)
+    // black armoured shield on the FRONT (local top = the `orient` direction the
+    // engine treats as protected). A laser hitting this black face is blocked.
     ctx.save();
-    this.anubisPath(ctx, w, top, bot, r);
+    roundRect(ctx, -w, top, w * 2, h, r);
     ctx.clip();
     ctx.fillStyle = INK;
-    ctx.fillRect(-w, bot - s * 0.16, w * 2, s * 0.2);
+    ctx.fillRect(-w, top, w * 2, h * 0.46);
     ctx.restore();
-    this.anubisPath(ctx, w, top, bot, r);
+    // outline
+    roundRect(ctx, -w, top, w * 2, h, r);
     ctx.lineWidth = this.lw(s);
     ctx.strokeStyle = INK;
     ctx.stroke();
@@ -459,15 +455,6 @@ export class Renderer {
       ctx.stroke();
       ctx.restore();
     }
-    for (const m of this.reviewMark) {
-      const c = this.cellCenterPx(m.x, m.y);
-      ctx.save();
-      ctx.strokeStyle = '#4f83ff';
-      ctx.lineWidth = 3;
-      roundRect(ctx, c.x - s / 2 + 3, c.y - s / 2 + 3, s - 6, s - 6, 8);
-      ctx.stroke();
-      ctx.restore();
-    }
     for (const t of this.targets) {
       ctx.save();
       if (t.swap) {
@@ -584,10 +571,25 @@ export class Renderer {
     }
   }
 
-  animatePieceAction(action: Action, startBoard: Board, endBoard: Board): Promise<void> {
+  // Immediately stop any running piece/laser/explosion animations and resolve their
+  // promises (so awaiting callers proceed). Used when jumping around move history.
+  cancelAnimations() {
+    if (this._pieceAnim) {
+      const a = this._pieceAnim;
+      this._pieceAnim = null;
+      a.resolve && a.resolve();
+    }
+    if (this._fx.length) {
+      const fx = this._fx;
+      this._fx = [];
+      for (const f of fx) f.resolve && f.resolve();
+    }
+  }
+
+  animatePieceAction(action: Action, startBoard: Board, endBoard: Board, durationMs?: number): Promise<void> {
     this.board = startBoard;
     return new Promise((resolve) => {
-      const dur = action.type === 'rotate' ? 200 : 220;
+      const dur = durationMs ?? (action.type === 'rotate' ? 200 : 220);
       const start = performance.now();
       let anim: PieceAnim;
       if (action.type === 'move') {
@@ -601,7 +603,7 @@ export class Renderer {
           hidden: [{ x: action.x, y: action.y }, ...(other ? [{ x: action.tx, y: action.ty }] : [])],
           update: (t) => t - start >= dur,
           draw: (ctx, t) => {
-            const k = easeOut(clamp((t - start) / dur, 0, 1));
+            const k = easeInOut(clamp((t - start) / dur, 0, 1));
             const x = from.x + (to.x - from.x) * k,
               y = from.y + (to.y - from.y) * k;
             this.drawPiece(ctx, piece, x, y, this.orientAngle(piece.orient));
@@ -629,7 +631,7 @@ export class Renderer {
           hidden: [{ x: action.x, y: action.y }],
           update: (t) => t - start >= dur,
           draw: (ctx, t) => {
-            const k = easeOut(clamp((t - start) / dur, 0, 1));
+            const k = easeInOut(clamp((t - start) / dur, 0, 1));
             this.drawPiece(ctx, piece, c.x, c.y, a0 + (a1 - a0) * k);
           },
         };

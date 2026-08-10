@@ -14,7 +14,8 @@ export interface Names {
 export type ClientMessage =
   | { type: 'join'; playerId: string; name: string; code?: string; setup?: string; color?: Color | 'random'; perMove?: number }
   | { type: 'action'; action: Action }
-  | { type: 'rematch'; setup?: string }
+  | { type: 'rematch'; setup?: string } // request or accept a rematch
+  | { type: 'rematch-decline' } // decline / cancel a pending rematch
   | { type: 'chat'; text: string };
 
 // ---- server → client -------------------------------------------------------
@@ -34,6 +35,7 @@ export type ServerMessage =
       turnEndsIn: number | null; // ms left for the current turn, or null if the clock isn't running
       forfeitOf: Color | null; // a disconnected player who will forfeit, or null
       forfeitEndsIn: number | null; // ms until that forfeit, or null
+      rematch: PlayerSlots; // which players have requested a rematch
     }
   | {
       type: 'move';
@@ -49,7 +51,8 @@ export type ServerMessage =
     }
   | { type: 'timeout'; winner: Color } // a player ran out of time
   | { type: 'forfeit'; winner: Color } // opponent disconnected and didn't return in time
-  | { type: 'rematch' }
+  | { type: 'rematch' } // both agreed — the game has been reset
+  | { type: 'rematch-declined'; by: Color } // opponent declined/cancelled the rematch
   | { type: 'reseat'; you: Color | null }
   | { type: 'error'; message: string }
   | { type: 'chat'; name: string; color: Color | null; text: string };

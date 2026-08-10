@@ -28,6 +28,7 @@ interface Room {
   forfeitTimer: ReturnType<typeof setTimeout> | null;
   forfeitColor: Color | null; // who is about to forfeit (the disconnected player)
   forfeitDeadline: number | null; // epoch ms when the forfeit fires
+  rematch: PlayerSlots; // rematch consent votes (both must agree)
 }
 
 const rooms = new Map<string, Room>();
@@ -58,6 +59,7 @@ function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
     forfeitTimer: null,
     forfeitColor: null,
     forfeitDeadline: null,
+    rematch: { red: false, silver: false },
   };
 }
 
@@ -91,6 +93,7 @@ function hydrateRoom(p: PersistedRoom): Room {
     forfeitTimer: null,
     forfeitColor: p.forfeitColor ?? null,
     forfeitDeadline: p.forfeitDeadline ?? null,
+    rematch: { red: false, silver: false },
   };
 }
 
@@ -195,6 +198,7 @@ function snapshot(room: Room): ServerMessage {
     turnEndsIn: turnEndsIn(room),
     forfeitOf: room.forfeitColor,
     forfeitEndsIn: room.forfeitColor && room.forfeitDeadline ? Math.max(0, room.forfeitDeadline - Date.now()) : null,
+    rematch: room.rematch,
   };
 }
 
@@ -235,8 +239,12 @@ export function createGameWss(): WebSocketServer {
       const room = ws.room;
       if (!room) return;
       room.clients.delete(ws);
-      // Pause the move clock while a player is gone (they shouldn't lose on it).
-      if (ws.color) stopTurnClock(room);
+      // Pause the move clock while a player is gone (they shouldn't lose on it),
+      // and drop any pending rematch request.
+      if (ws.color) {
+        stopTurnClock(room);
+        room.rematch = { red: false, silver: false };
+      }
       // Start/keep the forfeit countdown (anchored to the first drop — never reset here),
       // then persist so the deadline survives even a server restart.
       refreshForfeit(room);
@@ -284,6 +292,7 @@ async function handle(ws: Client, msg: ClientMessage) {
   if (msg.type === 'join') return onJoin(ws, msg);
   if (msg.type === 'action') return onAction(ws, msg);
   if (msg.type === 'rematch') return onRematch(ws, msg);
+  if (msg.type === 'rematch-decline') return onRematchDecline(ws);
   if (msg.type === 'chat') {
     const room = ws.room;
     if (room && ws.name)
@@ -376,11 +385,33 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
   });
 }
 
+// A rematch needs BOTH players to agree. The first click records that player's
+// vote and the opponent is shown "… wants a rematch"; once both have voted the
+// game actually resets (with sides swapped).
 async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematch' }>) {
   const room = ws.room;
   if (!room || !ws.color) return;
-  const known = (await listSetups()).some((s) => s.name === msg.setup);
-  const setup = msg.setup && known ? msg.setup : room.game.setup;
+  if (!room.game.winner) return; // rematch only makes sense once the game is over
+  room.rematch[ws.color] = true;
+  if (room.rematch.red && room.rematch.silver) {
+    await performRematch(room, msg.setup);
+  } else {
+    broadcast(room, snapshot(room)); // tells the opponent someone wants a rematch
+  }
+}
+
+function onRematchDecline(ws: Client) {
+  const room = ws.room;
+  if (!room || !ws.color) return;
+  const hadRequest = room.rematch.red || room.rematch.silver;
+  room.rematch = { red: false, silver: false };
+  if (hadRequest) broadcast(room, { type: 'rematch-declined', by: ws.color });
+  broadcast(room, snapshot(room));
+}
+
+async function performRematch(room: Room, requestedSetup?: string) {
+  const known = (await listSetups()).some((s) => s.name === requestedSetup);
+  const setup = requestedSetup && known ? requestedSetup : room.game.setup;
   const oldSeats = { ...room.seats },
     oldNames = { ...room.names };
   room.seats = { red: oldSeats.silver, silver: oldSeats.red };
@@ -389,6 +420,8 @@ async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematc
     if (c.playerId && seatOf(room, c.playerId)) c.color = seatOf(room, c.playerId);
   }
   room.game = await createGame(setup);
+  room.rematch = { red: false, silver: false };
+  clearForfeit(room);
   if (bothSeated(room)) startTurnClock(room);
   else stopTurnClock(room);
   persist(room);
