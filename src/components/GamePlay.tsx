@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Copy, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Copy, Loader2, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color } from '@/game/types';
 import { opposite } from '@/game/engine';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import Board from './Board';
 import LogoMark, { PersonIcon } from './LogoMark';
 import ThemeToggle from './ThemeToggle';
@@ -59,6 +60,10 @@ export default function GamePlay({ controller, view }: { controller: GameControl
     }
   };
   const leave = () => (window.location.href = window.location.pathname);
+
+  if (!view.connected || !controller.hasState()) {
+    return <GameLoadingSkeleton view={view} leave={leave} />;
+  }
 
   const turnPill = winner ? PLAYER[winner].tint : yours ? YOURS_TINT : PLAYER[turn].tint;
 
@@ -329,5 +334,66 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => void }) {
+  return (
+    <section className="flex h-dvh flex-col overflow-hidden">
+      <header className="flex items-center gap-3 border-b border-border/70 px-4 py-2.5">
+        <div className="flex items-center gap-2 text-foreground">
+          <LogoMark size={22} />
+          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-full border border-laser/40 bg-laser/10 px-3 py-1 text-xs font-semibold text-laser animate-pulse">
+          <Loader2 className="size-3.5 animate-spin" />
+          <span>{view.roomCode ? `Joining ${view.roomCode}…` : 'Connecting…'}</span>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
+          <Button variant="outline" size="sm" onClick={leave}>
+            <LogOut className="size-4" /> Leave
+          </Button>
+        </div>
+      </header>
+
+      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
+          <Skeleton className="h-9 w-36 rounded-full" />
+
+          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-1">
+            <div className="relative flex aspect-[10/8] w-full max-w-2xl flex-col items-center justify-center rounded-2xl border border-border/80 bg-card/60 p-4 shadow-2xl backdrop-blur">
+              <div className="absolute inset-4 grid grid-cols-10 grid-rows-8 gap-1 opacity-15">
+                {Array.from({ length: 80 }).map((_, i) => (
+                  <div key={i} className="rounded-sm border border-border/40 bg-muted/20" />
+                ))}
+              </div>
+              <div className="relative z-10 flex flex-col items-center gap-3 text-center">
+                <div className="relative grid size-12 place-items-center rounded-full border border-laser/40 bg-laser/10 shadow-lg shadow-laser/20">
+                  <Loader2 className="size-6 text-laser animate-spin" />
+                </div>
+                <div className="font-display text-base font-semibold tracking-wide text-foreground">
+                  Connecting to Laser Chess
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {view.roomCode ? (
+                    <>Loading room <b className="font-mono tracking-widest text-foreground">{view.roomCode}</b>…</>
+                  ) : (
+                    'Initializing game session…'
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Skeleton className="h-9 w-36 rounded-full" />
+        </div>
+
+        <aside className="hidden shrink-0 flex-col gap-3 border-t border-border/70 p-3 lg:flex lg:w-80 lg:border-l lg:border-t-0">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-44 w-full rounded-xl" />
+        </aside>
+      </main>
+    </section>
   );
 }

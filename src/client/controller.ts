@@ -113,6 +113,19 @@ export class GameController {
   private reviewSeq = 0; // bumped on each navigation to cancel superseded replays
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
 
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const g = (params.get('game') || '').toUpperCase();
+      if (g) {
+        this.roomCode = g;
+        this.joinIntent = { code: g, setup: 'Classic', color: 'random', perMove: 0 };
+        this.screenGame = true;
+        this.snapshot = { ...INITIAL, screen: 'game', roomCode: g };
+      }
+    }
+  }
+
   // ---- external store API ---------------------------------------------------
   subscribe = (cb: () => void): (() => void) => {
     this.listeners.add(cb);
@@ -120,6 +133,10 @@ export class GameController {
   };
   getSnapshot = (): ViewState => this.snapshot;
   getServerSnapshot = (): ViewState => INITIAL;
+
+  hasState(): boolean {
+    return this.lastState !== null;
+  }
 
   private emit() {
     const players = { red: this.playerView('red'), silver: this.playerView('silver') };

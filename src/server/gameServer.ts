@@ -94,6 +94,7 @@ function toPersisted(room: Room): PersistedRoom {
     seats: room.seats,
     names: room.names,
     perMoveMs: room.perMoveMs,
+    turnStartedAt: room.turnStartedAt,
     forfeitColor: room.forfeitColor,
     forfeitDeadline: room.forfeitDeadline,
   };
@@ -111,7 +112,7 @@ function hydrateRoom(p: PersistedRoom): Room {
     names: p.names,
     clients: new Set(),
     perMoveMs: p.perMoveMs ?? 0,
-    turnStartedAt: null,
+    turnStartedAt: p.turnStartedAt ?? null,
     turnTimer: null,
     forfeitTimer: null,
     forfeitColor: p.forfeitColor ?? null,
@@ -129,21 +130,44 @@ function seatOf(room: Room, playerId: string): Color | null {
 const bothSeated = (room: Room) => !!room.seats.red && !!room.seats.silver;
 
 // ---- per-move clock (authoritative) ---------------------------------------
-function stopTurnClock(room: Room) {
+function stopTurnClockTimer(room: Room) {
   if (room.turnTimer) clearTimeout(room.turnTimer);
   room.turnTimer = null;
+}
+
+function stopTurnClock(room: Room) {
+  stopTurnClockTimer(room);
   room.turnStartedAt = null;
 }
+
+function resetTurnClockForNewTurn(room: Room) {
+  stopTurnClockTimer(room);
+  room.turnStartedAt = Date.now();
+  startTurnClock(room);
+}
+
 function startTurnClock(room: Room) {
-  stopTurnClock(room);
+  stopTurnClockTimer(room);
   if (room.perMoveMs <= 0 || room.game.winner || !bothSeated(room)) return;
   const on = presence(room);
   if (!on.red || !on.silver) return; // don't run the move clock while a player is offline
-  room.turnStartedAt = Date.now();
-  room.turnTimer = setTimeout(() => onTimeout(room), room.perMoveMs);
+
+  if (room.turnStartedAt == null) {
+    room.turnStartedAt = Date.now();
+  }
+
+  const elapsed = Date.now() - room.turnStartedAt;
+  const remaining = room.perMoveMs - elapsed;
+
+  if (remaining <= 0) {
+    onTimeout(room);
+  } else {
+    room.turnTimer = setTimeout(() => onTimeout(room), remaining);
+  }
 }
+
 function turnEndsIn(room: Room): number | null {
-  if (room.perMoveMs <= 0 || !room.turnTimer || room.turnStartedAt == null) return null;
+  if (room.perMoveMs <= 0 || room.turnStartedAt == null || room.game.winner) return null;
   return Math.max(0, room.perMoveMs - (Date.now() - room.turnStartedAt));
 }
 function onTimeout(room: Room) {
@@ -271,10 +295,10 @@ export function createGameWss(): WebSocketServer {
       const room = ws.room;
       if (!room) return;
       room.clients.delete(ws);
-      // Pause the move clock while a player is gone (they shouldn't lose on it),
+      // Pause the OS move clock timer while a player is gone (leaving turnStartedAt intact),
       // and drop any pending rematch request.
       if (ws.color) {
-        stopTurnClock(room);
+        stopTurnClockTimer(room);
         room.rematch = { red: false, silver: false };
       }
       // Start/keep the forfeit countdown (anchored to the first drop — never reset here),
@@ -400,7 +424,7 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
   room.game.moveCount++;
 
   if (result.winner) stopTurnClock(room);
-  else startTurnClock(room); // reset the clock for the next player
+  else resetTurnClockForNewTurn(room); // reset the clock for the next player's turn
 
   persist(room);
 
@@ -455,7 +479,7 @@ async function performRematch(room: Room, requestedSetup?: string) {
   room.game = await createGame(setup);
   room.rematch = { red: false, silver: false };
   clearForfeit(room);
-  if (bothSeated(room)) startTurnClock(room);
+  if (bothSeated(room)) resetTurnClockForNewTurn(room);
   else stopTurnClock(room);
   persist(room);
   broadcast(room, { type: 'rematch' });

@@ -1,21 +1,12 @@
-'use client';
-import { useEffect, useRef } from 'react';
-import { toast } from 'sonner';
-import { useController } from '@/client/useController';
-import Lobby from '@/components/Lobby';
-import GamePlay from '@/components/GamePlay';
+import GameApp from '@/components/GameApp';
 
-export default function Page() {
-  const { controller, view } = useController();
+// Server component: resolve the ?game= room code up front so the server renders
+// the game screen (with its loading skeleton) rather than the lobby when someone
+// reloads a room link. This prevents the flash of the homepage before hydration.
+export default async function Page({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
+  const { game } = await searchParams;
+  const raw = Array.isArray(game) ? game[0] : game;
+  const initialGameCode = (raw || '').toUpperCase().trim() || null;
 
-  // Bridge the controller's toast events (delivered via the view snapshot) to sonner.
-  const lastToast = useRef(0);
-  useEffect(() => {
-    if (view.toast && view.toast.id !== lastToast.current) {
-      lastToast.current = view.toast.id;
-      toast(view.toast.text);
-    }
-  }, [view.toast]);
-
-  return view.screen === 'lobby' ? <Lobby controller={controller} view={view} /> : <GamePlay controller={controller} view={view} />;
+  return <GameApp initialGameCode={initialGameCode} />;
 }
