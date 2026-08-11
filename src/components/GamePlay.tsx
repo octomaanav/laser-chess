@@ -358,10 +358,10 @@ function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => vo
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-2 p-3">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
           <Skeleton className="h-9 w-36 rounded-full" />
 
-          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-2">
+          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-1">
             <div className="relative flex aspect-[10/8] w-full max-w-2xl flex-col items-center justify-center rounded-2xl border border-border/80 bg-card/60 p-4 shadow-2xl backdrop-blur">
               <div className="absolute inset-4 grid grid-cols-10 grid-rows-8 gap-1 opacity-15">
                 {Array.from({ length: 80 }).map((_, i) => (
