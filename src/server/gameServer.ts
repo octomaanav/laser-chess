@@ -476,7 +476,8 @@ function maybeTriggerBot(room: Room) {
   void requestBotMove(room.game, color, difficulty)
     .then((action) => {
       room.botThinking = false;
-      applyGameAction(room, color, action);
+      const result = applyGameAction(room, color, action);
+      if (!result.ok) console.error('bot move rejected by engine:', result.error);
     })
     .catch((e) => {
       room.botThinking = false;
@@ -492,7 +493,11 @@ async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematc
   if (!room || !ws.color) return;
   if (!room.game.winner) return; // rematch only makes sense once the game is over
   room.rematch[ws.color] = true;
-  if (room.rematch.red && room.rematch.silver) {
+  // A bot seat can never send a `rematch` message itself, so treat it as an
+  // automatic yes — otherwise a human-vs-bot rematch would hang forever.
+  const redAgreed = room.rematch.red || !!room.botDifficulty.red;
+  const silverAgreed = room.rematch.silver || !!room.botDifficulty.silver;
+  if (redAgreed && silverAgreed) {
     await performRematch(room, msg.setup);
   } else {
     broadcast(room, snapshot(room)); // tells the opponent someone wants a rematch
