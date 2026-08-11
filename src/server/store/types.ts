@@ -8,6 +8,7 @@ export interface PersistedRoom {
   seats: { red: string | null; silver: string | null };
   names: { red: string | null; silver: string | null };
   perMoveMs: number;
+  turnStartedAt?: number | null; // epoch ms the current turn started
   forfeitColor?: Color | null; // a disconnected player with a running forfeit clock
   forfeitDeadline?: number | null; // epoch ms the forfeit fires (survives restart)
 }
