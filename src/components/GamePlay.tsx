@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Copy, LogOut, Radio } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Copy, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color } from '@/game/types';
 import { opposite } from '@/game/engine';
@@ -111,7 +111,26 @@ export default function GamePlay({ controller, view }: { controller: GameControl
             </Banner>
           ) : null}
 
-          <Board controller={controller} />
+          <div className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-center">
+            <Board controller={controller} />
+
+            {/* Action Panel — absolute floating overlay for smaller screens so board size remains stable during rotation */}
+            {view.rotations.length > 0 && (
+              <div className="absolute bottom-2 z-20 flex lg:hidden items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-2">
+                <span className="pl-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rotate</span>
+                {view.rotations.some((rot) => rot.spin === -1) && (
+                  <Button size="sm" variant="secondary" onClick={() => controller.rotateSelected(-1)}>
+                    <RotateCcw className="size-4" /> Left
+                  </Button>
+                )}
+                {view.rotations.some((rot) => rot.spin === 1) && (
+                  <Button size="sm" variant="secondary" onClick={() => controller.rotateSelected(1)}>
+                    <RotateCw className="size-4" /> Right
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
           <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
         </div>
 
