@@ -100,4 +100,18 @@ function testSearchFindsMateInOne() {
 }
 
 testSearchFindsMateInOne();
+
+import { chooseMove } from './bot';
+
+function testChooseMoveRespectsBudget() {
+  const state = createGameFromDef(classic);
+  const start = Date.now();
+  const action = chooseMove(state, 'silver', 'easy');
+  const elapsed = Date.now() - start;
+  assert.ok(action, 'chooseMove must return an action');
+  assert.ok(elapsed < 1000, `easy difficulty should return well under 1s, took ${elapsed}ms`);
+  console.log(`ok: chooseMove easy (${elapsed}ms)`);
+}
+
+testChooseMoveRespectsBudget();
 console.log('all bot selftests passed');
