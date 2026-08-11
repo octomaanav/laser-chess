@@ -2,7 +2,7 @@
 // and the move-animation queue. Exposes an immutable view snapshot so React can
 // subscribe with useSyncExternalStore while the imperative renderer stays smooth.
 import { applyMoveOnly, legalActionsFor, opposite } from '@/game/engine';
-import type { Action, Board, Color, Hit, LaserPoint } from '@/game/types';
+import type { Action, Board, Color, Hit, LaserPoint, RotateAction } from '@/game/types';
 import type { ClientMessage, ServerMessage } from '@/game/messages';
 import { colorName } from '@/lib/labels';
 import { Net } from '@/lib/net';
@@ -36,6 +36,8 @@ export interface ViewState {
   moves: number; // number of moves played
   reviewIndex: number | null; // null = live; otherwise index into move history
   reviewLabel: string | null;
+  selection: { x: number; y: number } | null; // the piece the player has selected
+  rotations: { spin: 1 | -1 }[]; // rotation options for the selected piece (Action Panel)
   toast: { id: number; text: string } | null;
 }
 
@@ -62,6 +64,8 @@ const INITIAL: ViewState = {
   moves: 0,
   reviewIndex: null,
   reviewLabel: null,
+  selection: null,
+  rotations: [],
   toast: null,
 };
 function blank(): PlayerView {
@@ -94,6 +98,7 @@ export class GameController {
   private lastState: Extract<ServerMessage, { type: 'state' }> | null = null;
   private board: Board | null = null;
   private selected: { x: number; y: number } | null = null;
+  private selectedRotations: { spin: 1 | -1; action: RotateAction }[] = [];
   private busy = false;
   private moveQueue: Extract<ServerMessage, { type: 'move' }>[] = [];
   private joinIntent: { code?: string; setup: string; color: Color | 'random'; perMove: number } | null = null;
@@ -144,6 +149,8 @@ export class GameController {
       moves: Math.max(0, this.history.length - 1),
       reviewIndex: this.reviewIndex,
       reviewLabel: this.reviewLabelFor(),
+      selection: this.selected,
+      rotations: this.selected ? this.selectedRotations.map((r) => ({ spin: r.spin })) : [],
       toast: this.snapshot.toast,
     };
     for (const cb of this.listeners) cb();
@@ -497,7 +504,14 @@ export class GameController {
     if (this.selected && this.selected.x === pick.x && this.selected.y === pick.y) return this.deselect();
     if (cell && cell.color === this.myColor && this.turn === this.myColor) {
       this.selected = { x: pick.x, y: pick.y };
-      r.select(this.selected, legalActionsFor(this.board, this.myColor, pick.x, pick.y));
+      const actions = legalActionsFor(this.board, this.myColor, pick.x, pick.y);
+      r.select(this.selected, actions);
+      // Rotation moves off the board into the Action Panel: normalize each rotate
+      // action to a spin direction (sphinx rotates carry `orient` instead of `spin`).
+      this.selectedRotations = actions
+        .filter((a): a is RotateAction => a.type === 'rotate')
+        .map((a) => ({ spin: (a.spin ?? ((a.orient - cell.orient + 4) % 4 === 1 ? 1 : -1)) as 1 | -1, action: a }));
+      this.emit();
     } else {
       this.deselect();
       if (cell && cell.color === this.myColor && this.turn !== this.myColor) this.toast('Not your turn');
@@ -505,7 +519,20 @@ export class GameController {
   }
   private deselect() {
     this.selected = null;
+    this.selectedRotations = [];
     this.renderer?.clearSelection();
+    this.emit();
+  }
+
+  // Rotate the selected piece from the Action Panel (keeps the piece highlighted
+  // until the rotation is committed). No-op if the rotation isn't currently legal.
+  rotateSelected(spin: 1 | -1) {
+    if (!this.renderer || !this.board || this.reviewIndex != null) return;
+    if (this.busy || this.spectator || this.winner || this.turn !== this.myColor) return;
+    const rot = this.selectedRotations.find((r) => r.spin === spin);
+    if (!rot) return;
+    this.send({ type: 'action', action: rot.action });
+    this.deselect();
   }
 
   // ---- actions from UI ------------------------------------------------------

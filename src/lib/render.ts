@@ -162,6 +162,7 @@ export class Renderer {
   flip = false;
   board: Board | null = null;
   selection: { x: number; y: number } | null = null;
+  selectedActions: Action[] = [];
   targets: Target[] = [];
   handles: Handle[] = [];
   reviewMark: { x: number; y: number }[] = [];
@@ -226,6 +227,7 @@ export class Renderer {
       canvas.style.height = H + 'px';
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     }
+    this.rebuildFxElements();
     this.drawBg();
     this.drawPieces();
     this.drawFx();
@@ -501,28 +503,65 @@ export class Renderer {
   }
 
   // ---- selection / hints (static fx) ---------------------------------------
+  // Move targets (dots) are drawn inside the center of destination boxes.
+  // Rotation handles are shown directly on the piece for larger resolution screens (desktop/laptop),
+  // while smaller screens utilize the Action Panel below the board.
   select(cell: { x: number; y: number }, actions: Action[]) {
     this.selection = cell;
-    this.targets = [];
-    this.handles = [];
-    const s = this.geom.cell;
-    for (const a of actions) {
-      if (a.type === 'move') {
-        const c = this.cellCenterPx(a.tx, a.ty);
-        this.targets.push({ ...a, px: c.x, py: c.y, r: s * 0.42 });
-      } else if (a.type === 'rotate') {
-        const c = this.cellCenterPx(cell.x, cell.y);
-        const dir = a.spin === -1 ? -1 : 1;
-        this.handles.push({ ...a, px: c.x + dir * s * 0.54, py: c.y - s * 0.54, r: s * 0.22, dir });
-      }
-    }
+    this.selectedActions = actions;
+    this.rebuildFxElements();
     this.drawFx();
   }
+
   clearSelection() {
     this.selection = null;
+    this.selectedActions = [];
     this.targets = [];
     this.handles = [];
     this.drawFx();
+  }
+
+  rebuildFxElements() {
+    this.targets = [];
+    this.handles = [];
+    if (!this.selection) return;
+
+    const s = this.geom.cell;
+    const isLargeScreen = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    const c = this.cellCenterPx(this.selection.x, this.selection.y);
+
+    const rotateActions = this.selectedActions.filter((a): a is Action & { type: 'rotate' } => a.type === 'rotate');
+
+    for (const a of this.selectedActions) {
+      if (a.type === 'move') {
+        const tc = this.cellCenterPx(a.tx, a.ty);
+        this.targets.push({ ...a, px: tc.x, py: tc.y, r: s * 0.42 });
+      } else if (a.type === 'rotate' && isLargeScreen) {
+        let spin: 1 | -1 = 1;
+        if (a.spin !== undefined) {
+          spin = a.spin;
+        } else if (this.board && this.board[this.selection.y]?.[this.selection.x]) {
+          const piece = this.board[this.selection.y][this.selection.x]!;
+          spin = (a.orient - piece.orient + 4) % 4 === 1 ? 1 : -1;
+        }
+        // Position rotation arrows at the top-left and top-right of the box
+        const hasBothSpins = rotateActions.length > 1;
+        const xOffset = hasBothSpins ? (spin === -1 ? -0.40 : 0.40) : 0;
+        const yOffset = -0.40;
+
+        this.handles.push({
+          type: 'rotate',
+          x: a.x,
+          y: a.y,
+          orient: a.orient,
+          spin,
+          px: c.x + s * xOffset,
+          py: c.y + s * yOffset,
+          r: Math.max(9, s * 0.16),
+          dir: spin,
+        });
+      }
+    }
   }
 
   // Highlight the from/to squares of a reviewed move (history view).
@@ -540,13 +579,23 @@ export class Renderer {
     const px = clientX - r.left,
       py = clientY - r.top;
     for (const h of this.handles)
-      if (Math.hypot(px - h.px, py - h.py) <= h.r)
+      if (Math.hypot(px - h.px, py - h.py) <= Math.max(14, h.r * 1.5))
         return { kind: 'action', action: { type: 'rotate', x: h.x, y: h.y, orient: h.orient, spin: h.spin } };
     for (const t of this.targets)
       if (Math.hypot(px - t.px, py - t.py) <= t.r)
         return { kind: 'action', action: { type: 'move', x: t.x, y: t.y, tx: t.tx, ty: t.ty, swap: t.swap } };
     const cell = this.cellFromClient(clientX, clientY);
-    return cell ? { kind: 'cell', x: cell.x, y: cell.y } : null;
+    if (cell) {
+      const matchingTarget = this.targets.find((t) => t.tx === cell.x && t.ty === cell.y);
+      if (matchingTarget) {
+        return {
+          kind: 'action',
+          action: { type: 'move', x: matchingTarget.x, y: matchingTarget.y, tx: matchingTarget.tx, ty: matchingTarget.ty, swap: matchingTarget.swap },
+        };
+      }
+      return { kind: 'cell', x: cell.x, y: cell.y };
+    }
+    return null;
   }
 
   drawFx(now?: number) {
@@ -556,18 +605,6 @@ export class Renderer {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const s = this.geom.cell;
 
-    if (this.selection) {
-      const c = this.cellCenterPx(this.selection.x, this.selection.y);
-      ctx.save();
-      ctx.fillStyle = SEL_FILL;
-      roundRect(ctx, c.x - s / 2 + 2.5, c.y - s / 2 + 2.5, s - 5, s - 5, 9);
-      ctx.fill();
-      ctx.strokeStyle = HIGHLIGHT;
-      ctx.lineWidth = 3;
-      roundRect(ctx, c.x - s / 2 + 2.5, c.y - s / 2 + 2.5, s - 5, s - 5, 9);
-      ctx.stroke();
-      ctx.restore();
-    }
     for (const t of this.targets) {
       ctx.save();
       if (t.swap) {
@@ -580,7 +617,7 @@ export class Renderer {
         ctx.shadowColor = DOT_GLOW;
         ctx.shadowBlur = s * 0.16;
         ctx.beginPath();
-        ctx.arc(t.px, t.py, s * 0.12, 0, TAU);
+        ctx.arc(t.px, t.py, s * 0.14, 0, TAU);
         ctx.fill();
         ctx.shadowBlur = 0;
         ctx.strokeStyle = DOT_RING;
@@ -602,7 +639,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(h.px, h.py);
     ctx.shadowColor = HANDLE_SHADOW;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 4;
     ctx.shadowOffsetY = 1;
     ctx.fillStyle = HANDLE_BASE;
     ctx.beginPath();
@@ -613,7 +650,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(h.px, h.py);
     ctx.strokeStyle = HANDLE_RING;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.arc(0, 0, h.r, 0, TAU);
     ctx.stroke();
@@ -631,7 +668,7 @@ export class Renderer {
     const end = start + Math.PI * 1.5; // sweep 270° clockwise (canvas y-down)
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
-    ctx.lineWidth = Math.max(1.8, R * 0.15);
+    ctx.lineWidth = Math.max(1.2, R * 0.16);
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.arc(0, 0, rr, start, end, false);
@@ -711,14 +748,14 @@ export class Renderer {
       if (action.type === 'move') {
         const piece = startBoard[action.y][action.x]!;
         const other = startBoard[action.ty][action.tx];
-        const from = this.cellCenterPx(action.x, action.y);
-        const to = this.cellCenterPx(action.tx, action.ty);
         anim = {
           endBoard,
           resolve,
           hidden: [{ x: action.x, y: action.y }, ...(other ? [{ x: action.tx, y: action.ty }] : [])],
           update: (t) => t - start >= dur,
           draw: (ctx, t) => {
+            const from = this.cellCenterPx(action.x, action.y);
+            const to = this.cellCenterPx(action.tx, action.ty);
             const k = easeInOut(clamp((t - start) / dur, 0, 1));
             const x = from.x + (to.x - from.x) * k,
               y = from.y + (to.y - from.y) * k;
@@ -732,7 +769,6 @@ export class Renderer {
         };
       } else {
         const piece = startBoard[action.y][action.x]!;
-        const c = this.cellCenterPx(action.x, action.y);
         const a0 = this.orientAngle(piece.orient);
         let delta = action.orient - piece.orient;
         if (action.spin) delta = action.spin;
@@ -747,6 +783,7 @@ export class Renderer {
           hidden: [{ x: action.x, y: action.y }],
           update: (t) => t - start >= dur,
           draw: (ctx, t) => {
+            const c = this.cellCenterPx(action.x, action.y);
             const k = easeInOut(clamp((t - start) / dur, 0, 1));
             this.drawPiece(ctx, piece, c.x, c.y, a0 + (a1 - a0) * k);
           },
