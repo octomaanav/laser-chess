@@ -214,9 +214,9 @@ export class Renderer {
   // ---- geometry ------------------------------------------------------------
   resize() {
     const rect = this.root.getBoundingClientRect();
-    const W = Math.max(320, rect.width),
-      H = Math.max(240, rect.height);
-    const cell = Math.floor(Math.min((W - 28) / COLS, (H - 28) / ROWS));
+    const W = Math.max(100, rect.width),
+      H = Math.max(100, rect.height);
+    const cell = Math.max(10, Math.floor(Math.min((W - 16) / COLS, (H - 16) / ROWS)));
     const w = cell * COLS,
       h = cell * ROWS;
     this.geom = { ox: Math.round((W - w) / 2), oy: Math.round((H - h) / 2), cell, w, h };

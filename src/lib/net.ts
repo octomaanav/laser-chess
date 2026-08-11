@@ -23,8 +23,15 @@ export class Net<Msg = unknown> {
     for (const fn of this.handlers[type] as Handler<Msg | void>[]) fn(arg as Msg);
   }
 
+  isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
   connect() {
     this._closed = false;
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+      return;
+    }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
     this.ws = ws;

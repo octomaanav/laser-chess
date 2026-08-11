@@ -69,7 +69,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
           <LogoMark size={22} />
           <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
         </a>
-        <div className={cn('rounded-full border px-3 py-1 text-sm font-semibold', turnPill)}>
+        <div className={cn('rounded-full border px-2.5 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0', turnPill)}>
           {view.connected ? turnText : 'Connecting…'}
         </div>
         {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
@@ -77,22 +77,22 @@ export default function GamePlay({ controller, view }: { controller: GameControl
           <ThemeToggle />
           <Badge
             variant="outline"
-            className={cn('font-medium', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
+            className={cn('font-medium whitespace-nowrap shrink-0', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
           >
             {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
           </Badge>
           <span
-            className={cn('size-2.5 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
+            className={cn('size-2.5 shrink-0 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
             title={view.connected ? 'connected' : 'disconnected'}
           />
-          <Button variant="outline" size="sm" onClick={leave}>
+          <Button variant="outline" size="sm" onClick={leave} className="shrink-0">
             <LogOut className="size-4" /> Leave
           </Button>
         </div>
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-2 p-3">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
           <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
 
           {view.waiting && (
@@ -111,26 +111,29 @@ export default function GamePlay({ controller, view }: { controller: GameControl
             </Banner>
           ) : null}
 
-          <div className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-center">
+          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-1">
             <Board controller={controller} />
+          </div>
 
-            {/* Action Panel — absolute floating overlay for smaller screens so board size remains stable during rotation */}
+          {/* Action Panel — positioned below the board for smaller screens with fixed height to prevent layout shifts */}
+          <div className="flex lg:hidden h-10 shrink-0 items-center justify-center">
             {view.rotations.length > 0 && (
-              <div className="absolute bottom-2 z-20 flex lg:hidden items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1 shadow-lg backdrop-blur animate-in fade-in slide-in-from-bottom-1">
                 <span className="pl-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rotate</span>
                 {view.rotations.some((rot) => rot.spin === -1) && (
-                  <Button size="sm" variant="secondary" onClick={() => controller.rotateSelected(-1)}>
-                    <RotateCcw className="size-4" /> Left
+                  <Button size="sm" variant="secondary" className="h-7 text-xs px-2.5" onClick={() => controller.rotateSelected(-1)}>
+                    <RotateCcw className="size-3.5" /> Left
                   </Button>
                 )}
                 {view.rotations.some((rot) => rot.spin === 1) && (
-                  <Button size="sm" variant="secondary" onClick={() => controller.rotateSelected(1)}>
-                    <RotateCw className="size-4" /> Right
+                  <Button size="sm" variant="secondary" className="h-7 text-xs px-2.5" onClick={() => controller.rotateSelected(1)}>
+                    <RotateCw className="size-3.5" /> Right
                   </Button>
                 )}
               </div>
             )}
           </div>
+
           <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
         </div>
 
@@ -247,7 +250,7 @@ function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerVie
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+        'flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
         active ? PLAYER[color].seat : 'border-border bg-secondary/60',
       )}
     >

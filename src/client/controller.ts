@@ -234,11 +234,12 @@ export class GameController {
 
     this.net.on('open', () => {
       this.setConnected(true);
+      const codeToJoin = this.roomCode || this.joinIntent?.code;
       this.send({
         type: 'join',
         playerId: this.playerId,
         name: this.playerName,
-        code: this.joinIntent!.code,
+        code: codeToJoin,
         setup: this.joinIntent!.setup,
         color: this.joinIntent!.color,
         perMove: this.joinIntent!.perMove,
@@ -247,6 +248,16 @@ export class GameController {
     this.net.on('message', (m) => this.onMessage(m));
     this.net.on('close', () => this.setConnected(false));
     this.net.connect();
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          if (!this.snapshot.connected || !this.net.isConnected()) {
+            this.net.connect();
+          }
+        }
+      });
+    }
   }
 
   private send(m: ClientMessage) {
@@ -290,6 +301,11 @@ export class GameController {
     switch (msg.type) {
       case 'joined':
         this.roomCode = msg.code;
+        if (this.joinIntent) {
+          this.joinIntent.code = msg.code;
+        } else {
+          this.joinIntent = { code: msg.code, setup: this.setup, color: msg.you || 'random', perMove: 0 };
+        }
         this.myColor = msg.you;
         this.spectator = !!msg.spectator;
         if (msg.you) this.rememberRoom(msg.code, msg.you); // enables seamless auto-rejoin later
