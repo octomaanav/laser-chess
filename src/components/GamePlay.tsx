@@ -32,53 +32,12 @@ const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
 const YOURS_TINT = 'border-laser/40 bg-laser/10 text-laser';
 
 const LEGEND = [
-  { type: 'pharaoh', name: 'Pharaoh', desc: 'protect it at all costs.' },
-  { type: 'pyramid', name: 'Pyramid', desc: 'single mirror, deflects 90°.' },
-  { type: 'scarab', name: 'Scarab', desc: 'double mirror, indestructible; can swap.' },
-  { type: 'anubis', name: 'Anubis', desc: 'shielded front, vulnerable behind.' },
-  { type: 'sphinx', name: 'Sphinx', desc: 'your laser; rotate only.' },
-] as const;
-
-// Small monochrome glyphs mirroring each piece's actual board silhouette —
-// a legend needs to teach shape recognition, not color (color already
-// means "whose piece", shown elsewhere via the player badges).
-function PieceGlyph({ type }: { type: (typeof LEGEND)[number]['type'] }) {
-  const common = { width: 14, height: 14, viewBox: '0 0 14 14', className: 'shrink-0 text-foreground' };
-  switch (type) {
-    case 'pharaoh':
-      return (
-        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
-          <path d="M2 11.5V6l2.5 2.2L7 2.5l2.5 5.7L12 6v5.5z" />
-        </svg>
-      );
-    case 'pyramid':
-      return (
-        <svg {...common} fill="currentColor">
-          <path d="M2 12 12 12 2 2Z" />
-        </svg>
-      );
-    case 'scarab':
-      return (
-        <svg {...common} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
-          <path d="M2.5 2.5 11.5 11.5" />
-        </svg>
-      );
-    case 'anubis':
-      return (
-        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4">
-          <rect x="2.5" y="1.5" width="9" height="11" rx="2.4" />
-          <path d="M2.5 6h9" />
-        </svg>
-      );
-    case 'sphinx':
-      return (
-        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-          <rect x="2.5" y="3.5" width="9" height="9" rx="2.4" />
-          <path d="M7 3.5V0.5" />
-        </svg>
-      );
-  }
-}
+  { color: '#f5b73f', name: 'Pharaoh', desc: 'protect it at all costs.' },
+  { color: 'var(--player-red)', name: 'Pyramid', desc: 'single mirror, deflects 90°.' },
+  { color: 'var(--player-teal)', name: 'Scarab', desc: 'double mirror, indestructible; can swap.' },
+  { color: '#64708a', name: 'Anubis', desc: 'shielded front, vulnerable behind.' },
+  { color: '#9aa6bd', name: 'Sphinx', desc: 'your laser; rotate only.' },
+];
 
 export default function GamePlay({ controller, view }: { controller: GameController; view: ViewState }) {
   const { myColor, spectator, turn, winner } = view;
@@ -137,7 +96,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
           <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
 
@@ -224,7 +183,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
             <ul className="flex flex-col gap-2 text-sm">
               {LEGEND.map((p) => (
                 <li key={p.name} className="flex items-center gap-2.5">
-                  <PieceGlyph type={p.type} />
+                  <span className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/15" style={{ background: p.color }} />
                   <span className="text-muted-foreground">
                     <b className="text-foreground">{p.name}</b> — {p.desc}
                   </span>
