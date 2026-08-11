@@ -65,4 +65,39 @@ function testEvaluateFriendlyFire() {
 
 testEvaluateMaterial();
 testEvaluateFriendlyFire();
+
+import { search } from './search';
+import { applyAction } from '../engine';
+
+function testSearchFindsMateInOne() {
+  // Silver's sphinx at (0,0) already fires East straight into red's pharaoh
+  // at (9,0) with nothing in between. Any legal silver action that leaves
+  // that lane clear still wins immediately (applyAction fires the laser
+  // after every move). The search must return a legal, winning action.
+  //
+  // Note: a corner sphinx's only legal action is rotating between its two
+  // board-facing orientations (see engine.ts sphinxLegalOrients) — it can
+  // never "pass". If the sphinx were silver's only piece, its one legal
+  // action would be rotating away from orient 1, which breaks this exact
+  // winning lane every time. So a second silver piece, off row 0, is added
+  // here to give silver a legal action that actually leaves the lane clear
+  // (matching the "any legal action that leaves the lane clear wins"
+  // comment above) — the search must find and prefer it over the
+  // lane-breaking sphinx rotation.
+  const board = emptyBoard();
+  board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 1 };
+  board[0][9] = { id: 'p1', type: 'pharaoh', color: 'red', orient: 0 };
+  board[7][0] = { id: 's2', type: 'sphinx', color: 'red', orient: 0 };
+  board[5][5] = { id: 'y1', type: 'pyramid', color: 'silver', orient: 0 };
+  const state = stateWith(board);
+
+  const deadline = Date.now() + 300;
+  const { action } = search(state, 'silver', deadline);
+  const result = applyAction(state, 'silver', action);
+  assert.ok(result.ok, 'search must return a legal action');
+  assert.strictEqual(result.winner, 'silver', `expected silver to win immediately, got winner=${result.winner}`);
+  console.log(`ok: search finds forced win (action=${JSON.stringify(action)})`);
+}
+
+testSearchFindsMateInOne();
 console.log('all bot selftests passed');
