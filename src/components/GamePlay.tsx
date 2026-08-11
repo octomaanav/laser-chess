@@ -61,7 +61,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
   };
   const leave = () => (window.location.href = window.location.pathname);
 
-  if (!view.connected) {
+  if (!view.connected || !controller.hasState()) {
     return <GameLoadingSkeleton view={view} leave={leave} />;
   }
 

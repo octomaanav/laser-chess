@@ -134,6 +134,10 @@ export class GameController {
   getSnapshot = (): ViewState => this.snapshot;
   getServerSnapshot = (): ViewState => INITIAL;
 
+  hasState(): boolean {
+    return this.lastState !== null;
+  }
+
   private emit() {
     const players = { red: this.playerView('red'), silver: this.playerView('silver') };
     const seated = this.lastState?.seated;

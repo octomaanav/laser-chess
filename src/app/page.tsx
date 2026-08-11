@@ -17,5 +17,19 @@ export default function Page() {
     }
   }, [view.toast]);
 
-  return view.screen === 'lobby' ? <Lobby controller={controller} view={view} /> : <GamePlay controller={controller} view={view} />;
+  // Auto-start game session immediately if loading a room link (?game=CODE)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const g = (params.get('game') || '').toUpperCase().trim();
+      if (g) {
+        controller.start({ code: g });
+      }
+    }
+  }, [controller]);
+
+  const hasGameParam = typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('game');
+  const showGameScreen = view.screen === 'game' || hasGameParam;
+
+  return showGameScreen ? <GamePlay controller={controller} view={view} /> : <Lobby controller={controller} view={view} />;
 }
