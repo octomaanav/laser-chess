@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
+import { GAMES, hrefFor } from '@/lib/games';
 import './globals.css';
 
 const display = Space_Grotesk({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-display' });
@@ -13,26 +14,26 @@ const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Laser Chess — Play Online Free (Real-time Multiplayer)',
-    template: '%s · Laser Chess',
+    default: 'Game Night — Play Fun Multiplayer Games Online Free',
+    template: '%s · Game Night',
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
-  keywords: ['laser chess', 'laser chess online', 'play laser chess', 'khet online', 'online board game', 'multiplayer strategy game', 'free browser game'],
-  authors: [{ name: 'Laser Chess' }],
+  keywords: ['online multiplayer games', 'play games with friends', 'free browser games', 'party games online', 'laser chess', 'no download games'],
+  authors: [{ name: SITE_NAME }],
   category: 'games',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: 'Laser Chess — Play Online Free',
+    title: 'Game Night — Play Fun Multiplayer Games Online Free',
     description: SITE_DESCRIPTION,
-    images: [{ url: '/og.png', width: 2400, height: 1520, alt: 'Laser Chess — a laser beam deflecting across the board' }],
+    images: [{ url: '/og.png', width: 2400, height: 1520, alt: 'Game Night — play fun multiplayer games with friends' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Laser Chess — Play Online Free',
+    title: 'Game Night — Play Fun Multiplayer Games Online Free',
     description: SITE_DESCRIPTION,
     images: ['/og.png'],
   },
@@ -49,17 +50,24 @@ export const viewport: Viewport = {
 
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'VideoGame',
-  name: SITE_NAME,
-  url: SITE_URL,
-  description: SITE_DESCRIPTION,
-  image: `${SITE_URL}/og.png`,
-  genre: ['Strategy', 'Board game', 'Puzzle'],
-  gamePlatform: 'Web browser',
-  applicationCategory: 'GameApplication',
-  operatingSystem: 'Any (web browser)',
-  playMode: ['MultiPlayer', 'SinglePlayer'],
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+    },
+    {
+      '@type': 'ItemList',
+      name: `Games on ${SITE_NAME}`,
+      itemListElement: GAMES.map((g, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: g.name,
+        url: `${SITE_URL}${hrefFor(g)}`,
+      })),
+    },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

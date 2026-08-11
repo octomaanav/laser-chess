@@ -41,6 +41,10 @@ export interface ViewState {
   toast: { id: number; text: string } | null;
 }
 
+// Laser Chess lives under its own route + WebSocket namespace within Game Night.
+const LASER_CHESS_PATH = '/games/laser-chess';
+const LASER_CHESS_WS_PATH = '/ws/laser-chess';
+
 const INITIAL: ViewState = {
   screen: 'lobby',
   connected: false,
@@ -81,7 +85,7 @@ interface HistoryEntry {
 }
 
 export class GameController {
-  private net = new Net<ServerMessage>();
+  private net = new Net<ServerMessage>(LASER_CHESS_WS_PATH);
   private renderer: Renderer | null = null;
   private listeners = new Set<() => void>();
   private snapshot: ViewState = INITIAL;
@@ -147,7 +151,8 @@ export class GameController {
       screen: this.screenIsGame() ? 'game' : 'lobby',
       connected: this.snapshot.connected,
       roomCode: this.roomCode,
-      shareLink: this.roomCode && typeof window !== 'undefined' ? `${window.location.origin}/?game=${this.roomCode}` : '',
+      shareLink:
+        this.roomCode && typeof window !== 'undefined' ? `${window.location.origin}${LASER_CHESS_PATH}?game=${this.roomCode}` : '',
       setup: this.lastState?.setup || this.setup,
       myColor: this.myColor,
       spectator: this.spectator,

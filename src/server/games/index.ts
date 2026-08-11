@@ -1,0 +1,10 @@
+// Server-side registry of realtime games. Each game contributes one
+// WebSocketServer keyed by its catalogue slug; the custom server routes
+// /ws/<slug> upgrades to the matching handler. Adding a realtime game later =
+// add one line here plus its own handler module.
+import type { WebSocketServer } from 'ws';
+import { createGameWss } from '../gameServer';
+
+export const GAME_WSS: Record<string, WebSocketServer> = {
+  'laser-chess': createGameWss(),
+};

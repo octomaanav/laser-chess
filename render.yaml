@@ -5,7 +5,7 @@
 # so it's a single-instance Node "web" service — do NOT scale it horizontally.
 services:
   - type: web
-    name: laser-chess
+    name: game-night
     runtime: node
     plan: free
     # branch: main            # uncomment/edit if your default branch isn't `main`

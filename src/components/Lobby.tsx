@@ -1,23 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ArrowRight, ChevronDown, LogOut, UserRound } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { GameController, ViewState } from '@/client/controller';
 import { useSession } from '@/client/useSession';
 import { SETUP_NAMES } from '@/game/setups';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import AuthPanel from './AuthPanel';
+import AccountMenu from './AccountMenu';
 import LogoMark from './LogoMark';
 import ThemeToggle from './ThemeToggle';
 
@@ -36,8 +29,7 @@ export default function Lobby({ controller, view }: { controller: GameController
   const [invited, setInvited] = useState(false);
   const [names, setNames] = useState<string[]>(SETUP_NAMES);
   const [perMove, setPerMove] = useState(0); // minutes per move; 0 = no timer
-  const { user, providers, setUser, logout } = useSession();
-  const [showAuth, setShowAuth] = useState(false);
+  const { user } = useSession();
 
   // Signed-in players always play under their account's display name.
   useEffect(() => {
@@ -75,45 +67,19 @@ export default function Lobby({ controller, view }: { controller: GameController
     controller.start({ code: code.trim().toUpperCase() });
   };
 
-  const initial = (user?.displayName || user?.username || '?').trim().charAt(0).toUpperCase();
-
   return (
     <section className="relative flex min-h-dvh flex-col">
       <header className="flex items-center justify-between px-5 py-4 sm:px-8">
-        <a href="/" className="flex items-center gap-2.5 text-foreground">
+        <a href="/games/laser-chess" className="flex items-center gap-2.5 text-foreground">
           <LogoMark size={26} />
           <span className="font-display text-lg font-semibold tracking-tight">Laser Chess</span>
         </a>
         <div className="flex items-center gap-1.5">
+          <a href="/" className="mr-1 hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline">
+            ← All games
+          </a>
           <ThemeToggle />
-          {user ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-9 gap-2 pl-1.5 pr-3">
-                <span className="grid size-6 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
-                  {initial}
-                </span>
-                <span className="max-w-28 truncate font-mono text-xs">@{user.username}</span>
-                <ChevronDown className="size-3.5 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem asChild>
-                <a href="/account">
-                  <UserRound className="size-4" /> Account
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => void logout()}>
-                <LogOut className="size-4" /> Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button variant="outline" onClick={() => setShowAuth(true)}>
-            Sign in
-          </Button>
-          )}
+          <AccountMenu />
         </div>
       </header>
 
@@ -293,17 +259,6 @@ export default function Lobby({ controller, view }: { controller: GameController
           Edit starting configurations →
         </a>
       </footer>
-
-      {showAuth && (
-        <AuthPanel
-          providers={providers}
-          onAuthed={(u) => {
-            setUser(u);
-            setShowAuth(false);
-          }}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
     </section>
   );
 }

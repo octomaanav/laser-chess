@@ -1,10 +1,10 @@
 // Custom Next.js server. Next handles all HTTP (pages, assets, API routes),
-// while we route `/ws` WebSocket upgrades to the authoritative game server —
-// something Next's serverless handlers can't do. Non-`/ws` upgrades (Next's
+// while we route `/ws/<game>` WebSocket upgrades to that game's authoritative
+// server — something Next's serverless handlers can't do. Other upgrades (Next's
 // dev HMR socket) are forwarded to Next.
 import { createServer } from 'node:http';
 import next from 'next';
-import { createGameWss } from './src/server/gameServer';
+import { GAME_WSS } from './src/server/games';
 
 const dev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT || 3000);
@@ -20,12 +20,12 @@ const server = createServer((req, res) => {
   handle(req, res);
 });
 
-const gameWss = createGameWss();
-
 server.on('upgrade', (req, socket, head) => {
   const pathname = (req.url || '').split('?')[0];
-  if (pathname === '/ws') {
-    gameWss.handleUpgrade(req, socket, head, (ws) => gameWss.emit('connection', ws, req));
+  const slug = /^\/ws\/([a-z0-9-]+)$/.exec(pathname)?.[1];
+  const wss = slug ? GAME_WSS[slug] : undefined;
+  if (wss) {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
   } else if (upgradeNext) {
     upgradeNext(req, socket, head);
   } else {
@@ -34,7 +34,7 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(port, () => {
-  console.log(`\n  ⚡ Laser Chess ${dev ? '(dev)' : ''} running at  http://localhost:${port}`);
+  console.log(`\n  🎲 Game Night ${dev ? '(dev)' : ''} running at  http://localhost:${port}`);
   if (!process.env.ADMIN_PASSWORD) {
     console.log('  🔑 Admin password is the default "laserchess" — set ADMIN_PASSWORD to change it.');
   }

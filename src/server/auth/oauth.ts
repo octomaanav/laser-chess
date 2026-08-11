@@ -117,7 +117,7 @@ async function googleProfile(accessToken: string): Promise<OAuthProfile> {
 }
 
 async function githubProfile(accessToken: string): Promise<OAuthProfile> {
-  const headers = { authorization: `Bearer ${accessToken}`, accept: 'application/vnd.github+json', 'user-agent': 'laser-chess' };
+  const headers = { authorization: `Bearer ${accessToken}`, accept: 'application/vnd.github+json', 'user-agent': 'game-night' };
   const uRes = await fetch('https://api.github.com/user', { headers });
   const u = (await uRes.json()) as { id?: number; login?: string; name?: string };
   if (!u.id) throw new Error('could not read GitHub profile');

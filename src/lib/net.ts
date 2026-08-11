@@ -11,6 +11,9 @@ export class Net<Msg = unknown> {
   private _backoff = 500;
   private _closed = false;
 
+  // `path` is the game's WebSocket endpoint, e.g. '/ws/laser-chess'.
+  constructor(private path = '/ws') {}
+
   on(type: 'open' | 'close', fn: Handler<void>): this;
   on(type: 'message', fn: Handler<Msg>): this;
   on(type: 'open' | 'message' | 'close', fn: Handler<never>): this {
@@ -33,7 +36,7 @@ export class Net<Msg = unknown> {
       return;
     }
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    const ws = new WebSocket(`${proto}://${location.host}${this.path}`);
     this.ws = ws;
     ws.onopen = () => {
       this._backoff = 500;
