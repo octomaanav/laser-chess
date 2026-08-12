@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import { Pool } from 'pg';
 import type { SetupDef } from '../../game/types';
-import type { OAuthIdentity, PersistedRoom, Store, User } from './types';
+import type { OAuthIdentity, PersistedCoupRoom, PersistedRoom, Store, User } from './types';
 
 export class PgStore implements Store {
   private pool: Pool;
@@ -32,6 +32,11 @@ export class PgStore implements Store {
         value text not null
       );
       create table if not exists rooms (
+        code text primary key,
+        state jsonb not null,
+        updated_at timestamptz not null default now()
+      );
+      create table if not exists coup_rooms (
         code text primary key,
         state jsonb not null,
         updated_at timestamptz not null default now()
@@ -97,6 +102,23 @@ export class PgStore implements Store {
   }
   async sweepRooms(maxAgeMs: number): Promise<void> {
     await this.q(`delete from rooms where updated_at < now() - ($1::bigint * interval '1 millisecond')`, [maxAgeMs]);
+  }
+
+  async loadCoupRoom(code: string): Promise<PersistedCoupRoom | null> {
+    const r = await this.q('select state from coup_rooms where code = $1', [code]);
+    return (r.rows[0]?.state as PersistedCoupRoom) ?? null;
+  }
+  async saveCoupRoom(room: PersistedCoupRoom): Promise<void> {
+    await this.q(
+      'insert into coup_rooms(code, state, updated_at) values($1, $2, now()) on conflict(code) do update set state = excluded.state, updated_at = now()',
+      [room.code, JSON.stringify(room)],
+    );
+  }
+  async deleteCoupRoom(code: string): Promise<void> {
+    await this.q('delete from coup_rooms where code = $1', [code]);
+  }
+  async sweepCoupRooms(maxAgeMs: number): Promise<void> {
+    await this.q(`delete from coup_rooms where updated_at < now() - ($1::bigint * interval '1 millisecond')`, [maxAgeMs]);
   }
 
   private rowToUser(row: Record<string, unknown>): User {
