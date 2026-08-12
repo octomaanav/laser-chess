@@ -1,17 +1,16 @@
-// src/components/coup/ActionBar.tsx
-import { Button } from '@/components/ui/button';
+import { Coins, HandCoins, Crown, Shuffle, Hand, Skull, Swords, type LucideIcon } from 'lucide-react';
 import type { ClientCoupState } from '@/game/coup/redact';
 import type { ActionType } from '@/game/coup/types';
 import type { CoupController } from '@/client/coupController';
 
-const ACTIONS: { type: ActionType; label: string; needsTarget: boolean; minCoins: number }[] = [
-  { type: 'income', label: 'Income (+1)', needsTarget: false, minCoins: 0 },
-  { type: 'foreign-aid', label: 'Foreign Aid (+2)', needsTarget: false, minCoins: 0 },
-  { type: 'tax', label: 'Tax — Duke (+3)', needsTarget: false, minCoins: 0 },
-  { type: 'exchange', label: 'Exchange — Ambassador', needsTarget: false, minCoins: 0 },
-  { type: 'steal', label: 'Steal — Captain', needsTarget: true, minCoins: 0 },
-  { type: 'assassinate', label: 'Assassinate — Assassin (3)', needsTarget: true, minCoins: 3 },
-  { type: 'coup', label: 'Coup (7)', needsTarget: true, minCoins: 7 },
+const ACTIONS: { type: ActionType; label: string; icon: LucideIcon; needsTarget: boolean; minCoins: number; accentVar: string }[] = [
+  { type: 'income', label: 'Income (+1)', icon: Coins, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-gold)' },
+  { type: 'foreign-aid', label: 'Foreign Aid (+2)', icon: HandCoins, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-gold)' },
+  { type: 'tax', label: 'Tax — Duke (+3)', icon: Crown, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-duke)' },
+  { type: 'exchange', label: 'Exchange — Ambassador', icon: Shuffle, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-ambassador)' },
+  { type: 'steal', label: 'Steal — Captain', icon: Hand, needsTarget: true, minCoins: 0, accentVar: 'var(--coup-captain)' },
+  { type: 'assassinate', label: 'Assassinate — Assassin (3)', icon: Skull, needsTarget: true, minCoins: 3, accentVar: 'var(--coup-assassin)' },
+  { type: 'coup', label: 'Coup (7)', icon: Swords, needsTarget: true, minCoins: 7, accentVar: 'var(--coup-gold)' },
 ];
 
 interface ActionBarProps {
@@ -30,15 +29,18 @@ export default function ActionBar({ state, controller, selectedTarget, onSelectT
   const opponents = state.players.filter((p) => p.id !== state.you && !p.eliminated);
 
   return (
-    <div className="flex flex-col gap-2 border-t border-[#262c36] p-3">
+    <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: 'var(--coup-panel-border)', background: 'var(--coup-panel-bg)' }}>
       {opponents.length > 1 && (
         <div className="flex flex-wrap gap-1">
           {opponents.map((p) => (
             <button
               key={p.id}
               onClick={() => onSelectTarget(p.id)}
-              className="rounded-full border px-2 py-0.5 text-xs"
-              style={{ borderColor: selectedTarget === p.id ? '#c8155e' : '#262c36', color: selectedTarget === p.id ? '#c8155e' : '#8a909b' }}
+              className="rounded-full border px-2 py-0.5 text-xs transition-colors"
+              style={{
+                borderColor: selectedTarget === p.id ? 'var(--coup-gold)' : 'var(--coup-panel-border)',
+                color: selectedTarget === p.id ? 'var(--coup-gold-dark)' : 'var(--coup-text-muted)',
+              }}
             >
               {p.name}
             </button>
@@ -49,15 +51,18 @@ export default function ActionBar({ state, controller, selectedTarget, onSelectT
         {ACTIONS.filter((a) => !forcedCoup || a.type === 'coup').map((a) => {
           const target = a.needsTarget ? (selectedTarget ?? opponents[0]?.id ?? null) : null;
           const disabled = you.coins < a.minCoins || (a.needsTarget && !target);
+          const Icon = a.icon;
           return (
-            <Button
+            <button
               key={a.type}
-              size="sm"
               disabled={disabled}
               onClick={() => controller.declareAction(a.type, target)}
+              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              style={{ borderColor: a.accentVar, color: a.accentVar, background: 'var(--coup-panel-bg)' }}
             >
+              <Icon className="h-3.5 w-3.5" />
               {a.label}
-            </Button>
+            </button>
           );
         })}
       </div>
