@@ -4,6 +4,7 @@
 import { applyMoveOnly, legalActionsFor, opposite } from '@/game/engine';
 import type { Action, Board, Color, Hit, LaserPoint, RotateAction } from '@/game/types';
 import type { ClientMessage, ServerMessage } from '@/game/messages';
+import type { Difficulty } from '@/game/bot/types';
 import { colorName } from '@/lib/labels';
 import { Net } from '@/lib/net';
 import { Renderer } from '@/lib/render';
@@ -105,7 +106,7 @@ export class GameController {
   private selectedRotations: { spin: 1 | -1; action: RotateAction }[] = [];
   private busy = false;
   private moveQueue: Extract<ServerMessage, { type: 'move' }>[] = [];
-  private joinIntent: { code?: string; setup: string; color: Color | 'random'; perMove: number } | null = null;
+  private joinIntent: { code?: string; setup: string; color: Color | 'random'; perMove: number; vsBot?: Difficulty } | null = null;
   private started = false;
   private toastId = 0;
   private perMoveMs = 0;
@@ -246,7 +247,7 @@ export class GameController {
     if (typeof window !== 'undefined') window.localStorage.setItem('lc_room_' + code.toUpperCase(), color);
   }
 
-  start(opts: { code?: string; setup?: string; color?: Color | 'random'; perMove?: number }) {
+  start(opts: { code?: string; setup?: string; color?: Color | 'random'; perMove?: number; vsBot?: Difficulty }) {
     if (this.started) return;
     this.started = true;
     this.ensureIdentity();
@@ -265,6 +266,7 @@ export class GameController {
         setup: this.joinIntent!.setup,
         color: this.joinIntent!.color,
         perMove: this.joinIntent!.perMove,
+        vsBot: this.joinIntent!.vsBot,
       });
     });
     this.net.on('message', (m) => this.onMessage(m));
