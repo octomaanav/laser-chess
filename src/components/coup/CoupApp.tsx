@@ -12,6 +12,12 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
     if (initialRoomCode) controller.start({ code: initialRoomCode });
   }, [controller, initialRoomCode]);
 
-  const showGame = view.screen === 'game' || initialRoomCode != null;
+  // Don't force the game screen just because a room code is in the URL —
+  // pre-join/pre-start that leaves `view.state` null forever, which showed a
+  // permanent "Loading…" for anyone arriving via a shared link. The lobby
+  // (with its Start button once seated) is correct until the server actually
+  // reports screen === 'game'; the join itself still happens via the
+  // useEffect above.
+  const showGame = view.screen === 'game';
   return showGame ? <CoupGamePlay controller={controller} view={view} /> : <CoupLobby controller={controller} view={view} />;
 }

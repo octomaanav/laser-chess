@@ -1,11 +1,7 @@
 // src/components/coup/CoupTable.tsx
-import type { ClientCoupState } from '@/game/coup/redact';
 import CharacterCard from './CharacterCard';
 import GameLog from './GameLog';
-
-// ResponseModal (Task 13)/CoupGamePlay (Task 14) synthesize a countdown field
-// client-side that isn't part of the wire payload — see CoupGamePlay.tsx.
-export type StateWithCountdown = ClientCoupState & { responseDeadlineMsRemaining: number };
+import type { StateWithCountdown } from './types';
 
 export default function CoupTable({ state }: { state: StateWithCountdown }) {
   const you = state.players.find((p) => p.id === state.you)!;
