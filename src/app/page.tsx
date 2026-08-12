@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import AccountMenu from '@/components/AccountMenu';
+import FriendsMenu from '@/components/FriendsMenu';
 import GameCard from '@/components/GameCard';
 import { GAMES } from '@/lib/games';
 import { SITE_NAME } from '@/lib/site';
@@ -65,7 +66,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ g
             </span>
             <span className="font-display text-lg font-bold tracking-tight text-[#f2f3f5]">{SITE_NAME}</span>
           </a>
-          <AccountMenu />
+          <div className="flex items-center gap-1.5">
+            <FriendsMenu />
+            <AccountMenu />
+          </div>
         </header>
 
         {/* hero */}

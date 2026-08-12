@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import { Pool } from 'pg';
 import type { SetupDef } from '../../game/types';
-import type { OAuthIdentity, PersistedRoom, Store, User } from './types';
+import type { FriendEdge, OAuthIdentity, PersistedRoom, Store, User } from './types';
 
 export class PgStore implements Store {
   private pool: Pool;
@@ -50,6 +50,16 @@ export class PgStore implements Store {
         user_id text not null references users(id) on delete cascade,
         primary key (provider, provider_id)
       );
+      create table if not exists friendships (
+        requester_id text not null references users(id) on delete cascade,
+        addressee_id text not null references users(id) on delete cascade,
+        status text not null,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now(),
+        primary key (requester_id, addressee_id)
+      );
+      create unique index if not exists friendships_pair
+        on friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
     `);
   }
   private async q(text: string, params?: unknown[]) {
@@ -153,5 +163,33 @@ export class PgStore implements Store {
   async listIdentities(userId: string): Promise<OAuthIdentity[]> {
     const r = await this.q('select provider, provider_id, user_id from identities where user_id = $1', [userId]);
     return r.rows.map((row) => ({ provider: row.provider, providerId: row.provider_id, userId: row.user_id }));
+  }
+
+  async createFriendRequest(requesterId: string, addresseeId: string): Promise<void> {
+    // The pair unique index makes this a no-op if any edge (either direction) exists.
+    await this.q(
+      'insert into friendships(requester_id, addressee_id, status) values($1, $2, $3) on conflict do nothing',
+      [requesterId, addresseeId, 'pending'],
+    );
+  }
+  async acceptFriendRequest(addresseeId: string, requesterId: string): Promise<void> {
+    await this.q(
+      "update friendships set status = 'accepted', updated_at = now() where requester_id = $1 and addressee_id = $2 and status = 'pending'",
+      [requesterId, addresseeId],
+    );
+  }
+  async deleteFriendship(userId: string, otherId: string): Promise<void> {
+    await this.q(
+      'delete from friendships where (requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1)',
+      [userId, otherId],
+    );
+  }
+  async listFriendships(userId: string): Promise<FriendEdge[]> {
+    const r = await this.q('select requester_id, addressee_id, status from friendships where requester_id = $1 or addressee_id = $1', [userId]);
+    return r.rows.map((row) => ({
+      otherId: row.requester_id === userId ? row.addressee_id : row.requester_id,
+      status: row.status,
+      direction: row.requester_id === userId ? 'outgoing' : 'incoming',
+    }));
   }
 }

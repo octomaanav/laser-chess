@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AccountMenu from './AccountMenu';
+import FriendsMenu from './FriendsMenu';
 import LogoMark from './LogoMark';
 import ThemeToggle from './ThemeToggle';
 
@@ -79,6 +80,7 @@ export default function Lobby({ controller, view }: { controller: GameController
             ← All games
           </a>
           <ThemeToggle />
+          <FriendsMenu />
           <AccountMenu />
         </div>
       </header>
