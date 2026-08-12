@@ -1,11 +1,11 @@
 import type { Character } from '@/game/coup/types';
 
 export const CHARACTER_ACCENT: Record<Character, string> = {
-  duke: '#c8155e',
-  assassin: '#8a909b',
-  captain: '#4fc9dd',
-  ambassador: '#ffc95e',
-  contessa: '#e0415a',
+  duke: '#d088c8',
+  assassin: '#9aa0a8',
+  captain: '#5db8e8',
+  ambassador: '#6aad7c',
+  contessa: '#e8a848',
 };
 
 export const CHARACTER_LABEL: Record<Character, string> = {
