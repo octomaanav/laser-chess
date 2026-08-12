@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import Board from './Board';
+import FriendsMenu from './FriendsMenu';
 import LogoMark, { PersonIcon } from './LogoMark';
 import ThemeToggle from './ThemeToggle';
 
@@ -80,6 +81,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
         {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
+          <FriendsMenu />
           <Badge
             variant="outline"
             className={cn('font-medium whitespace-nowrap shrink-0', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}

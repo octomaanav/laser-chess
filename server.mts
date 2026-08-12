@@ -5,6 +5,7 @@
 import { createServer } from 'node:http';
 import next from 'next';
 import { GAME_WSS } from './src/server/games';
+import { socialHub } from './src/server/social/socialHub';
 
 const dev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT || 3000);
@@ -22,6 +23,10 @@ const server = createServer((req, res) => {
 
 server.on('upgrade', (req, socket, head) => {
   const pathname = (req.url || '').split('?')[0];
+  if (pathname === '/ws/social') {
+    socialHub.handleUpgrade(req, socket, head);
+    return;
+  }
   const slug = /^\/ws\/([a-z0-9-]+)$/.exec(pathname)?.[1];
   const wss = slug ? GAME_WSS[slug] : undefined;
   if (wss) {

@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import { createGame, listSetups } from './setupStore';
 import { applyAction, opposite } from '../game/engine';
-import { SESSION_COOKIE, verifyUserSession } from './auth/session';
+import { resolveAccountFromReq } from './auth/cookies';
 import { getStore, type PersistedRoom } from './store';
 import type { Color, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
@@ -40,21 +40,7 @@ const rooms = new Map<string, Room>();
 // ---- account identity (from the session cookie on the WS upgrade) ----------
 // Anonymous quick-play never sets this; it's here so the coming matchmaking
 // system can trust who is connected without changing the join protocol.
-function readCookie(header: string | undefined, name: string): string | undefined {
-  if (!header) return undefined;
-  for (const part of header.split(';')) {
-    const eq = part.indexOf('=');
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
-  }
-  return undefined;
-}
-async function resolveAccount(req: IncomingMessage): Promise<{ userId: string; name: string } | null> {
-  const session = await verifyUserSession(readCookie(req.headers.cookie, SESSION_COOKIE));
-  if (!session) return null;
-  const user = await getStore().getUserById(session.uid);
-  return user ? { userId: user.id, name: user.displayName } : null;
-}
+// (cookie parsing lives in ./auth/cookies, shared with the social hub)
 
 // If a seated player disconnects while their opponent is present, they have this
 // long to return before forfeiting the game. Override with FORFEIT_MS.
@@ -270,7 +256,7 @@ export function createGameWss(): WebSocketServer {
 
     // Resolve the account (if signed in) before their `join` arrives — anonymous
     // players simply resolve to null and keep their client-chosen name.
-    void resolveAccount(req)
+    void resolveAccountFromReq(req)
       .then((acct) => {
         ws.userId = acct?.userId ?? null;
         ws.accountName = acct?.name ?? null;
