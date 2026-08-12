@@ -20,6 +20,9 @@ interface ResponseModalProps {
 }
 
 export default function ResponseModal({ state, controller }: ResponseModalProps) {
+  // Tracks whether *this* viewer has already sent a response for the current
+  // action/block, so the buttons swap for a "waiting…" notice instead of
+  // staying live and inviting a double-send the server would reject.
   const [responded, setResponded] = useState(false);
   const responseKey = `${state.phase}:${state.pendingAction?.actorId ?? ''}:${state.pendingAction?.type ?? ''}:${state.pendingBlock?.byId ?? ''}`;
   useEffect(() => {

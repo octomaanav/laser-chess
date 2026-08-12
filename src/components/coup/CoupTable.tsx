@@ -18,6 +18,7 @@ export default function CoupTable({ state }: { state: StateWithCountdown }) {
           const stolenFrom = events.find((e) => e.kind === 'coins-stolen' && e.fromId === p.id);
           const proved = events.find((e) => e.kind === 'claim-proved' && e.playerId === p.id);
           const blocked = events.find((e) => e.kind === 'block-declared' && e.actorId === p.id);
+          const hit = events.find((e) => e.kind === 'card-revealed' && e.playerId === p.id && e.cause === 'hit');
 
           return (
             <div
@@ -25,9 +26,13 @@ export default function CoupTable({ state }: { state: StateWithCountdown }) {
               className="relative flex flex-col items-center gap-1 rounded-xl border p-2"
               style={{
                 background: 'var(--coup-panel-bg)',
-                borderColor: proved ? 'var(--coup-success)' : 'var(--coup-panel-border)',
+                borderColor: proved ? 'var(--coup-success)' : hit ? 'var(--coup-danger)' : 'var(--coup-panel-border)',
                 boxShadow: isActive ? 'var(--coup-glow-ring)' : undefined,
-                animation: [isActive && 'coup-pulse-glow 1.8s ease-in-out infinite', stolenFrom && 'coup-shake 400ms ease-in-out']
+                animation: [
+                  isActive && 'coup-pulse-glow 1.8s ease-in-out infinite',
+                  stolenFrom && 'coup-shake 400ms ease-in-out',
+                  hit && 'coup-shake 400ms ease-in-out',
+                ]
                   .filter(Boolean)
                   .join(', ') || undefined,
               }}

@@ -53,6 +53,8 @@ export default function CoupGamePlay({ controller, view }: { controller: CoupCon
       <ActionBar state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} onSelectTarget={setSelectedTarget} />
       <GameLog entries={view.state.log} />
       <ResponseModal state={stateWithCountdown} controller={controller} />
+      {/* awaiting_reveal and exchange_choice also have no server-side
+          timeout — these overlays are the only way out of those phases. */}
       <RevealPicker state={view.state} controller={controller} />
       <ExchangePicker state={view.state} controller={controller} />
     </div>
