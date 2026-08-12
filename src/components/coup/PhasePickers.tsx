@@ -158,7 +158,7 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
         <>
           <div className="flex flex-wrap justify-center gap-3 pt-10">
             {candidates.map((c, i) => (
-              <div key={i} className={dealt ? undefined : 'animate-[coup-card-flip_400ms_ease-in-out]'}>
+              <div key={i} className={dealt ? 'animate-[coup-card-flip_400ms_ease-in-out]' : undefined}>
                 <DraggableCard
                   character={dealt ? c : null}
                   size="lg"
