@@ -32,8 +32,12 @@ export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoup
   // assassinate hit) — ClientCoupState never exposes a reveal "reason"
   // field directly (see src/game/coup/redact.ts), so this is reconstructed
   // from context instead.
-  const accusedId = next.pendingAction?.actorId ?? next.pendingBlock?.byId ?? null;
-  const claimedCharacter = next.pendingAction?.claimedCharacter ?? next.pendingBlock?.claimedCharacter ?? null;
+  // A pendingBlock takes priority: pendingAction stays set the whole time a
+  // block is being contested (see engine.ts), so without this a challenge
+  // against the BLOCK gets misattributed to the original action's actor/claim.
+  const blockActive = next.pendingBlock ?? prev.pendingBlock;
+  const accusedId = blockActive ? blockActive.byId : (next.pendingAction?.actorId ?? null);
+  const claimedCharacter = blockActive ? blockActive.claimedCharacter : (next.pendingAction?.claimedCharacter ?? null);
 
   for (const nextPlayer of next.players) {
     const prevPlayer = prev.players.find((p) => p.id === nextPlayer.id);

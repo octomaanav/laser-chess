@@ -114,4 +114,39 @@ describe('deriveTableEvents', () => {
     const events = deriveTableEvents(prev, next);
     expect(events).toContainEqual(expect.objectContaining({ kind: 'block-declared', actorId: 'a' }));
   });
+
+  it('attributes a bluffed block-challenge reveal to the blocker, not the original actor', () => {
+    const prev = baseState({
+      phase: 'block_declared',
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingRevealPlayerId: 'b',
+    });
+    const next = baseState({
+      phase: 'awaiting_reveal',
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingRevealPlayerId: null,
+      players: [prev.players[0], { ...prev.players[1], influence: [{ character: null, revealed: true }, { character: null, revealed: false }] }],
+    });
+    const events = deriveTableEvents(prev, next);
+    expect(events).toContainEqual(expect.objectContaining({ kind: 'card-revealed', playerId: 'b', cardIndex: 0, cause: 'challenge-lost' }));
+  });
+
+  it('emits claim-proved for the blocker (not the original actor) when a block-challenge fails', () => {
+    const prev = baseState({
+      phase: 'block_declared',
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingRevealPlayerId: null,
+    });
+    const next = baseState({
+      phase: 'block_declared',
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingRevealPlayerId: 'c',
+    });
+    const events = deriveTableEvents(prev, next);
+    expect(events).toContainEqual(expect.objectContaining({ kind: 'claim-proved', playerId: 'b', character: 'contessa' }));
+  });
 });
