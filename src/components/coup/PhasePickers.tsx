@@ -14,7 +14,10 @@ import CharacterCard from './CharacterCard';
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 rounded-t-xl border border-[#c8155e55] bg-[#0d1117]/95 p-3 backdrop-blur">
+    <div
+      className="absolute inset-x-0 bottom-0 flex flex-col gap-3 rounded-t-xl border p-3 backdrop-blur"
+      style={{ borderColor: 'var(--coup-panel-border)', background: 'color-mix(in oklab, var(--coup-panel-bg) 92%, transparent)' }}
+    >
       {children}
     </div>
   );
@@ -24,24 +27,20 @@ export function VariantSetupPicker({ state, controller }: { state: ClientCoupSta
   const [chosen, setChosen] = useState(false);
   const pool = state.variantPoolForYou;
 
-  // Reset if the server ever cycles us back into a fresh draft (e.g. rematch).
-  // Keyed on state.phase (not `pool`) deliberately: `pool` is a freshly
-  // parsed array on every single state broadcast (including the ones fired
-  // right after the choice this player just made, while waiting on the
-  // other player), so keying on its identity re-armed the picker and let a
-  // second click hit the server's "already chosen" rejection. `state.phase`
-  // only changes when we actually leave/re-enter variant-setup.
   useEffect(() => {
     setChosen(false);
   }, [state.phase]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
-      <h2 className="text-lg font-bold" style={{ color: '#c8155e' }}>
+    <div
+      className="flex h-full flex-col items-center justify-center gap-4 p-6"
+      style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}
+    >
+      <h2 className="text-lg font-bold" style={{ color: 'var(--coup-gold)' }}>
         Choose your starting character
       </h2>
       {!pool || chosen ? (
-        <p className="text-sm text-[#8a909b]">Waiting for your opponent to choose…</p>
+        <p className="text-sm" style={{ color: 'var(--coup-text-muted)' }}>Waiting for your opponent to choose…</p>
       ) : (
         <div className="flex flex-wrap justify-center gap-3">
           {pool.map((c, i) => (
@@ -78,7 +77,7 @@ export function RevealPicker({ state, controller }: { state: ClientCoupState; co
 
   return (
     <Overlay>
-      <p className="text-sm text-white/80">
+      <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
         {submitted ? 'Revealing…' : 'You must reveal one of your influence cards.'}
       </p>
       {!submitted && (
@@ -104,23 +103,25 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   const active = state.phase === 'exchange_choice' && state.exchangeOffer != null && state.players[state.turn]?.id === state.you;
   const [selected, setSelected] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [dealt, setDealt] = useState(false);
 
-  // Same class of bug as VariantSetupPicker: key on the offer's *contents*,
-  // not the array reference, since state.exchangeOffer is a fresh array on
-  // every broadcast (e.g. an unrelated opponent reconnect) even when the
-  // offer itself hasn't changed — keying on the reference wiped in-progress
-  // selections for no reason.
   useEffect(() => {
     setSelected([]);
     setSubmitted(false);
+    setDealt(false);
+    if (active) {
+      // Deck-draw beat: cards start face-down (deck icon), then flip up a
+      // moment later — matches the spec's "flip back down once confirmed"
+      // sequence by giving the reveal a visible starting state.
+      const id = setTimeout(() => setDealt(true), 250);
+      return () => clearTimeout(id);
+    }
   }, [active, state.exchangeOffer?.join(',')]);
 
   if (!active) return null;
 
   const you = state.players.find((p) => p.id === state.you);
   const ownUnrevealed = (you?.influence ?? []).filter((c) => !c.revealed).map((c) => c.character) as Character[];
-  // Index convention matches engine.ts's chooseExchange: own unrevealed
-  // characters first, then the offered cards.
   const candidates: Character[] = [...ownUnrevealed, ...(state.exchangeOffer ?? [])];
   const requiredKeep = ownUnrevealed.length;
 
@@ -134,10 +135,8 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
 
   return (
     <Overlay>
-      <p className="text-sm text-white/80">
-        {submitted
-          ? 'Exchanging…'
-          : `Choose ${requiredKeep} card${requiredKeep === 1 ? '' : 's'} to keep.`}
+      <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
+        {submitted ? 'Exchanging…' : `Choose ${requiredKeep} card${requiredKeep === 1 ? '' : 's'} to keep.`}
       </p>
       {!submitted && (
         <>
@@ -147,9 +146,13 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
                 key={i}
                 onClick={() => toggle(i)}
                 className="rounded-lg"
-                style={{ outline: selected.includes(i) ? '2px solid #c3f53b' : 'none', outlineOffset: 2 }}
+                style={{
+                  outline: selected.includes(i) ? '2px solid var(--coup-success)' : 'none',
+                  outlineOffset: 2,
+                  animation: dealt ? undefined : 'coup-card-flip 400ms ease-in-out',
+                }}
               >
-                <CharacterCard character={c} size="lg" />
+                <CharacterCard character={dealt ? c : null} size="lg" />
               </button>
             ))}
           </div>
