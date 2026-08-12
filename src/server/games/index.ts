@@ -4,7 +4,9 @@
 // add one line here plus its own handler module.
 import type { WebSocketServer } from 'ws';
 import { createGameWss } from '../gameServer';
+import { createCoupWss } from './coup/roomServer';
 
 export const GAME_WSS: Record<string, WebSocketServer> = {
   'laser-chess': createGameWss(),
+  coup: createCoupWss(),
 };

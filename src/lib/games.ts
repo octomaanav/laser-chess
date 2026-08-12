@@ -28,6 +28,17 @@ export const GAMES: GameEntry[] = [
     icon: '🔺',
   },
   {
+    slug: 'coup',
+    name: 'Coup',
+    tagline: 'Bluff, deduce, betray.',
+    description:
+      'A fast-paced game of bluffing and deduction. Claim any character\'s power — tax, steal, assassinate — whether you hold the card or not, and survive your rivals\' challenges. Last influence standing wins.',
+    status: 'live',
+    players: '2–6 players',
+    accent: '#c8155e',
+    icon: '👑',
+  },
+  {
     slug: 'secret-hitler',
     name: 'Secret Hitler',
     tagline: 'Hidden roles. Trust no one.',
