@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useController } from '@/client/useController';
+import { useSocial } from '@/client/social/SocialProvider';
 import Lobby from '@/components/Lobby';
 import GamePlay from '@/components/GamePlay';
 
@@ -24,6 +25,16 @@ export default function GameApp({ initialGameCode }: { initialGameCode: string |
   useEffect(() => {
     if (initialGameCode) controller.start({ code: initialGameCode });
   }, [controller, initialGameCode]);
+
+  // Publish the current room so the global Friends panel can invite friends into
+  // it. Any game does this one-liner; the setter is stable so this only re-runs
+  // when the room code changes.
+  const setGameContext = useSocial()?.setGameContext;
+  useEffect(() => {
+    if (!setGameContext) return;
+    setGameContext(view.roomCode ? { slug: 'laser-chess', code: view.roomCode } : null);
+    return () => setGameContext(null);
+  }, [setGameContext, view.roomCode]);
 
   // A game link goes straight to GamePlay (which shows its own loading skeleton
   // until the socket connects and the first state arrives).

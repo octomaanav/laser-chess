@@ -8,7 +8,6 @@ services:
     name: game-night
     runtime: node
     plan: free
-    # branch: main            # uncomment/edit if your default branch isn't `main`
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /
@@ -23,13 +22,8 @@ services:
       # Your admin password — Render will prompt you to enter this (kept secret, not committed).
       - key: ADMIN_PASSWORD
         sync: false
-      # Optional: a Postgres URL (e.g. free Neon/Supabase) to persist setups + live games
-      # across redeploys. Leave blank to keep games in memory. Tables auto-create on boot.
-      # Also stores user accounts — required if you want accounts to survive a redeploy.
       - key: DATABASE_URL
         sync: false
-      # Optional OAuth sign-in. Set both id+secret for a provider to enable its button.
-      # Register the callback URL <your-origin>/api/auth/oauth/<provider>/callback.
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

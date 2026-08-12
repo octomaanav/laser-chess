@@ -45,6 +45,14 @@ export interface PersistedCoupRoom {
   forfeitDeadline: number | null;
 }
 
+// One side of a friendship as seen by a given user. `direction` only matters
+// while `pending` (did I send it or receive it); it's 'outgoing' for accepted.
+export interface FriendEdge {
+  otherId: string;
+  status: 'pending' | 'accepted';
+  direction: 'incoming' | 'outgoing';
+}
+
 export interface Store {
   // custom starting configurations (defaults are merged in by the caller)
   getCustomSetups(): Promise<Record<string, SetupDef>>;
@@ -75,4 +83,10 @@ export interface Store {
   getUserByIdentity(provider: string, providerId: string): Promise<User | null>;
   linkIdentity(identity: OAuthIdentity): Promise<void>;
   listIdentities(userId: string): Promise<OAuthIdentity[]>;
+
+  // friendships (requests + accepted). Edges are stored once per unordered pair.
+  createFriendRequest(requesterId: string, addresseeId: string): Promise<void>;
+  acceptFriendRequest(addresseeId: string, requesterId: string): Promise<void>;
+  deleteFriendship(userId: string, otherId: string): Promise<void>; // deny / cancel / unfriend
+  listFriendships(userId: string): Promise<FriendEdge[]>;
 }

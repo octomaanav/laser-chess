@@ -4,16 +4,29 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SetupDef } from '../../game/types';
-import type { OAuthIdentity, PersistedCoupRoom, PersistedRoom, Store, User } from './types';
+import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, Store, User } from './types';
 
 const dir = () => path.join(process.cwd(), 'data');
 const setupsFile = () => path.join(dir(), 'setups.json');
 const secretFile = () => path.join(dir(), 'adminSecret.json');
 const usersFile = () => path.join(dir(), 'users.json');
+const friendsFile = () => path.join(dir(), 'friends.json');
 
 interface UsersData {
   users: Record<string, User>; // keyed by id
   identities: OAuthIdentity[];
+}
+
+// A friendship is stored once per pair as requester → addressee.
+interface FriendRow {
+  requesterId: string;
+  addresseeId: string;
+  status: 'pending' | 'accepted';
+  createdAt: number;
+  updatedAt: number;
+}
+interface FriendsData {
+  edges: FriendRow[];
 }
 
 function readJSON<T>(file: string, fallback: T): T {
@@ -106,5 +119,44 @@ export class FileStore implements Store {
   }
   async listIdentities(userId: string): Promise<OAuthIdentity[]> {
     return this.readUsers().identities.filter((i) => i.userId === userId);
+  }
+
+  // friendships (persisted like users, so they survive a dev restart)
+  private readFriends(): FriendsData {
+    return readJSON<FriendsData>(friendsFile(), { edges: [] });
+  }
+  private findEdge(edges: FriendRow[], a: string, b: string): FriendRow | undefined {
+    return edges.find(
+      (e) => (e.requesterId === a && e.addresseeId === b) || (e.requesterId === b && e.addresseeId === a),
+    );
+  }
+  async createFriendRequest(requesterId: string, addresseeId: string): Promise<void> {
+    const data = this.readFriends();
+    if (this.findEdge(data.edges, requesterId, addresseeId)) return; // an edge already exists
+    const now = Date.now();
+    data.edges.push({ requesterId, addresseeId, status: 'pending', createdAt: now, updatedAt: now });
+    writeJSON(friendsFile(), data);
+  }
+  async acceptFriendRequest(addresseeId: string, requesterId: string): Promise<void> {
+    const data = this.readFriends();
+    const edge = data.edges.find((e) => e.requesterId === requesterId && e.addresseeId === addresseeId && e.status === 'pending');
+    if (!edge) return;
+    edge.status = 'accepted';
+    edge.updatedAt = Date.now();
+    writeJSON(friendsFile(), data);
+  }
+  async deleteFriendship(userId: string, otherId: string): Promise<void> {
+    const data = this.readFriends();
+    const next = data.edges.filter((e) => !this.findEdge([e], userId, otherId));
+    if (next.length !== data.edges.length) writeJSON(friendsFile(), { edges: next });
+  }
+  async listFriendships(userId: string): Promise<FriendEdge[]> {
+    return this.readFriends()
+      .edges.filter((e) => e.requesterId === userId || e.addresseeId === userId)
+      .map((e) => ({
+        otherId: e.requesterId === userId ? e.addresseeId : e.requesterId,
+        status: e.status,
+        direction: e.requesterId === userId ? 'outgoing' : 'incoming',
+      }));
   }
 }
