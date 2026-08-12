@@ -1,21 +1,17 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { CoupController, type CoupView } from './coupController';
 
-export function useCoupController() {
-  const ref = useRef<CoupController | null>(null);
-  if (!ref.current) ref.current = new CoupController();
-  const [view, setView] = useState<CoupView>(() => ({
-    screen: 'lobby',
-    code: null,
-    playerId: null,
-    lobby: null,
-    state: null,
-    responseDeadline: null,
-    error: null,
-  }));
+// One controller instance for the app lifetime (survives React strict-mode
+// remounts). On the server it is inert and only produces the initial snapshot.
+let _controller: CoupController | null = null;
+export function getCoupController(): CoupController {
+  if (!_controller) _controller = new CoupController();
+  return _controller;
+}
 
-  useEffect(() => ref.current!.subscribe(setView), []);
-
-  return { controller: ref.current, view };
+export function useCoupController(): { controller: CoupController; view: CoupView } {
+  const controller = getCoupController();
+  const view = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getServerSnapshot);
+  return { controller, view };
 }

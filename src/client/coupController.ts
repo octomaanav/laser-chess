@@ -43,27 +43,38 @@ function loadOrCreatePlayerId(): string {
 export class CoupController {
   private net = new Net<ServerMessage>('/ws/coup');
   private view: CoupView = INITIAL_VIEW;
-  private listeners = new Set<(v: CoupView) => void>();
-  private playerId = loadOrCreatePlayerId();
+  private listeners = new Set<() => void>();
+  private playerId = '';
 
   constructor() {
     this.net.on('message', (msg) => this.handleMessage(msg));
   }
 
-  subscribe(fn: (v: CoupView) => void): () => void {
-    this.listeners.add(fn);
-    fn(this.view);
-    return () => this.listeners.delete(fn);
-  }
+  // useSyncExternalStore-compatible store API. On the server (`typeof window ===
+  // 'undefined'`) the controller never touches localStorage/WebSocket and only
+  // ever produces INITIAL_VIEW via getServerSnapshot.
+  subscribe = (cb: () => void): (() => void) => {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  };
+  getSnapshot = (): CoupView => this.view;
+  getServerSnapshot = (): CoupView => INITIAL_VIEW;
 
   private setView(patch: Partial<CoupView>) {
     this.view = { ...this.view, ...patch };
-    for (const fn of this.listeners) fn(this.view);
+    for (const cb of this.listeners) cb();
+  }
+
+  private ensureIdentity() {
+    if (typeof window === 'undefined') return;
+    if (!this.playerId) this.playerId = loadOrCreatePlayerId();
   }
 
   start(opts: { code?: string; name?: string } = {}) {
+    this.ensureIdentity();
     this.net.connect();
-    const name = opts.name || localStorage.getItem('coup:name') || 'Player';
+    const storedName = typeof window !== 'undefined' ? localStorage.getItem('coup:name') : null;
+    const name = opts.name || storedName || 'Player';
     this.send({ type: 'join', playerId: this.playerId, name, code: opts.code });
   }
 
