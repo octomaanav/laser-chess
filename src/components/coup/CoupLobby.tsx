@@ -8,6 +8,18 @@ import type { CoupController, CoupView } from '@/client/coupController';
 export default function CoupLobby({ controller, view }: { controller: CoupController; view: CoupView }) {
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = async () => {
+    if (!view.shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(view.shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard permission denied — the room code is still visible to copy manually */
+    }
+  };
 
   if (view.screen === 'lobby') {
     return (
@@ -34,6 +46,12 @@ export default function CoupLobby({ controller, view }: { controller: CoupContro
       <h1 className="text-xl font-bold" style={{ color: '#c8155e' }}>
         Room {view.code}
       </h1>
+      <div className="flex gap-2">
+        <Input readOnly value={view.shareUrl ?? ''} onFocus={(e) => e.currentTarget.select()} />
+        <Button variant="secondary" onClick={copyLink}>
+          {copied ? 'Copied!' : 'Copy link'}
+        </Button>
+      </div>
       <ul className="space-y-1 text-sm text-[#8a909b]">
         {lobby?.seats.map((s) => (
           <li key={s.id}>

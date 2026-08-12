@@ -13,6 +13,7 @@ export interface CoupLobbyView {
 export interface CoupView {
   screen: 'lobby' | 'in-lobby' | 'game';
   code: string | null;
+  shareUrl: string | null; // shareable "?game=CODE" link, once a room exists
   playerId: string | null;
   lobby: CoupLobbyView | null;
   state: ClientCoupState | null;
@@ -23,6 +24,7 @@ export interface CoupView {
 const INITIAL_VIEW: CoupView = {
   screen: 'lobby',
   code: null,
+  shareUrl: null,
   playerId: null,
   lobby: null,
   state: null,
@@ -45,8 +47,19 @@ export class CoupController {
   private view: CoupView = INITIAL_VIEW;
   private listeners = new Set<() => void>();
   private playerId = '';
+  // The last join we intended to make — re-sent from `net.on('open', ...)`
+  // rather than right after `connect()`, since `Net.send()` silently drops
+  // messages while the socket is still CONNECTING. This also covers
+  // reconnects: Net auto-reconnects on drop, and this makes sure `join` goes
+  // out again every time the socket reopens, not just the first time.
+  private joinIntent: { code?: string; name: string } | null = null;
 
   constructor() {
+    this.net.on('open', () => {
+      if (this.joinIntent) {
+        this.send({ type: 'join', playerId: this.playerId, name: this.joinIntent.name, code: this.joinIntent.code });
+      }
+    });
     this.net.on('message', (msg) => this.handleMessage(msg));
   }
 
@@ -72,10 +85,16 @@ export class CoupController {
 
   start(opts: { code?: string; name?: string } = {}) {
     this.ensureIdentity();
-    this.net.connect();
     const storedName = typeof window !== 'undefined' ? localStorage.getItem('coup:name') : null;
     const name = opts.name || storedName || 'Player';
-    this.send({ type: 'join', playerId: this.playerId, name, code: opts.code });
+    this.joinIntent = { code: opts.code, name };
+    if (this.net.isConnected()) {
+      // Already open (e.g. a second join attempt) — send immediately since
+      // no further 'open' event will fire to trigger it.
+      this.send({ type: 'join', playerId: this.playerId, name, code: opts.code });
+    } else {
+      this.net.connect();
+    }
   }
 
   startGame() {
@@ -120,9 +139,16 @@ export class CoupController {
 
   private handleMessage(msg: ServerMessage) {
     switch (msg.type) {
-      case 'joined':
-        this.setView({ screen: 'in-lobby', code: msg.code, playerId: msg.playerId, error: null });
+      case 'joined': {
+        if (this.joinIntent) this.joinIntent.code = msg.code; // pins reconnects to the same room
+        let shareUrl: string | null = null;
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', `${window.location.pathname}?game=${msg.code}`);
+          shareUrl = `${window.location.origin}${window.location.pathname}?game=${msg.code}`;
+        }
+        this.setView({ screen: 'in-lobby', code: msg.code, shareUrl, playerId: msg.playerId, error: null });
         break;
+      }
       case 'lobby':
         this.setView({ lobby: { code: msg.code, seats: msg.seats, maxSeats: msg.maxSeats, canStart: msg.canStart } });
         break;

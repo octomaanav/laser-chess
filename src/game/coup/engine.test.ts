@@ -40,10 +40,13 @@ describe('createGame', () => {
     expect(s.deck).toHaveLength(15 - 6);
   });
 
-  it('gives a 2-player game 1 starting coin and a variant-setup phase', () => {
+  it('gives a 2-player game a variant-setup phase, 1 coin to the starting player and 2 to the other', () => {
     const s = createGame(P.slice(0, 2));
     expect(s.phase).toBe('variant-setup');
     expect(s.variantPools).toBeTruthy();
+    expect(s.players[0].coins).toBe(1); // starting player (turn 0)
+    expect(s.players[1].coins).toBe(2); // compensation for going second, per rulebook
+    expect(s.treasury).toBe(50 - 3);
   });
 
   it('rejects fewer than 2 or more than 6 players', () => {
@@ -166,6 +169,40 @@ describe('coup', () => {
     let s = createGame(P);
     s.players[0].coins = 10;
     expect(() => declareAction(s, 'a', 'income', null)).toThrow();
+  });
+
+  // Regression test for a deadlock: coup against a 2-influence target never
+  // sets pendingResolution (it goes straight to queueReveal), so
+  // drainOrResolve's default case used to just return the unchanged
+  // 'awaiting_reveal' state after the terminal reveal, bricking the game.
+  it('advances the turn after the terminal reveal, instead of deadlocking in awaiting_reveal', () => {
+    let s = createGame(P);
+    s.players[0].coins = 7;
+    expect(s.turn).toBe(0);
+    s = declareAction(s, 'a', 'coup', 'b');
+    expect(s.phase).toBe('awaiting_reveal');
+    s = chooseReveal(s, 'b', 1);
+    expect(s.phase).toBe('idle');
+    expect(s.turn).not.toBe(0);
+    expect(s.players[s.turn].eliminated).toBe(false);
+  });
+});
+
+describe('unchallenged assassinate against a 2-influence target', () => {
+  // Same deadlock as the coup case above, reached via the response-window
+  // timeout path (resolveWindow -> applyActionEffect -> queueReveal) instead
+  // of the challenge-resolution path.
+  it('advances the turn after the terminal reveal, instead of deadlocking in awaiting_reveal', () => {
+    let s = createGame(P);
+    s.players[0].coins = 3;
+    s = declareAction(s, 'a', 'assassinate', 'b');
+    s = resolveWindow(s); // nobody blocked or challenged
+    expect(s.phase).toBe('awaiting_reveal');
+    expect(s.pendingReveals[0]).toEqual({ playerId: 'b', reason: 'assassinate' });
+    s = chooseReveal(s, 'b', 0);
+    expect(s.phase).toBe('idle');
+    expect(s.turn).not.toBe(0);
+    expect(s.players[s.turn].eliminated).toBe(false);
   });
 });
 

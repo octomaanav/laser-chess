@@ -18,6 +18,46 @@ function nextLogId(state: CoupState): number {
   return state.log.length + 1;
 }
 
+function appendLog(state: CoupState, text: string): CoupState {
+  return { ...state, log: [...state.log, { id: nextLogId(state), text }] };
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Public description of a just-declared action, shown to everyone before
+// it's known to succeed or fail — claims are always public in Coup, so
+// naming the claimed character here never leaks hidden information.
+function describeActionLog(actor: Player, type: ActionType, target?: Player): string {
+  switch (type) {
+    case 'income':
+      return `${actor.name} took Income.`;
+    case 'foreign-aid':
+      return `${actor.name} attempted Foreign Aid.`;
+    case 'coup':
+      return `${actor.name} launched a Coup against ${target!.name}.`;
+    case 'tax':
+      return `${actor.name} claimed Duke and attempted to collect Tax.`;
+    case 'assassinate':
+      return `${actor.name} claimed Assassin and attempted to assassinate ${target!.name}.`;
+    case 'exchange':
+      return `${actor.name} claimed Ambassador and attempted an Exchange.`;
+    case 'steal':
+      return `${actor.name} claimed Captain and attempted to steal from ${target!.name}.`;
+  }
+}
+
+const ACTION_LABEL: Record<ActionType, string> = {
+  income: 'Income',
+  'foreign-aid': 'Foreign Aid',
+  coup: 'Coup',
+  tax: 'Tax',
+  assassinate: 'the assassination',
+  exchange: 'the Exchange',
+  steal: 'the steal',
+};
+
 function alivePlayers(state: CoupState): Player[] {
   return state.players.filter((p) => !p.eliminated);
 }
@@ -41,10 +81,12 @@ function currentPlayer(state: CoupState): Player {
 function advanceTurn(state: CoupState): CoupState {
   const alive = alivePlayers(state);
   if (alive.length <= 1) {
+    const winner = alive[0] ?? null;
+    const logged = winner ? appendLog(state, `${winner.name} wins the game!`) : state;
     return {
-      ...state,
+      ...logged,
       phase: 'game_over',
-      winner: alive[0]?.id ?? null,
+      winner: winner?.id ?? null,
       pendingAction: null,
       pendingBlock: null,
       pendingReveals: [],
@@ -68,7 +110,9 @@ function advanceTurn(state: CoupState): CoupState {
 function checkWinAfterElimination(state: CoupState): CoupState {
   const alive = alivePlayers(state);
   if (alive.length <= 1) {
-    return { ...state, phase: 'game_over', winner: alive[0]?.id ?? null };
+    const winner = alive[0] ?? null;
+    const logged = winner && state.phase !== 'game_over' ? appendLog(state, `${winner.name} wins the game!`) : state;
+    return { ...logged, phase: 'game_over', winner: winner?.id ?? null };
   }
   return state;
 }
@@ -86,14 +130,26 @@ function queueReveal(state: CoupState, reveal: PendingReveal): CoupState {
 }
 
 function applyReveal(state: CoupState, playerId: string, cardIndex: 0 | 1): CoupState {
+  const revealedPlayer = getPlayer(state, playerId);
+  const revealedCharacter = revealedPlayer.influence[cardIndex].character;
+  let eliminated = false;
   const players = state.players.map((p) => {
     if (p.id !== playerId) return p;
     const influence = [...p.influence] as [Card, Card];
     influence[cardIndex] = { ...influence[cardIndex], revealed: true };
-    const eliminated = influence.every((c) => c.revealed);
+    eliminated = influence.every((c) => c.revealed);
     return { ...p, influence, eliminated };
   });
   let next: CoupState = { ...state, players };
+  // The revealed card is now face-up (public), so naming it here doesn't
+  // leak any hidden information — only the player's OTHER (still-hidden)
+  // card stays secret.
+  next = appendLog(
+    next,
+    eliminated
+      ? `${revealedPlayer.name} revealed ${cap(revealedCharacter)} and is eliminated.`
+      : `${revealedPlayer.name} revealed ${cap(revealedCharacter)}.`,
+  );
   next = checkWinAfterElimination(next);
   return next;
 }
@@ -163,7 +219,7 @@ function drainOrResolve(state: CoupState): CoupState {
       return advanceTurn({ ...refunded, pendingResolution: null, treasury: refunded.treasury - action.costPaid });
     }
     default:
-      return state;
+      return state.phase === 'awaiting_reveal' ? advanceTurn(state) : state;
   }
 }
 
@@ -194,10 +250,10 @@ export function createGame(players: { id: string; name: string }[]): CoupState {
     const [poolA, poolB] = buildVariantPools();
     return {
       ...base,
-      players: players.map((p) => ({
+      players: players.map((p, i) => ({
         id: p.id,
         name: p.name,
-        coins: 1,
+        coins: i === 0 ? 1 : 2, // rulebook 2p variant: starting player gets 1, the other gets 2 (compensation for going second)
         influence: [
           { character: 'duke', revealed: false }, // placeholder, replaced in chooseStartingCharacter
           { character: 'duke', revealed: false },
@@ -205,7 +261,7 @@ export function createGame(players: { id: string; name: string }[]): CoupState {
         eliminated: false,
         connected: true,
       })),
-      treasury: base.treasury - 2,
+      treasury: base.treasury - 3,
       phase: 'variant-setup',
       variantPools: { [players[0].id]: poolA, [players[1].id]: poolB },
       variantChoices: {},
@@ -297,6 +353,7 @@ export function declareAction(
       costPaid: cost,
     },
   };
+  next = appendLog(next, describeActionLog(actor, type, requiresTarget ? getPlayer(next, targetId!) : undefined));
 
   if (UNCONTESTABLE_ACTIONS.includes(type)) {
     return applyActionEffect(next);
@@ -314,7 +371,9 @@ export function declareBlock(state: CoupState, byId: string, claimedCharacter: B
     action.type === 'foreign-aid' ? state.players.filter((p) => p.id !== action.actorId && !p.eliminated).map((p) => p.id) : [action.targetId];
   if (!eligible.includes(byId)) throw new Error('you cannot block this action');
 
-  return { ...state, pendingBlock: { byId, claimedCharacter }, phase: 'block_declared' };
+  const blocker = getPlayer(state, byId);
+  const next = appendLog(state, `${blocker.name} claimed ${cap(claimedCharacter)} to block ${ACTION_LABEL[action.type]}.`);
+  return { ...next, pendingBlock: { byId, claimedCharacter }, phase: 'block_declared' };
 }
 
 export function declareChallenge(state: CoupState, challengerId: string): CoupState {
@@ -324,12 +383,16 @@ export function declareChallenge(state: CoupState, challengerId: string): CoupSt
     const action = state.pendingAction;
     if (!action.claimedCharacter) throw new Error('this action makes no character claim to challenge');
     if (challengerId === action.actorId) throw new Error('you cannot challenge your own action');
-    return resolveChallenge(state, challengerId, action.actorId, action.claimedCharacter, 'action');
+    const accused = getPlayer(state, action.actorId);
+    const next = appendLog(state, `${challenger.name} challenged ${accused.name}'s claim of ${cap(action.claimedCharacter)}.`);
+    return resolveChallenge(next, challengerId, action.actorId, action.claimedCharacter, 'action');
   }
   if (state.phase === 'block_declared' && state.pendingBlock) {
     const block = state.pendingBlock;
     if (challengerId === block.byId) throw new Error('you cannot challenge your own block');
-    return resolveChallenge(state, challengerId, block.byId, block.claimedCharacter, 'block');
+    const accused = getPlayer(state, block.byId);
+    const next = appendLog(state, `${challenger.name} challenged ${accused.name}'s claim of ${cap(block.claimedCharacter)}.`);
+    return resolveChallenge(next, challengerId, block.byId, block.claimedCharacter, 'block');
   }
   throw new Error('nothing to challenge');
 }
@@ -342,6 +405,7 @@ function resolveChallenge(
   against: 'action' | 'block',
 ): CoupState {
   const accused = getPlayer(state, accusedId);
+  const challenger = getPlayer(state, challengerId);
   const held = unrevealedCards(accused).find((c) => c.card.character === claimed);
 
   if (held) {
@@ -356,6 +420,7 @@ function resolveChallenge(
       return { ...p, influence };
     });
     let next: CoupState = { ...state, players, deck };
+    next = appendLog(next, `${accused.name} proved ${cap(claimed)}. ${challenger.name} loses the challenge.`);
     const resolution = against === 'action' ? 'apply-action' : 'action-failed';
     next = queueReveal(next, { playerId: challengerId, reason: 'lost-challenge' });
     next = { ...next, pendingResolution: resolution };
@@ -364,7 +429,8 @@ function resolveChallenge(
 
   // Accused was bluffing: they lose the challenge.
   const resolution = against === 'action' ? 'refund-actor' : 'apply-action';
-  let next = queueReveal(state, { playerId: accusedId, reason: 'lost-challenge' });
+  let next = appendLog(state, `${accused.name} did not have ${cap(claimed)} and loses the challenge.`);
+  next = queueReveal(next, { playerId: accusedId, reason: 'lost-challenge' });
   next = { ...next, pendingResolution: resolution };
   return drainOrResolve(next);
 }
@@ -411,7 +477,8 @@ export function forfeitPlayer(state: CoupState, playerId: string): CoupState {
       ? { ...p, eliminated: true, influence: p.influence.map((c) => ({ ...c, revealed: true })) as [Card, Card] }
       : p,
   );
-  let next: CoupState = { ...state, players, pendingReveals: state.pendingReveals.filter((r) => r.playerId !== playerId) };
+  const logged = appendLog(state, `${player.name} disconnected too long and forfeits.`);
+  let next: CoupState = { ...logged, players, pendingReveals: state.pendingReveals.filter((r) => r.playerId !== playerId) };
 
   next = checkWinAfterElimination(next);
   if (next.phase === 'game_over') {
@@ -465,5 +532,6 @@ export function chooseExchange(state: CoupState, playerId: string, keepIndices: 
     return { ...p, influence };
   });
 
-  return advanceTurn({ ...state, players, deck, exchangeOffer: null });
+  const logged = appendLog(state, `${actor.name} exchanged cards with the court deck.`);
+  return advanceTurn({ ...logged, players, deck, exchangeOffer: null });
 }

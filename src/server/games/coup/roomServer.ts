@@ -15,9 +15,10 @@ import {
 import { redactStateFor } from '../../../game/coup/redact';
 import type { CoupState, ActionType, BlockCharacter, Character } from '../../../game/coup/types';
 import type { ClientMessage, ServerMessage } from '../../../game/coup/messages';
-import { getStore } from '../../store';
+import { getStore, type PersistedCoupRoom } from '../../store';
 
 interface Client extends WebSocket {
+  isAlive?: boolean;
   playerId?: string;
   name?: string;
   room?: Room;
@@ -110,11 +111,30 @@ function persist(room: Room) {
     });
 }
 
+function hydrateRoom(p: PersistedCoupRoom): Room {
+  return {
+    code: p.code,
+    seats: p.seats,
+    names: new Map(Object.entries(p.names)),
+    clients: new Set(),
+    state: p.state,
+    responseTimer: null,
+    responseDeadline: p.responseDeadline,
+    forfeitTimers: new Map(),
+    rematchVotes: new Set(),
+  };
+}
+
 export function createCoupWss(): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
 
   wss.on('connection', (ws: Client) => {
-    ws.on('message', (raw) => {
+    ws.isAlive = true;
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+
+    ws.on('message', async (raw) => {
       let msg: ClientMessage;
       try {
         msg = JSON.parse(raw.toString());
@@ -122,7 +142,7 @@ export function createCoupWss(): WebSocketServer {
         return;
       }
       try {
-        handleMessage(ws, msg);
+        await handleMessage(ws, msg);
       } catch (e) {
         send(ws, { type: 'error', message: e instanceof Error ? e.message : 'unknown error' });
       }
@@ -131,12 +151,37 @@ export function createCoupWss(): WebSocketServer {
     ws.on('close', () => handleDisconnect(ws));
   });
 
+  // Half-open connections (laptop sleep, mobile network drop) never fire a
+  // 'close' event on their own — without this, isConnected() stays true
+  // forever for a dead socket, so the real player gets rejected on rejoin
+  // with "already connected" and no forfeit timer ever arms.
+  const heartbeat = setInterval(() => {
+    for (const ws of wss.clients as Set<Client>) {
+      if (!ws.isAlive) {
+        ws.terminate();
+        continue;
+      }
+      ws.isAlive = false;
+      try {
+        ws.ping();
+      } catch {
+        /* ignore */
+      }
+    }
+  }, 30000);
+  // drop persisted rooms that haven't been touched in a day
+  const sweep = setInterval(() => void getStore().sweepCoupRooms(24 * 60 * 60 * 1000).catch(() => {}), 60 * 60 * 1000);
+  wss.on('close', () => {
+    clearInterval(heartbeat);
+    clearInterval(sweep);
+  });
+
   return wss;
 }
 
-function handleMessage(ws: Client, msg: ClientMessage) {
+async function handleMessage(ws: Client, msg: ClientMessage) {
   if (msg.type === 'join') {
-    handleJoin(ws, msg.playerId, msg.name, msg.code);
+    await handleJoin(ws, msg.playerId, msg.name, msg.code);
     return;
   }
   const room = ws.room;
@@ -144,7 +189,7 @@ function handleMessage(ws: Client, msg: ClientMessage) {
 
   switch (msg.type) {
     case 'start':
-      return handleStart(room);
+      return handleStart(room, ws.playerId);
     case 'declare-action':
       return handleDeclareAction(room, ws.playerId, msg.action, msg.targetId);
     case 'declare-block':
@@ -167,10 +212,26 @@ function handleMessage(ws: Client, msg: ClientMessage) {
   }
 }
 
-function handleJoin(ws: Client, playerId: string, name: string, code: string | undefined) {
+async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawCode: string | undefined) {
+  // Persisted to Postgres on every broadcast (see persist()), so these must
+  // be bounded — mirrors gameServer.ts's onJoin clamping.
+  const playerId = String(rawPlayerId || '').slice(0, 64);
+  const name = String(rawName || 'Player').slice(0, 24);
+  if (!playerId) throw new Error('missing playerId');
+  const code = rawCode ? rawCode.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) : undefined;
+
   let room: Room;
   if (code) {
-    const existing = rooms.get(code.toUpperCase());
+    let existing = rooms.get(code);
+    // not in memory (e.g. after a restart) → try to rehydrate from the store
+    if (!existing) {
+      const persisted = await getStore().loadCoupRoom(code);
+      existing = rooms.get(code) ?? undefined;
+      if (!existing && persisted) {
+        existing = hydrateRoom(persisted);
+        rooms.set(code, existing);
+      }
+    }
     if (!existing) throw new Error('room not found');
     room = existing;
   } else {
@@ -212,9 +273,13 @@ function handleJoin(ws: Client, playerId: string, name: string, code: string | u
   }
 }
 
-function handleStart(room: Room) {
+function handleStart(room: Room, playerId: string) {
   if (room.state) throw new Error('already started');
   if (room.seats.length < MIN_SEATS) throw new Error('not enough players');
+  // Only the room creator (first seat) may start — otherwise any seated
+  // client could start the moment MIN_SEATS is reached, potentially cutting
+  // off players still in the process of joining a shared link.
+  if (room.seats[0] !== playerId) throw new Error('only the room creator can start the game');
   room.state = createGame(room.seats.map((id) => ({ id, name: room.names.get(id) ?? '?' })));
   openResponseWindowIfNeeded(room);
   broadcastState(room);
@@ -300,7 +365,13 @@ function handleChooseStartingCharacter(room: Room, playerId: string, character: 
 
 function handleRematchVote(room: Room, playerId: string) {
   room.rematchVotes.add(playerId);
-  if (room.rematchVotes.size >= room.seats.length) {
+  // Only players who are still actually connected can be re-seated: a
+  // player whose forfeit timer already fired has a socket that's long gone,
+  // and no `close` event will ever fire again for it to arm a new forfeit
+  // timer — re-seating them would hang the rematch on their turn forever.
+  const connectedSeats = room.seats.filter((id) => isConnected(room, id));
+  if (connectedSeats.length >= MIN_SEATS && room.rematchVotes.size >= connectedSeats.length) {
+    room.seats = connectedSeats;
     room.state = createGame(room.seats.map((id) => ({ id, name: room.names.get(id) ?? '?' })));
     room.rematchVotes.clear();
     openResponseWindowIfNeeded(room);
