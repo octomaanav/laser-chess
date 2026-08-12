@@ -38,6 +38,17 @@ function jitter(noise: number): number {
   return noise ? (Math.random() * 2 - 1) * noise : 0;
 }
 
+// Mutable signal threaded through the recursion so a deadline hit anywhere
+// in the subtree (not just "the deadline had already passed before this
+// root action started") is visible back at the root. Without this, a
+// deadline falling mid-recursion on some root action would silently return
+// a static (un-searched) evaluate() for that action while `completed`
+// stayed true, letting a truncated depth get committed — and biased,
+// since the truncated action is always the worst-ordered one.
+interface TimedOut {
+  timedOut: boolean;
+}
+
 function minimax(
   state: GameState,
   color: Color, // whose perspective evaluate() scores from — fixed for the whole search
@@ -46,18 +57,22 @@ function minimax(
   alpha: number,
   beta: number,
   deadline: number,
-  noise: number,
+  timedOut: TimedOut,
 ): number {
   if (state.winner) return state.winner === color ? Infinity : -Infinity;
-  if (depth === 0 || Date.now() > deadline) return evaluate(state, color) + jitter(noise);
+  if (depth === 0) return evaluate(state, color);
+  if (Date.now() > deadline) {
+    timedOut.timedOut = true;
+    return evaluate(state, color);
+  }
 
   const ordered = orderActions(state, toMove, enumerateActions(state, toMove));
-  if (ordered.length === 0) return evaluate(state, color) + jitter(noise);
+  if (ordered.length === 0) return evaluate(state, color);
 
   const maximizing = toMove === color;
   let best = maximizing ? -Infinity : Infinity;
   for (const { next } of ordered) {
-    const score = minimax(next, color, opposite(toMove), depth - 1, alpha, beta, deadline, noise);
+    const score = minimax(next, color, opposite(toMove), depth - 1, alpha, beta, deadline, timedOut);
     if (maximizing) {
       best = Math.max(best, score);
       alpha = Math.max(alpha, best);
@@ -66,7 +81,10 @@ function minimax(
       beta = Math.min(beta, best);
     }
     if (beta <= alpha) break;
-    if (Date.now() > deadline) break;
+    if (Date.now() > deadline) {
+      timedOut.timedOut = true;
+      break;
+    }
   }
   return best;
 }
@@ -74,31 +92,56 @@ function minimax(
 // Iterative deepening: search depth 1, 2, 3, ... committing each depth's
 // result only if that whole depth finished before `deadline` — a partially
 // searched depth's root scores aren't comparable (some branches got a
-// shallower look than others), so a partial depth is discarded, not committed.
-export function search(state: GameState, color: Color, deadline: number, noise = 0): SearchResult {
+// shallower look than others), so a partial depth is discarded, not
+// committed. "Finished" means no deadline truncation happened anywhere in
+// the depth's recursion, tracked via the `timedOut` signal above — not
+// merely that the deadline hadn't yet passed when the next root action
+// started.
+//
+// `maxDepth` optionally caps how deep iterative deepening goes, independent
+// of the time budget — used to give difficulty tiers a real, hardware-
+// independent depth ceiling (see bot.ts) since depth cost grows so fast
+// per ply that the time budget alone barely separates the tiers.
+export function search(
+  state: GameState,
+  color: Color,
+  deadline: number,
+  noise = 0,
+  maxDepth = Infinity,
+): SearchResult {
   const rootActions = orderActions(state, color, enumerateActions(state, color));
   if (rootActions.length === 0) throw new Error('no legal actions for bot');
 
   let best: Action = rootActions[0].action;
   let depthReached = 0;
 
-  for (let depth = 1; Date.now() < deadline; depth++) {
+  for (let depth = 1; depth <= maxDepth && Date.now() < deadline; depth++) {
     let bestScoreThisDepth = -Infinity;
     let bestActionThisDepth = best;
     let completed = true;
+    const timedOut: TimedOut = { timedOut: false };
 
     for (const { action, next } of rootActions) {
       if (Date.now() > deadline) {
         completed = false;
         break;
       }
-      const score = minimax(next, color, opposite(color), depth - 1, -Infinity, Infinity, deadline, noise);
-      if (score > bestScoreThisDepth) {
-        bestScoreThisDepth = score;
+      const score = minimax(next, color, opposite(color), depth - 1, -Infinity, Infinity, deadline, timedOut);
+      // Noise is applied once per root candidate here, not per leaf inside
+      // minimax — jittering every leaf and taking the max/min over many
+      // noisy samples systematically inflates scores (grows with subtree
+      // size) instead of just weakening play. Jittering the final root
+      // score keeps the internal search fully deterministic and correct
+      // while still occasionally preferring a slightly-worse-but-plausible
+      // move.
+      const scoreWithNoise = score + jitter(noise);
+      if (scoreWithNoise > bestScoreThisDepth) {
+        bestScoreThisDepth = scoreWithNoise;
         bestActionThisDepth = action;
       }
     }
 
+    if (timedOut.timedOut) completed = false;
     if (!completed) break;
     best = bestActionThisDepth;
     depthReached = depth;

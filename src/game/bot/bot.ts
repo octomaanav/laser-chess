@@ -2,9 +2,14 @@ import { search } from './search';
 import type { Difficulty } from './types';
 import type { Action, Color, GameState } from '../types';
 
-// All three tiers run the identical search/eval code (search.ts) — only the
-// time budget and eval noise differ. Easy adds noise so it doesn't always
-// play the objectively-best move (reads as "beatable," not "broken").
+// All three tiers run the identical search/eval code (search.ts) — the time
+// budget, eval noise, and max search depth differ. Easy adds noise so it
+// doesn't always play the objectively-best move (reads as "beatable," not
+// "broken"). A time budget alone barely separates the tiers in practice —
+// depth cost grows roughly 83x per ply in this game, so 300ms/1000ms/3000ms
+// budgets mostly land at the same depth on typical hardware. An explicit
+// per-tier depth cap makes the tiers meaningfully distinct regardless of
+// hardware speed; hard is left uncapped (limited only by its time budget).
 const BUDGET_MS: Record<Difficulty, number> = {
   easy: 300,
   medium: 1000,
@@ -15,9 +20,14 @@ const NOISE: Record<Difficulty, number> = {
   medium: 0,
   hard: 0,
 };
+const MAX_DEPTH: Record<Difficulty, number> = {
+  easy: 1,
+  medium: 2,
+  hard: Infinity,
+};
 
 export function chooseMove(state: GameState, color: Color, difficulty: Difficulty): Action {
   const deadline = Date.now() + BUDGET_MS[difficulty];
-  const { action } = search(state, color, deadline, NOISE[difficulty]);
+  const { action } = search(state, color, deadline, NOISE[difficulty], MAX_DEPTH[difficulty]);
   return action;
 }
