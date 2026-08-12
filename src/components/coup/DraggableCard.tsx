@@ -1,6 +1,8 @@
 'use client';
+import { useState } from 'react';
 import { motion, useAnimation, type PanInfo } from 'framer-motion';
 import CharacterCard from './CharacterCard';
+import CardTilt from './CardTilt';
 import type { Character } from '@/game/coup/types';
 import { shouldCommitDrag } from './dragThreshold';
 
@@ -15,14 +17,17 @@ interface DraggableCardProps {
   onCommit: () => void;
 }
 
-// Drag straight up to play a card — used for declaring your action (Task 6)
-// and the exchange keep/discard picker (Task 8). `disabled` still allows the
-// drag gesture (so it doesn't feel broken/unresponsive) but refuses the
-// commit with a shake instead of calling onCommit.
+// Drag straight up to play a card. `disabled` still allows the drag
+// gesture (so it doesn't feel broken/unresponsive) but refuses the
+// commit with a shake instead of calling onCommit. The tilt effect goes
+// flat for the duration of an active drag so the two transforms never
+// compete for the same frame.
 export default function DraggableCard({ character, revealed, size = 'lg', disabled, marked, onCommit }: DraggableCardProps) {
   const controls = useAnimation();
+  const [dragging, setDragging] = useState(false);
 
   const handleDragEnd = (_event: unknown, info: PanInfo) => {
+    setDragging(false);
     const armed = shouldCommitDrag(info.offset.y, COMMIT_THRESHOLD_PX);
 
     if (armed && disabled) {
@@ -44,6 +49,7 @@ export default function DraggableCard({ character, revealed, size = 'lg', disabl
       dragElastic={0.15}
       animate={controls}
       whileDrag={{ scale: 1.06 }}
+      onDragStart={() => setDragging(true)}
       onDragEnd={handleDragEnd}
       style={{
         cursor: 'grab',
@@ -53,7 +59,9 @@ export default function DraggableCard({ character, revealed, size = 'lg', disabl
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      <CharacterCard character={character} revealed={revealed} size={size} />
+      <CardTilt disabled={dragging}>
+        <CharacterCard character={character} revealed={revealed} size={size} />
+      </CardTilt>
     </motion.div>
   );
 }

@@ -1,6 +1,7 @@
 // src/components/coup/CoupTable.tsx
 import CharacterCard from './CharacterCard';
 import DraggableCard from './DraggableCard';
+import CardTilt from './CardTilt';
 import Treasury from './Treasury';
 import { useTableEvents } from './useTableEvents';
 import { CLAIM_ACTION_FOR } from './claimActionFor';
@@ -75,13 +76,14 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
                 {p.influence.map((c, i) => {
                   const revealedNow = events.find((e) => e.kind === 'card-revealed' && e.playerId === p.id && e.cardIndex === i);
                   return (
-                    <CharacterCard
-                      key={i}
-                      character={c.character}
-                      revealed={c.revealed}
-                      size="sm"
-                      className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
-                    />
+                    <CardTilt key={i}>
+                      <CharacterCard
+                        character={c.character}
+                        revealed={c.revealed}
+                        size="sm"
+                        className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
+                      />
+                    </CardTilt>
                   );
                 })}
               </div>
@@ -114,13 +116,14 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
 
             if (!canDeclare || !claimAction) {
               return (
-                <CharacterCard
-                  key={i}
-                  character={c.character}
-                  revealed={c.revealed}
-                  size="lg"
-                  className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
-                />
+                <CardTilt key={i}>
+                  <CharacterCard
+                    character={c.character}
+                    revealed={c.revealed}
+                    size="lg"
+                    className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
+                  />
+                </CardTilt>
               );
             }
 

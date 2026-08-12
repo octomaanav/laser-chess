@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import CharacterCard from './CharacterCard';
+import CardTilt from './CardTilt';
 import type { Character } from '@/game/coup/types';
 
 const HOLD_MS = 600;
@@ -17,6 +18,8 @@ interface HoldCardProps {
 
 // Press and hold to reveal — there's no meaningful drag direction for a
 // single reveal target, so this is a separate gesture from DraggableCard.
+// The tilt effect goes flat once a hold is in progress (progress > 0) so
+// the ring-fill and tilt don't compete visually.
 export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardProps) {
   const [progress, setProgress] = useState(0);
   const frameRef = useRef<number | null>(null);
@@ -71,7 +74,9 @@ export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardP
       }}
       style={{ position: 'relative', borderRadius: 8, cursor: 'pointer' }}
     >
-      <CharacterCard character={character} size={size} />
+      <CardTilt disabled={progress > 0}>
+        <CharacterCard character={character} size={size} />
+      </CardTilt>
       {progress > 0 && (
         <svg
           width="100%"
