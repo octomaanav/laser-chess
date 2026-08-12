@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { CoupController, CoupView } from '@/client/coupController';
 import CoupTable from './CoupTable';
 import ActionBar from './ActionBar';
+import ActionRail from './ActionRail';
 import ResponseModal from './ResponseModal';
 import GameLog from './GameLog';
 import { VariantSetupPicker, RevealPicker, ExchangePicker } from './PhasePickers';
@@ -48,10 +49,13 @@ export default function CoupGamePlay({ controller, view }: { controller: CoupCon
   const stateWithCountdown = { ...view.state, responseSecondsRemaining };
 
   return (
-    <div className="relative flex h-full flex-col">
-      <CoupTable state={stateWithCountdown} />
-      <ActionBar state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} onSelectTarget={setSelectedTarget} />
-      <GameLog entries={view.state.log} />
+    <div className="relative flex h-full flex-col lg:flex-row">
+      <div className="flex flex-1 flex-col">
+        <CoupTable state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} />
+        <ActionBar state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} onSelectTarget={setSelectedTarget} />
+        <GameLog entries={view.state.log} />
+      </div>
+      <ActionRail state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} onSelectTarget={setSelectedTarget} />
       <ResponseModal state={stateWithCountdown} controller={controller} />
       {/* awaiting_reveal and exchange_choice also have no server-side
           timeout — these overlays are the only way out of those phases. */}
