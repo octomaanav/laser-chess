@@ -20,7 +20,7 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
   // useEffect above.
   const showGame = view.screen === 'game';
   return (
-    <div data-game="coup" className="h-full" style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}>
+    <div data-game="coup" className="min-h-dvh" style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}>
       {showGame ? <CoupGamePlay controller={controller} view={view} /> : <CoupLobby controller={controller} view={view} />}
     </div>
   );

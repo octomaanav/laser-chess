@@ -49,7 +49,7 @@ export default function CoupGamePlay({ controller, view }: { controller: CoupCon
   const stateWithCountdown = { ...view.state, responseSecondsRemaining };
 
   return (
-    <div className="relative flex h-full flex-col lg:flex-row">
+    <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
       <div className="flex flex-1 flex-col">
         <CoupTable state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} />
         <ActionBar state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} onSelectTarget={setSelectedTarget} />
