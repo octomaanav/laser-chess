@@ -1,15 +1,11 @@
+import CardFace from './CardFace';
+
 export default function AmbassadorCard() {
-  const bg = "#4b8c5c"
-  const icon = "#6aad7c"
+  const bg = '#4b8c5c';
+  const icon = '#6aad7c';
 
   return (
-    <svg viewBox="0 0 300 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ambassador card">
-      {/* Card background */}
-      <rect width="300" height="420" rx="22" fill={bg} />
-      {/* Border */}
-      <rect x="1" y="1" width="298" height="418" rx="21.5" fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.25" />
-
-      {/* Icon — compass exchange symbol */}
+    <CardFace bg={bg} icon={icon} name="AMBASSADOR" ability={['EXCHANGE TWO CARDS', 'BLOCK STEALING']} label="Ambassador card">
       {/* Center diamond */}
       <polygon points="150,127 208,184 150,241 92,184" fill={icon} />
 
@@ -26,39 +22,6 @@ export default function AmbassadorCard() {
 
       {/* Right: left-pointing triangle */}
       <polygon points="218,165 218,203 199,184" fill={icon} />
-
-      {/* Name */}
-      <text
-        x="150" y="330"
-        textAnchor="middle"
-        fontFamily="'Rajdhani', sans-serif"
-        fontWeight="700"
-        fontSize="26"
-        letterSpacing="4"
-        fill="white"
-      >AMBASSADOR</text>
-
-      {/* Abilities */}
-      <text
-        x="150" y="360"
-        textAnchor="middle"
-        fontFamily="'Rajdhani', sans-serif"
-        fontWeight="400"
-        fontSize="13"
-        letterSpacing="2.5"
-        fill="white"
-        fillOpacity="0.85"
-      >EXCHANGE TWO CARDS</text>
-      <text
-        x="150" y="380"
-        textAnchor="middle"
-        fontFamily="'Rajdhani', sans-serif"
-        fontWeight="400"
-        fontSize="13"
-        letterSpacing="2.5"
-        fill="white"
-        fillOpacity="0.85"
-      >BLOCK STEALING</text>
-    </svg>
-  )
+    </CardFace>
+  );
 }
