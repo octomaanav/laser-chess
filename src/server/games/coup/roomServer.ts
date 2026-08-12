@@ -310,6 +310,24 @@ function handleRematchVote(room: Room, playerId: string) {
   }
 }
 
+// Reclaims a room once nothing is left that still needs it: an abandoned
+// pre-game lobby, or a finished game nobody's still watching. A mid-game
+// room with zero connected clients must stay in the map — it still has a
+// live forfeit timer and disconnected players need `join` to find it again
+// by code when they reconnect. Called both right after a `close` event and
+// after a forfeit-timeout fires (the latter has no `close` event of its own
+// to trigger this, so a room abandoned entirely via forfeit would otherwise
+// never be swept).
+function maybeReclaimRoom(room: Room) {
+  const reclaimable = !room.state || room.state.phase === 'game_over';
+  if (room.clients.size === 0 && reclaimable) {
+    clearResponseTimer(room);
+    for (const timer of room.forfeitTimers.values()) clearTimeout(timer);
+    room.forfeitTimers.clear();
+    rooms.delete(room.code);
+  }
+}
+
 function handleDisconnect(ws: Client) {
   const room = ws.room;
   if (!room || !ws.playerId) return;
@@ -334,32 +352,28 @@ function handleDisconnect(ws: Client) {
         // advances play past the forfeiting player if they held the turn,
         // the pending action/target, the pending block, or the head of the
         // reveal queue, so nothing is left pointing at a ghost.
+        const phaseBefore = room.state.phase;
         room.state = forfeitPlayer(room.state, playerId);
-        openResponseWindowIfNeeded(room);
+        // Only re-arm/clear the response-window timer if the forfeit
+        // actually touched the phase — a bystander forfeiting mid-window
+        // (not the actor/target/blocker) leaves phase untouched, and
+        // re-running this would silently reset an in-progress countdown
+        // for everyone else.
+        if (room.state.phase !== phaseBefore) openResponseWindowIfNeeded(room);
         for (const c of room.clients) send(c, { type: 'forfeit', playerId });
         broadcastState(room);
+        maybeReclaimRoom(room);
       }, DISCONNECT_FORFEIT_MS);
       room.forfeitTimers.set(playerId, timer);
     }
   } else {
     // Pre-game: release the seat rather than burning it forever, and drop
     // the player's name so a fully-abandoned lobby can be reclaimed (see
-    // the empty-room sweep below) or rejoined cleanly by someone else.
+    // maybeReclaimRoom below) or rejoined cleanly by someone else.
     room.seats = room.seats.filter((id) => id !== playerId);
     room.names.delete(playerId);
     broadcastLobby(room);
   }
 
-  // Only reclaim the room once nothing is left that still needs it: an
-  // abandoned pre-game lobby, or a finished game nobody's still watching.
-  // A mid-game empty room must stay in the map — it still has a live
-  // forfeit timer (just armed above) and disconnected players need `join`
-  // to find it again by code when they reconnect.
-  const reclaimable = !room.state || room.state.phase === 'game_over';
-  if (room.clients.size === 0 && reclaimable) {
-    clearResponseTimer(room);
-    for (const timer of room.forfeitTimers.values()) clearTimeout(timer);
-    room.forfeitTimers.clear();
-    rooms.delete(room.code);
-  }
+  maybeReclaimRoom(room);
 }
