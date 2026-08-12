@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   chooseExchange,
   chooseReveal,
+  chooseStartingCharacter,
   createGame,
   declareAction,
   declareBlock,
@@ -164,6 +165,82 @@ describe('coup', () => {
     let s = createGame(P);
     s.players[0].coins = 10;
     expect(() => declareAction(s, 'a', 'income', null)).toThrow();
+  });
+});
+
+describe('challenge eligibility', () => {
+  it('rejects a challenge from an eliminated player', () => {
+    let s = createGame(P);
+    s.players[2].influence[0].revealed = true;
+    s.players[2].influence[1].revealed = true;
+    s.players[2].eliminated = true;
+    s = declareAction(s, 'a', 'tax', null);
+    expect(() => declareChallenge(s, 'c')).toThrow();
+  });
+});
+
+describe('exchange with reduced influence', () => {
+  it('keeps only the unrevealed slot in play, never touching an already-revealed card', () => {
+    let s = createGame(P);
+    s = withHand(s, 'a', ['assassin', 'captain']);
+    s.players[0].influence[0].revealed = true; // 'a' is down to 1 influence, not eliminated
+    s = declareAction(s, 'a', 'exchange', null);
+    s = resolveWindow(s);
+    expect(s.exchangeOffer).toHaveLength(2);
+    const offerCard = s.exchangeOffer![0];
+    s = chooseExchange(s, 'a', [1]); // only 1 unrevealed slot -> keep the first drawn candidate
+    expect(s.phase).toBe('idle');
+    // the revealed slot must be untouched - never overwritten, never returned to the deck
+    expect(s.players[0].influence[0]).toEqual({ character: 'assassin', revealed: true });
+    // the surviving unrevealed slot gets the chosen candidate
+    expect(s.players[0].influence[1]).toEqual({ character: offerCard, revealed: false });
+    expect(s.deck).toHaveLength(15 - 6); // 2 drawn, 2 returned - net unchanged
+  });
+
+  it('rejects a keepIndices count that does not match the unrevealed-card count', () => {
+    let s = createGame(P);
+    s.players[0].influence[0].revealed = true; // only 1 unrevealed slot now
+    s = declareAction(s, 'a', 'exchange', null);
+    s = resolveWindow(s);
+    expect(() => chooseExchange(s, 'a', [0, 1])).toThrow();
+  });
+});
+
+describe('assassinate bluff refund', () => {
+  it('actor bluffing assassin: loses influence, coins and treasury are refunded', () => {
+    let s = createGame(P);
+    s = withHand(s, 'a', ['captain', 'ambassador']); // no assassin
+    s.players[0].coins = 5;
+    const treasuryBefore = s.treasury;
+    s = declareAction(s, 'a', 'assassinate', 'b');
+    expect(s.players[0].coins).toBe(2); // 5 - 3 cost paid upfront
+    s = declareChallenge(s, 'c');
+    expect(s.pendingReveals[0].playerId).toBe('a');
+    s = chooseReveal(s, 'a', 0);
+    expect(s.players[0].coins).toBe(5); // fully refunded
+    expect(s.treasury).toBe(treasuryBefore); // escrowed cost handed back out of the treasury
+    expect(s.phase).toBe('idle');
+  });
+});
+
+describe('chooseStartingCharacter (2-player variant)', () => {
+  it('lets both players draft, then deals the shared third pool', () => {
+    let s = createGame([P[0], P[1]]);
+    expect(s.phase).toBe('variant-setup');
+    s = chooseStartingCharacter(s, 'a', 'duke');
+    expect(s.phase).toBe('variant-setup'); // still waiting on b
+    s = chooseStartingCharacter(s, 'b', 'contessa');
+    expect(s.phase).toBe('idle');
+    expect(s.players[0].influence[0].character).toBe('duke');
+    expect(s.players[1].influence[0].character).toBe('contessa');
+    expect(s.deck).toHaveLength(3); // third 5-card pool minus the 2 dealt
+    expect(s.variantPools).toBeNull();
+  });
+
+  it('rejects a character not in the caller draft pool', () => {
+    let s = createGame([P[0], P[1]]);
+    s.variantPools!['a'] = ['duke'];
+    expect(() => chooseStartingCharacter(s, 'a', 'contessa')).toThrow();
   });
 });
 

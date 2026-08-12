@@ -160,7 +160,7 @@ function drainOrResolve(state: CoupState): CoupState {
     case 'refund-actor': {
       const action = state.pendingAction!;
       const refunded = setCoins(state, action.actorId, getPlayer(state, action.actorId).coins + action.costPaid);
-      return advanceTurn({ ...refunded, pendingResolution: null, treasury: refunded.treasury + action.costPaid });
+      return advanceTurn({ ...refunded, pendingResolution: null, treasury: refunded.treasury - action.costPaid });
     }
     default:
       return state;
@@ -318,6 +318,8 @@ export function declareBlock(state: CoupState, byId: string, claimedCharacter: B
 }
 
 export function declareChallenge(state: CoupState, challengerId: string): CoupState {
+  const challenger = getPlayer(state, challengerId);
+  if (challenger.eliminated) throw new Error('eliminated players cannot challenge');
   if (state.phase === 'action_declared' && state.pendingAction) {
     const action = state.pendingAction;
     if (!action.claimedCharacter) throw new Error('this action makes no character claim to challenge');
@@ -400,8 +402,15 @@ export function chooseExchange(state: CoupState, playerId: string, keepIndices: 
   if (!state.exchangeOffer) throw new Error('no exchange offer');
 
   const actor = getPlayer(state, playerId);
-  const candidates = [...actor.influence.map((c) => c.character), ...state.exchangeOffer];
-  if (keepIndices.length !== 2 || new Set(keepIndices).size !== 2) throw new Error('choose exactly 2 cards to keep');
+  // Only unrevealed slots are in play for the exchange — an already-revealed
+  // (face-up, dead) card must never go back into the court deck, and a live
+  // card must never be hidden into a revealed slot.
+  const unrevealed = unrevealedCards(actor);
+  const candidates = [...unrevealed.map((u) => u.card.character), ...state.exchangeOffer];
+  const requiredKeep = unrevealed.length;
+  if (keepIndices.length !== requiredKeep || new Set(keepIndices).size !== requiredKeep) {
+    throw new Error(`choose exactly ${requiredKeep} card(s) to keep`);
+  }
   for (const i of keepIndices) if (i < 0 || i >= candidates.length) throw new Error('invalid selection');
 
   const kept = keepIndices.map((i) => candidates[i]);
@@ -410,10 +419,10 @@ export function chooseExchange(state: CoupState, playerId: string, keepIndices: 
 
   const players = state.players.map((p) => {
     if (p.id !== playerId) return p;
-    const influence = [
-      { character: kept[0], revealed: p.influence[0].revealed },
-      { character: kept[1], revealed: p.influence[1].revealed },
-    ] as [Card, Card];
+    const influence = [...p.influence] as [Card, Card];
+    unrevealed.forEach((u, i) => {
+      influence[u.index] = { character: kept[i], revealed: false };
+    });
     return { ...p, influence };
   });
 
