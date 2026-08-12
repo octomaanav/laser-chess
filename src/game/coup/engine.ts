@@ -396,6 +396,45 @@ export function chooseReveal(state: CoupState, playerId: string, cardIndex: 0 | 
   return drainOrResolve(next);
 }
 
+// Called by the room server when a disconnected player's forfeit clock
+// expires. Unlike a normal challenge/coup loss, a forfeit can happen at any
+// point in the state machine — mid-turn, mid-response-window, or while a
+// reveal/exchange is pending — so it must clean up whatever pending* fields
+// might reference the forfeiting player as a ghost, not just flip their
+// cards face up.
+export function forfeitPlayer(state: CoupState, playerId: string): CoupState {
+  const player = state.players.find((p) => p.id === playerId);
+  if (!player || player.eliminated) return state;
+
+  const players = state.players.map((p) =>
+    p.id === playerId
+      ? { ...p, eliminated: true, influence: p.influence.map((c) => ({ ...c, revealed: true })) as [Card, Card] }
+      : p,
+  );
+  let next: CoupState = { ...state, players, pendingReveals: state.pendingReveals.filter((r) => r.playerId !== playerId) };
+
+  next = checkWinAfterElimination(next);
+  if (next.phase === 'game_over') {
+    return { ...next, pendingAction: null, pendingBlock: null, pendingReveals: [], pendingResolution: null };
+  }
+
+  const wasCurrentTurn = state.players[state.turn]?.id === playerId;
+  const wasPendingActor = state.pendingAction?.actorId === playerId;
+  const wasPendingTarget = state.pendingAction?.targetId === playerId;
+  const wasPendingBlocker = state.pendingBlock?.byId === playerId;
+  const wasPendingReveal = state.pendingReveals.some((r) => r.playerId === playerId);
+
+  // The forfeiting player was involved in whatever's currently in progress
+  // (their own turn, the action/block they're party to, or a reveal they
+  // owed) — that in-progress thing is now unresolvable, so move play on.
+  // advanceTurn also re-runs the alive<=1 check and clears pending* fields.
+  if (wasCurrentTurn || wasPendingActor || wasPendingTarget || wasPendingBlocker || wasPendingReveal) {
+    return advanceTurn(next);
+  }
+
+  return next;
+}
+
 export function chooseExchange(state: CoupState, playerId: string, keepIndices: number[]): CoupState {
   if (state.phase !== 'exchange_choice' || !state.pendingAction) throw new Error('no exchange pending');
   if (state.pendingAction.actorId !== playerId) throw new Error('not your exchange');

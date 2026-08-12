@@ -9,6 +9,7 @@ import {
   declareAction,
   declareBlock,
   declareChallenge,
+  forfeitPlayer,
   resolveWindow,
 } from '../../../game/coup/engine';
 import { redactStateFor } from '../../../game/coup/redact';
@@ -91,15 +92,22 @@ function broadcastState(room: Room) {
 
 function persist(room: Room) {
   if (!room.state) return;
-  void getStore().saveCoupRoom({
-    code: room.code,
-    state: room.state,
-    seats: room.seats,
-    names: Object.fromEntries(room.names),
-    responseDeadline: room.responseDeadline,
-    forfeitPlayerId: null,
-    forfeitDeadline: null,
-  });
+  // A transient store error here must never become an unhandled rejection —
+  // this runs on every broadcast in every room, and an unhandled rejection
+  // crashes the whole Node process (taking down Laser Chess's rooms too).
+  getStore()
+    .saveCoupRoom({
+      code: room.code,
+      state: room.state,
+      seats: room.seats,
+      names: Object.fromEntries(room.names),
+      responseDeadline: room.responseDeadline,
+      forfeitPlayerId: null,
+      forfeitDeadline: null,
+    })
+    .catch((e) => {
+      console.error(`[coup] failed to persist room ${room.code}:`, e);
+    });
 }
 
 export function createCoupWss(): WebSocketServer {
@@ -171,12 +179,24 @@ function handleJoin(ws: Client, playerId: string, name: string, code: string | u
     rooms.set(newCode, room);
   }
 
+  // A player id is visible to everyone in the room (lobby/state broadcasts),
+  // so it's not a secret — never trust a `join` claiming an id that's
+  // already live under a different socket, or that socket's holder would
+  // have their hidden hand handed straight to an impostor.
+  if (isConnected(room, playerId)) throw new Error('that player is already connected');
+
   if (!room.seats.includes(playerId)) {
     if (room.state) throw new Error('game already in progress');
     if (room.seats.length >= MAX_SEATS) throw new Error('room is full');
     room.seats.push(playerId);
   }
   room.names.set(playerId, name);
+
+  const pendingForfeit = room.forfeitTimers.get(playerId);
+  if (pendingForfeit) {
+    clearTimeout(pendingForfeit);
+    room.forfeitTimers.delete(playerId);
+  }
 
   ws.playerId = playerId;
   ws.name = name;
@@ -185,8 +205,8 @@ function handleJoin(ws: Client, playerId: string, name: string, code: string | u
 
   send(ws, { type: 'joined', code: room.code, playerId, seated: true });
   if (room.state) {
-    send(ws, { type: 'state', state: redactStateFor(room.state, playerId), responseDeadline: room.responseDeadline });
     for (const p of room.state.players) if (p.id === playerId) p.connected = true;
+    broadcastState(room); // so every other player's view flips this player back to connected
   } else {
     broadcastLobby(room);
   }
@@ -246,10 +266,11 @@ function handleChallenge(room: Room, playerId: string) {
   broadcastState(room);
 }
 
-// A pass is advisory only — it lets the UI mark that player as "done
-// responding" so a fast, unanimous pass can feel snappier, but the actual
-// resolution is always driven by the server's timer (openResponseWindowIfNeeded),
-// so a client that never sends `pass` still resolves correctly at the deadline.
+// A pass is advisory only: it's currently not tracked at all. It exists so
+// the client can send the message without an error, but no unanimous-pass
+// fast path is implemented — the response window's timer, driven by
+// openResponseWindowIfNeeded, is the single source of truth for when a
+// window closes, and a client that never sends `pass` resolves identically.
 function handlePass(_room: Room, _playerId: string) {
   // No state change: engine.ts has no concept of an individual pass. This
   // handler exists so the client can send the message without an error;
@@ -308,19 +329,37 @@ function handleDisconnect(ws: Client) {
         if (!room.state) return;
         const p = room.state.players.find((x) => x.id === playerId);
         if (!p || p.connected || p.eliminated) return;
-        // Forfeit: reveal both cards, remove from turn order via the same
-        // elimination path a normal loss uses.
-        p.influence = [
-          { character: p.influence[0].character, revealed: true },
-          { character: p.influence[1].character, revealed: true },
-        ];
-        p.eliminated = true;
+        // Route the forfeit through the rules engine rather than mutating
+        // state in place — forfeitPlayer() also runs the win check and
+        // advances play past the forfeiting player if they held the turn,
+        // the pending action/target, the pending block, or the head of the
+        // reveal queue, so nothing is left pointing at a ghost.
+        room.state = forfeitPlayer(room.state, playerId);
+        openResponseWindowIfNeeded(room);
         for (const c of room.clients) send(c, { type: 'forfeit', playerId });
         broadcastState(room);
       }, DISCONNECT_FORFEIT_MS);
       room.forfeitTimers.set(playerId, timer);
     }
   } else {
+    // Pre-game: release the seat rather than burning it forever, and drop
+    // the player's name so a fully-abandoned lobby can be reclaimed (see
+    // the empty-room sweep below) or rejoined cleanly by someone else.
+    room.seats = room.seats.filter((id) => id !== playerId);
+    room.names.delete(playerId);
     broadcastLobby(room);
+  }
+
+  // Only reclaim the room once nothing is left that still needs it: an
+  // abandoned pre-game lobby, or a finished game nobody's still watching.
+  // A mid-game empty room must stay in the map — it still has a live
+  // forfeit timer (just armed above) and disconnected players need `join`
+  // to find it again by code when they reconnect.
+  const reclaimable = !room.state || room.state.phase === 'game_over';
+  if (room.clients.size === 0 && reclaimable) {
+    clearResponseTimer(room);
+    for (const timer of room.forfeitTimers.values()) clearTimeout(timer);
+    room.forfeitTimers.clear();
+    rooms.delete(room.code);
   }
 }

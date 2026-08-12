@@ -8,6 +8,7 @@ import {
   declareAction,
   declareBlock,
   declareChallenge,
+  forfeitPlayer,
   resolveWindow,
 } from './engine';
 import type { CoupState } from './types';
@@ -255,5 +256,79 @@ describe('win condition', () => {
     s = declareAction(s, 'a', 'income', null);
     expect(s.winner).toBe('a');
     expect(s.phase).toBe('game_over');
+  });
+});
+
+describe('forfeitPlayer', () => {
+  it('reveals both cards and eliminates the forfeiting player', () => {
+    let s = createGame(P);
+    s = forfeitPlayer(s, 'c');
+    expect(s.players[2].eliminated).toBe(true);
+    expect(s.players[2].influence[0].revealed).toBe(true);
+    expect(s.players[2].influence[1].revealed).toBe(true);
+  });
+
+  it('ends the game when the forfeit drops alive players to 1', () => {
+    let s = createGame([P[0], P[1]]);
+    s.phase = 'idle';
+    s = forfeitPlayer(s, 'b');
+    expect(s.phase).toBe('game_over');
+    expect(s.winner).toBe('a');
+    expect(s.pendingAction).toBeNull();
+    expect(s.pendingBlock).toBeNull();
+    expect(s.pendingReveals).toEqual([]);
+  });
+
+  it('advances the turn when the forfeiting player held it, so the game does not deadlock', () => {
+    let s = createGame(P);
+    expect(s.turn).toBe(0); // 'a' is up
+    s = forfeitPlayer(s, 'a');
+    expect(s.players[0].eliminated).toBe(true);
+    expect(s.phase).toBe('idle');
+    expect(s.players[s.turn].id).not.toBe('a');
+    // the new current player can act - proves the turn actually moved on
+    expect(() => declareAction(s, s.players[s.turn].id, 'income', null)).not.toThrow();
+  });
+
+  it('unwinds a ghost pending action when the forfeiting player was the target', () => {
+    let s = createGame(P);
+    s.players[0].coins = 3;
+    s = declareAction(s, 'a', 'assassinate', 'b'); // opens a response window targeting 'b'
+    expect(s.phase).toBe('action_declared');
+    s = forfeitPlayer(s, 'b');
+    expect(s.players[1].eliminated).toBe(true);
+    expect(s.phase).toBe('idle');
+    expect(s.pendingAction).toBeNull();
+  });
+
+  it('unwinds a ghost pending block when the forfeiting player was the blocker', () => {
+    let s = createGame(P);
+    s = declareAction(s, 'a', 'foreign-aid', null);
+    s = declareBlock(s, 'b', 'duke');
+    expect(s.phase).toBe('block_declared');
+    s = forfeitPlayer(s, 'b');
+    expect(s.phase).toBe('idle');
+    expect(s.pendingBlock).toBeNull();
+  });
+
+  it('drains the reveal queue past a forfeiting player who owed a pending reveal', () => {
+    let s = createGame(P);
+    s.players[0].coins = 7;
+    s = declareAction(s, 'a', 'coup', 'b'); // queues a reveal for 'b'
+    expect(s.pendingReveals[0]?.playerId).toBe('b');
+    s = forfeitPlayer(s, 'b');
+    expect(s.players[1].eliminated).toBe(true);
+    expect(s.pendingReveals).toEqual([]);
+    expect(s.phase).toBe('idle');
+  });
+
+  it('is a no-op for an already-eliminated player', () => {
+    let s = createGame(P);
+    s.players[2].influence[0].revealed = true;
+    s.players[2].influence[1].revealed = true;
+    s.players[2].eliminated = true;
+    const before = s;
+    s = forfeitPlayer(s, 'c');
+    expect(s).toBe(before);
   });
 });
