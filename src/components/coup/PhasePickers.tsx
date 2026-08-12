@@ -25,9 +25,15 @@ export function VariantSetupPicker({ state, controller }: { state: ClientCoupSta
   const pool = state.variantPoolForYou;
 
   // Reset if the server ever cycles us back into a fresh draft (e.g. rematch).
+  // Keyed on state.phase (not `pool`) deliberately: `pool` is a freshly
+  // parsed array on every single state broadcast (including the ones fired
+  // right after the choice this player just made, while waiting on the
+  // other player), so keying on its identity re-armed the picker and let a
+  // second click hit the server's "already chosen" rejection. `state.phase`
+  // only changes when we actually leave/re-enter variant-setup.
   useEffect(() => {
     setChosen(false);
-  }, [pool]);
+  }, [state.phase]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
@@ -99,10 +105,15 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   const [selected, setSelected] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
+  // Same class of bug as VariantSetupPicker: key on the offer's *contents*,
+  // not the array reference, since state.exchangeOffer is a fresh array on
+  // every broadcast (e.g. an unrelated opponent reconnect) even when the
+  // offer itself hasn't changed — keying on the reference wiped in-progress
+  // selections for no reason.
   useEffect(() => {
     setSelected([]);
     setSubmitted(false);
-  }, [active, state.exchangeOffer]);
+  }, [active, state.exchangeOffer?.join(',')]);
 
   if (!active) return null;
 
