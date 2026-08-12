@@ -12,6 +12,7 @@ import type { Character } from '@/game/coup/types';
 import type { CoupController } from '@/client/coupController';
 import CharacterCard from './CharacterCard';
 import HoldCard from './HoldCard';
+import DraggableCard from './DraggableCard';
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
@@ -123,9 +124,11 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
     setSubmitted(false);
     setDealt(false);
     if (active) {
-      // Deck-draw beat: cards start face-down (deck icon), then flip up a
-      // moment later — matches the spec's "flip back down once confirmed"
-      // sequence by giving the reveal a visible starting state.
+      // Deck-draw beat: cards start face-down, then flip up a moment later.
+      // (Fixed from the prior version, which animated the flip on the
+      // face-down placeholder and then swapped to the real character
+      // instantly with no animation at the actual reveal moment — the
+      // animation now runs on `dealt` becoming true, not on it being false.)
       const id = setTimeout(() => setDealt(true), 250);
       return () => clearTimeout(id);
     }
@@ -149,24 +152,21 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   return (
     <Overlay>
       <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
-        {submitted ? 'Exchanging…' : `Choose ${requiredKeep} card${requiredKeep === 1 ? '' : 's'} to keep.`}
+        {submitted ? 'Exchanging…' : `Drag up to keep ${requiredKeep} card${requiredKeep === 1 ? '' : 's'}.`}
       </p>
       {!submitted && (
         <>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-3 pt-10">
             {candidates.map((c, i) => (
-              <button
-                key={i}
-                onClick={() => toggle(i)}
-                className="rounded-lg"
-                style={{
-                  outline: selected.includes(i) ? '2px solid var(--coup-success)' : 'none',
-                  outlineOffset: 2,
-                  animation: dealt ? undefined : 'coup-card-flip 400ms ease-in-out',
-                }}
-              >
-                <CharacterCard character={dealt ? c : null} size="lg" />
-              </button>
+              <div key={i} className={dealt ? undefined : 'animate-[coup-card-flip_400ms_ease-in-out]'}>
+                <DraggableCard
+                  character={dealt ? c : null}
+                  size="lg"
+                  marked={selected.includes(i)}
+                  disabled={!selected.includes(i) && selected.length >= requiredKeep}
+                  onCommit={() => toggle(i)}
+                />
+              </div>
             ))}
           </div>
           <Button
