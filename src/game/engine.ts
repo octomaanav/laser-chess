@@ -135,6 +135,9 @@ export function legalActionsFor(board: Board, color: Color, x: number, y: number
       const tx = x + dx,
         ty = y + dy;
       if (!inBounds(tx, ty)) continue;
+      // End columns are colour-restricted: col 0 = red only, col COLS-1 = silver only.
+      if (tx === 0 && color !== 'red') continue;
+      if (tx === COLS - 1 && color !== 'silver') continue;
       const target = board[ty][tx];
       if (!target) actions.push({ type: 'move', x, y, tx, ty });
       else if (p.type === 'scarab' && canSwap(target.type)) actions.push({ type: 'move', x, y, tx, ty, swap: true });
