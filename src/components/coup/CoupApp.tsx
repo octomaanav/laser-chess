@@ -19,5 +19,9 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
   // reports screen === 'game'; the join itself still happens via the
   // useEffect above.
   const showGame = view.screen === 'game';
-  return showGame ? <CoupGamePlay controller={controller} view={view} /> : <CoupLobby controller={controller} view={view} />;
+  return (
+    <div data-game="coup" className="h-full" style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}>
+      {showGame ? <CoupGamePlay controller={controller} view={view} /> : <CoupLobby controller={controller} view={view} />}
+    </div>
+  );
 }
