@@ -11,6 +11,7 @@ import type { ClientCoupState } from '@/game/coup/redact';
 import type { Character } from '@/game/coup/types';
 import type { CoupController } from '@/client/coupController';
 import CharacterCard from './CharacterCard';
+import HoldCard from './HoldCard';
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
@@ -85,20 +86,20 @@ export function RevealPicker({ state, controller }: { state: ClientCoupState; co
   return (
     <Overlay>
       <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
-        {submitted ? 'Revealing…' : 'You must reveal one of your influence cards.'}
+        {submitted ? 'Revealing…' : 'Hold a card to reveal it.'}
       </p>
       {!submitted && (
         <div className="flex justify-center gap-3">
           {options.map((c) => (
-            <button
+            <HoldCard
               key={c.index}
-              onClick={() => {
+              character={c.character}
+              size="lg"
+              onCommit={() => {
                 setSubmitted(true);
                 controller.chooseReveal(c.index);
               }}
-            >
-              <CharacterCard character={c.character} size="lg" />
-            </button>
+            />
           ))}
         </div>
       )}
