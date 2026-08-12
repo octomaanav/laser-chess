@@ -52,42 +52,48 @@
     radial-gradient(52rem 42rem at 104% 108%, color-mix(in oklab, #2fb0ab 12%, transparent), transparent 58%),
     linear-gradient(to right, rgba(35, 38, 46, 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(35, 38, 46, 0.03) 1px, transparent 1px);
+  --app-backdrop-size:
+    100% 100%,
+    100% 100%,
+    44px 44px,
+    44px 44px;
 }
 
 .dark {
-  /* ---- DARK-neon ---- */
-  --background: #0a0b10;
-  --foreground: #e9edf5;
-  --card: #12141c;
-  --card-foreground: #e9edf5;
-  --popover: #12141c;
-  --popover-foreground: #e9edf5;
-  --primary: #22d3ee;
-  --primary-foreground: #04121a;
-  --secondary: #171a24;
-  --secondary-foreground: #e9edf5;
-  --muted: #14171f;
-  --muted-foreground: #8b93a7;
-  --accent: #1b1f2b;
-  --accent-foreground: #e9edf5;
-  --destructive: #ff5a45;
+  /* ---- DARK — warm near-black, amber glow ("Amber Ember") ---- */
+  --background: #0a0908;
+  --foreground: #f0ece3;
+  --card: #14100b;
+  --card-foreground: #f0ece3;
+  --popover: #14100b;
+  --popover-foreground: #f0ece3;
+  --primary: #f0b429;
+  --primary-foreground: #1a1204;
+  --secondary: #1c1712;
+  --secondary-foreground: #f0ece3;
+  --muted: #16120d;
+  --muted-foreground: #a89a85;
+  --accent: #211a12;
+  --accent-foreground: #f0ece3;
+  --destructive: #ff6b52;
   --destructive-foreground: #1a0a08;
-  --border: #232838;
-  --input: #232838;
-  --ring: #22d3ee;
-  --player-red: #ff5a45;
-  --player-teal: #2fd4ce;
-  --laser: #22d3ee;
+  --border: #2b2318;
+  --input: #2b2318;
+  --ring: #f0b429;
+  --player-red: #c75440;
+  --player-teal: #18947c;
+  --laser: #f0b429;
 
   --glow-ring:
-    0 0 0 1px color-mix(in oklab, var(--laser) 45%, transparent),
-    0 10px 34px color-mix(in oklab, var(--laser) 22%, transparent);
-  --text-glow: 0 0 22px color-mix(in oklab, var(--laser) 55%, transparent);
-  --app-backdrop:
-    radial-gradient(60rem 44rem at 8% -12%, color-mix(in oklab, var(--laser) 14%, transparent), transparent 60%),
-    radial-gradient(52rem 42rem at 104% 4%, color-mix(in oklab, oklch(0.6 0.2 280) 14%, transparent), transparent 58%),
-    linear-gradient(to right, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 44px rgba(240, 180, 41, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --text-glow: 0 0 22px rgba(240, 180, 41, 0.5);
+  --app-backdrop: radial-gradient(48rem 40rem at 96% 108%, rgba(240, 180, 41, 0.09), transparent 60%);
+  --app-backdrop-size:
+    100% 100%,
+    100% 100%,
+    100% 100%;
 }
 
 @theme inline {
@@ -137,11 +143,7 @@
     @apply bg-background text-foreground font-sans antialiased;
     /* theme-aware layered glows + faint grid (see --app-backdrop per theme) */
     background-image: var(--app-backdrop);
-    background-size:
-      100% 100%,
-      100% 100%,
-      44px 44px,
-      44px 44px;
+    background-size: var(--app-backdrop-size);
     background-attachment: fixed;
     -webkit-tap-highlight-color: transparent;
   }

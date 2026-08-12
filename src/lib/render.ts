@@ -33,26 +33,26 @@ interface Palette {
 }
 
 const DARK: Palette = {
-  ink: '#e9edf5',
-  boardFill: '#12141c',
-  grid: 'rgba(233,237,245,0.10)',
-  hatch: { red: 'rgba(255,90,69,0.12)', silver: 'rgba(47,212,206,0.12)' },
-  fill: { red: '#ff5a45', silver: '#2fd4ce' },
-  highlight: '#22d3ee',
+  ink: '#f0ece3',
+  boardFill: '#14100b',
+  grid: 'rgba(240,236,227,0.10)',
+  hatch: { red: 'rgba(199,84,64,0.14)', silver: 'rgba(24,148,124,0.14)' },
+  fill: { red: '#c75440', silver: '#18947c' },
+  highlight: '#f0b429',
   mirrorShine: 'rgba(255,255,255,0.85)',
   beam: {
-    red: { core: '#ff6a52', halo: 'rgba(255,90,69,0.30)', hot: '#fff0ed' },
-    silver: { core: '#3ce6df', halo: 'rgba(47,212,206,0.30)', hot: '#effffd' },
+    red: { core: '#e2725c', halo: 'rgba(199,84,64,0.30)', hot: '#fff2ed' },
+    silver: { core: '#3dbfa0', halo: 'rgba(24,148,124,0.30)', hot: '#ecfffb' },
   },
-  boardShadow: 'rgba(34,211,238,0.22)',
-  boardOutline: 'rgba(34,211,238,0.38)',
-  selFill: 'rgba(34,211,238,0.15)',
-  dotFill: 'rgba(34,211,238,0.55)',
-  dotGlow: 'rgba(34,211,238,0.7)',
-  dotRing: 'rgba(233,237,245,0.9)',
-  handleBase: '#141824',
-  handleShadow: 'rgba(34,211,238,0.45)',
-  handleRing: '#22d3ee',
+  boardShadow: 'rgba(240,180,41,0.24)',
+  boardOutline: 'rgba(240,180,41,0.42)',
+  selFill: 'rgba(240,180,41,0.15)',
+  dotFill: 'rgba(240,180,41,0.55)',
+  dotGlow: 'rgba(240,180,41,0.7)',
+  dotRing: 'rgba(240,236,227,0.9)',
+  handleBase: '#1c1712',
+  handleShadow: 'rgba(240,180,41,0.45)',
+  handleRing: '#f0b429',
 };
 
 const LIGHT: Palette = {
