@@ -63,6 +63,12 @@ export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardP
       onPointerUp={stop}
       onPointerLeave={stop}
       onPointerCancel={stop}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onCommit();
+        }
+      }}
       style={{ position: 'relative', borderRadius: 8, cursor: 'pointer' }}
     >
       <CharacterCard character={character} size={size} />

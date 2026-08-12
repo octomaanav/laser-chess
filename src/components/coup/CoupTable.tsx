@@ -107,10 +107,10 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
             </span>
           )}
         </div>
-        <div className="flex gap-2 pt-10 lg:gap-4 lg:pt-24">
+        <div className="flex gap-2 lg:gap-4 lg:pt-24">
           {you.influence.map((c, i) => {
             const revealedNow = events.find((e) => e.kind === 'card-revealed' && e.playerId === you.id && e.cardIndex === i);
-            const claimAction = c.character ? CLAIM_ACTION_FOR[c.character] : undefined;
+            const claimAction = c.character && !c.revealed ? CLAIM_ACTION_FOR[c.character] : undefined;
 
             if (!canDeclare || !claimAction) {
               return (

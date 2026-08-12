@@ -91,17 +91,24 @@ export function RevealPicker({ state, controller }: { state: ClientCoupState; co
       </p>
       {!submitted && (
         <div className="flex justify-center gap-3">
-          {options.map((c) => (
-            <HoldCard
-              key={c.index}
-              character={c.character}
-              size="lg"
-              onCommit={() => {
-                setSubmitted(true);
-                controller.chooseReveal(c.index);
-              }}
-            />
-          ))}
+          {options.map((c) => {
+            const commit = () => {
+              setSubmitted(true);
+              controller.chooseReveal(c.index);
+            };
+            return (
+              <div key={c.index}>
+                {/* Below `lg`: original tap-to-reveal behavior, unchanged from before hold-to-reveal. */}
+                <button type="button" className="lg:hidden" onClick={commit}>
+                  <CharacterCard character={c.character} size="lg" />
+                </button>
+                {/* `lg` and up: press-and-hold to reveal. */}
+                <div className="hidden lg:block">
+                  <HoldCard character={c.character} size="lg" onCommit={commit} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </Overlay>
@@ -156,18 +163,50 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
       </p>
       {!submitted && (
         <>
-          <div className="flex flex-wrap justify-center gap-3 pt-10">
-            {candidates.map((c, i) => (
-              <div key={i} className={dealt ? 'animate-[coup-card-flip_400ms_ease-in-out]' : undefined}>
-                <DraggableCard
-                  character={dealt ? c : null}
-                  size="lg"
-                  marked={selected.includes(i)}
-                  disabled={!selected.includes(i) && selected.length >= requiredKeep}
-                  onCommit={() => toggle(i)}
-                />
-              </div>
-            ))}
+          <div className="flex flex-wrap justify-center gap-3 lg:pt-10">
+            {candidates.map((c, i) => {
+              const marked = selected.includes(i);
+              const disabled = !marked && selected.length >= requiredKeep;
+              return (
+                <div key={i} className={dealt ? 'animate-[coup-card-flip_400ms_ease-in-out]' : undefined}>
+                  {/* Below `lg`: original tap-to-toggle behavior, unchanged from before drag-to-keep. */}
+                  <button
+                    type="button"
+                    className="lg:hidden"
+                    disabled={disabled}
+                    onClick={() => toggle(i)}
+                    style={{
+                      outline: marked ? '2px solid var(--coup-success)' : 'none',
+                      outlineOffset: 2,
+                      borderRadius: 8,
+                      opacity: disabled ? 0.6 : 1,
+                    }}
+                  >
+                    <CharacterCard character={dealt ? c : null} size="lg" />
+                  </button>
+                  {/* `lg` and up: drag-to-keep, wrapped for keyboard access (Enter/Space toggles). */}
+                  <div
+                    className="hidden lg:block"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle(i);
+                      }
+                    }}
+                  >
+                    <DraggableCard
+                      character={dealt ? c : null}
+                      size="lg"
+                      marked={marked}
+                      disabled={disabled}
+                      onCommit={() => toggle(i)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <Button
             size="sm"
