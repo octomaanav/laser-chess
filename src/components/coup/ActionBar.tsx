@@ -1,17 +1,6 @@
-import { Coins, HandCoins, Crown, Shuffle, Hand, Skull, Swords, type LucideIcon } from 'lucide-react';
 import type { ClientCoupState } from '@/game/coup/redact';
-import type { ActionType } from '@/game/coup/types';
 import type { CoupController } from '@/client/coupController';
-
-const ACTIONS: { type: ActionType; label: string; icon: LucideIcon; needsTarget: boolean; minCoins: number; accentVar: string }[] = [
-  { type: 'income', label: 'Income (+1)', icon: Coins, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-gold)' },
-  { type: 'foreign-aid', label: 'Foreign Aid (+2)', icon: HandCoins, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-gold)' },
-  { type: 'tax', label: 'Tax — Duke (+3)', icon: Crown, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-duke)' },
-  { type: 'exchange', label: 'Exchange — Ambassador', icon: Shuffle, needsTarget: false, minCoins: 0, accentVar: 'var(--coup-ambassador)' },
-  { type: 'steal', label: 'Steal — Captain', icon: Hand, needsTarget: true, minCoins: 0, accentVar: 'var(--coup-captain)' },
-  { type: 'assassinate', label: 'Assassinate — Assassin (3)', icon: Skull, needsTarget: true, minCoins: 3, accentVar: 'var(--coup-assassin)' },
-  { type: 'coup', label: 'Coup (7)', icon: Swords, needsTarget: true, minCoins: 7, accentVar: 'var(--coup-gold)' },
-];
+import { ACTIONS } from './actionDefinitions';
 
 interface ActionBarProps {
   state: ClientCoupState;
@@ -29,7 +18,7 @@ export default function ActionBar({ state, controller, selectedTarget, onSelectT
   const opponents = state.players.filter((p) => p.id !== state.you && !p.eliminated);
 
   return (
-    <div className="flex flex-col gap-2 border-t p-3" style={{ borderColor: 'var(--coup-panel-border)', background: 'var(--coup-panel-bg)' }}>
+    <div className="flex flex-col gap-2 border-t p-3 lg:hidden" style={{ borderColor: 'var(--coup-panel-border)', background: 'var(--coup-panel-bg)' }}>
       {opponents.length > 1 && (
         <div className="flex flex-wrap gap-1">
           {opponents.map((p) => (
