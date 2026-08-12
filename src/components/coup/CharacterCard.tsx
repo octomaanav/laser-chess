@@ -25,7 +25,7 @@ const CARD_ART: Record<Character, () => React.ReactElement> = {
 // Card face is a full standalone SVG (icon + name + ability text baked in) —
 // this component just handles face-down/revealed states and sizing.
 export default function CharacterCard({ character, revealed = false, size = 'lg', className }: CharacterCardProps) {
-  const dims = size === 'lg' ? 'w-24 h-32' : 'w-14 h-20';
+  const dims = size === 'lg' ? 'w-24 h-32 lg:w-[170px] lg:h-[230px]' : 'w-14 h-20 lg:w-[110px] lg:h-[155px]';
   if (!character) {
     return (
       <div

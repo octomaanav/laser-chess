@@ -10,18 +10,18 @@ export default function Treasury({ amount, events }: { amount: number; events: T
   return (
     <div className="relative flex flex-col items-center gap-1">
       <div
-        className="flex max-w-[140px] flex-wrap-reverse justify-center gap-1"
+        className="flex max-w-[140px] flex-wrap-reverse justify-center gap-1 lg:max-w-[280px] lg:gap-3"
         style={{ animation: paidEvent ? 'coup-treasury-pay 500ms ease-out' : undefined }}
       >
         {Array.from({ length: visibleCoins }).map((_, i) => (
           <span
             key={i}
-            className="h-4 w-4 rounded-full border-2"
+            className="h-4 w-4 rounded-full border-2 lg:h-8 lg:w-8"
             style={{ background: 'var(--coup-gold)', borderColor: 'var(--coup-gold-dark)' }}
           />
         ))}
       </div>
-      <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--coup-text-muted)' }}>
+      <div className="text-xs font-semibold uppercase tracking-wide lg:text-lg" style={{ color: 'var(--coup-text-muted)' }}>
         Treasury · {amount}
       </div>
       {gainedEvents.map((e) => (
