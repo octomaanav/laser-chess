@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import CharacterCard from './CharacterCard';
 import type { Character } from '@/game/coup/types';
@@ -22,6 +22,12 @@ export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardP
   const frameRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
   const controls = useAnimation();
+
+  useEffect(() => {
+    return () => {
+      if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
 
   const stop = () => {
     if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
@@ -56,6 +62,7 @@ export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardP
       onPointerDown={start}
       onPointerUp={stop}
       onPointerLeave={stop}
+      onPointerCancel={stop}
       style={{ position: 'relative', borderRadius: 8, cursor: 'pointer' }}
     >
       <CharacterCard character={character} size={size} />
