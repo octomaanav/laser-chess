@@ -54,7 +54,10 @@ export default function ReferenceCard() {
         onFocus={() => setOpen(true)}
         aria-label="Show the reference guide"
         aria-expanded={open}
-        className="absolute bottom-3 right-3 z-20 w-14 overflow-hidden rounded-lg shadow-lg transition-transform duration-200 hover:-translate-y-1 lg:bottom-4 lg:right-4 lg:w-16"
+        // rounded-[4px]/[5px], not rounded-lg: at w-14/w-16 the card back's
+        // own corner radius works out to ~4-5px, and a rounder clip than
+        // that eats into the art. Same rule as CharacterCard's cardRadius().
+        className="absolute bottom-3 right-3 z-20 w-14 overflow-hidden rounded-[4px] shadow-lg transition-transform duration-200 hover:-translate-y-1 lg:bottom-4 lg:right-4 lg:w-16 lg:rounded-[5px]"
       >
         <CardBack />
         <span

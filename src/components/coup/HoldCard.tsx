@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import CharacterCard from './CharacterCard';
+import CharacterCard, { cardRadius } from './CharacterCard';
 import CardTilt from './CardTilt';
 import type { Character } from '@/game/coup/types';
 
@@ -75,7 +75,7 @@ export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardP
           onCommit();
         }
       }}
-      style={{ position: 'relative', borderRadius: 8, cursor: 'pointer' }}
+      style={{ position: 'relative', borderRadius: cardRadius(size), cursor: 'pointer' }}
     >
       <CardTilt disabled={progress > 0}>
         <CharacterCard character={character} size={size} />

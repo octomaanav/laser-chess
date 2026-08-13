@@ -2,6 +2,7 @@
 import { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { computeTilt } from './computeTilt';
+import { CARD_RADIUS_RATIO } from './CharacterCard';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 
 const MAX_TILT_DEG = 9;
@@ -23,6 +24,9 @@ export default function CardTilt({ children, disabled }: CardTiltProps) {
   const sheenX = useMotionValue(50);
   const sheenY = useMotionValue(50);
   const sheenOpacity = useMotionValue(0);
+  // Derived from the measured card rather than fixed, so the sheen's corners
+  // sit on the card's curve at every size instead of overhanging it.
+  const sheenRadius = useMotionValue(0);
   const springX = useSpring(rotateX, { stiffness: 300, damping: 20 });
   const springY = useSpring(rotateY, { stiffness: 300, damping: 20 });
   const sheenBackground = useTransform([sheenX, sheenY], ([x, y]) =>
@@ -42,6 +46,7 @@ export default function CardTilt({ children, disabled }: CardTiltProps) {
     rotateY.set(tilt.rotateY);
     sheenX.set((offsetX / rect.width) * 100);
     sheenY.set((offsetY / rect.height) * 100);
+    sheenRadius.set(rect.width * CARD_RADIUS_RATIO);
     sheenOpacity.set(1);
   };
 
@@ -69,7 +74,7 @@ export default function CardTilt({ children, disabled }: CardTiltProps) {
           style={{
             position: 'absolute',
             inset: 0,
-            borderRadius: 8,
+            borderRadius: sheenRadius,
             overflow: 'hidden',
             background: sheenBackground,
             opacity: sheenOpacity,

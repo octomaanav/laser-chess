@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import type { ClientCoupState } from '@/game/coup/redact';
 import type { Character } from '@/game/coup/types';
 import type { CoupController } from '@/client/coupController';
-import CharacterCard from './CharacterCard';
+import CharacterCard, { cardRadius } from './CharacterCard';
 import CardTilt from './CardTilt';
 import HoldCard from './HoldCard';
 
@@ -203,7 +203,7 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
                       style={{
                         outline: marked ? '2px solid var(--coup-success)' : 'none',
                         outlineOffset: 2,
-                        borderRadius: 8,
+                        borderRadius: cardRadius('lg'),
                         opacity: disabled ? 0.6 : 1,
                         cursor: disabled ? 'not-allowed' : 'pointer',
                       }}

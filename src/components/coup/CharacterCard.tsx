@@ -30,18 +30,49 @@ const CARD_ART: Record<Character, (props: { activeAbilityIndex?: number }) => Re
 // this component just handles face-down/revealed states and sizing.
 // Fluid, viewport-HEIGHT-driven sizing (clamp, not a width breakpoint) so
 // cards actually shrink on a short-but-wide window instead of staying
-// pinned at the desktop pixel size and forcing a scroll. Aspect ratio
-// (~0.71) matches the card art's 300x420 viewBox at every size.
-const SIZE_DIMS: Record<'sm' | 'lg', { width: string; height: string }> = {
-  lg: { width: 'clamp(84px, 15vh, 170px)', height: 'clamp(118px, 21vh, 230px)' },
-  sm: { width: 'clamp(50px, 9vh, 110px)', height: 'clamp(70px, 13vh, 155px)' },
+// pinned at the desktop pixel size and forcing a scroll.
+//
+// Height comes from `aspect-ratio` rather than a second clamp: two
+// independent clamps drift out of the art's 300x420 ratio at the ends of
+// their ranges (the old lg max, 170x230, was 0.739 against the art's
+// 0.714). The SVG then letterboxed inside the box, leaving the visible
+// card smaller than the element CardTilt measures — so the tilt and sheen
+// responded to dead space around a face-down card.
+const CARD_ASPECT = '300 / 420';
+
+// The art's own corner radius (rx="22" against the 300-wide viewBox) scales
+// with the card, so a fixed container radius can't match it: at a rendered
+// 170px the art rounds at ~12.5px while `rounded-lg` clips at 8px, and the
+// table shows through where the art's tighter corner pulls away from the
+// clip. Deriving the container radius from the same ratio keeps the clip,
+// the art, and the face-up accent ring on exactly the same curve.
+export const CARD_RADIUS_RATIO = 22 / 300;
+
+const SIZE_WIDTHS: Record<'sm' | 'lg', string> = {
+  lg: 'clamp(84px, 15vh, 170px)',
+  sm: 'clamp(50px, 9vh, 110px)',
 };
 
+// Anything drawing an edge around a card — an outline, a focus ring, the
+// tilt sheen — has to use this rather than a fixed radius, or it drifts off
+// the card's curve as the card scales.
+export function cardRadius(size: 'sm' | 'lg' = 'lg') {
+  return `calc(${SIZE_WIDTHS[size]} * ${CARD_RADIUS_RATIO})`;
+}
+
+function sizeStyle(size: 'sm' | 'lg') {
+  return {
+    width: SIZE_WIDTHS[size],
+    aspectRatio: CARD_ASPECT,
+    borderRadius: cardRadius(size),
+  };
+}
+
 export default function CharacterCard({ character, revealed = false, size = 'lg', className, activeAbilityIndex }: CharacterCardProps) {
-  const dims = SIZE_DIMS[size];
+  const dims = sizeStyle(size);
   if (!character) {
     return (
-      <div className={cn('overflow-hidden rounded-lg', className)} style={dims}>
+      <div className={cn('overflow-hidden', className)} style={dims}>
         <CardBack />
       </div>
     );
@@ -52,7 +83,7 @@ export default function CharacterCard({ character, revealed = false, size = 'lg'
 
   return (
     <div
-      className={cn('relative overflow-hidden rounded-lg', className)}
+      className={cn('relative overflow-hidden', className)}
       style={{ ...dims, boxShadow: `0 0 0 1px ${accent}55${revealed ? '' : ', 0 0 12px ' + accent + '33'}` }}
     >
       <Art activeAbilityIndex={activeAbilityIndex} />
