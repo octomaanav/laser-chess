@@ -97,6 +97,7 @@ export class GameController {
   private turn: Color = 'silver';
   private winner: Color | null = null;
   private overReason: 'pharaoh' | 'timeout' | 'forfeit' | null = null;
+  private pendingLeave: (() => void) | null = null; // resolves once the server ends the game we quit
   private roomCode: string | null = null;
   private setup = 'Classic';
   private lastState: Extract<ServerMessage, { type: 'state' }> | null = null;
@@ -286,6 +287,24 @@ export class GameController {
     this.net.send(m);
   }
 
+  // Leaving a game in progress resigns it. The socket dies the moment we
+  // navigate, so tell the server first and wait for it to confirm the game is
+  // over — with a short fallback in case the message or the reply is lost.
+  leave(then: () => void) {
+    const live = !this.winner && this.myColor != null && this.snapshot.bothSeated;
+    if (!live || !this.net.isConnected()) return then();
+
+    const done = () => {
+      if (!this.pendingLeave) return;
+      this.pendingLeave = null;
+      clearTimeout(timer);
+      then();
+    };
+    const timer = setTimeout(done, 700);
+    this.pendingLeave = done;
+    this.send({ type: 'leave' });
+  }
+
   attach(root: HTMLElement): () => void {
     const renderer = new Renderer(root);
     this.renderer = renderer;
@@ -384,6 +403,7 @@ export class GameController {
         this.turnEndsAt = null;
         this.selected = null;
         this.renderer?.clearSelection();
+        this.pendingLeave?.(); // our own resignation landed — safe to navigate away
         this.emit();
         break;
       case 'rematch':

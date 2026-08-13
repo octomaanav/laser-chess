@@ -15,7 +15,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Board from './Board';
 import FriendsMenu from './FriendsMenu';
 import LogoMark, { PersonIcon } from './LogoMark';
+import RankBadge from './RankBadge';
 import ThemeToggle from './ThemeToggle';
+import { useSocial } from '@/client/social/SocialProvider';
 
 // Full, static class strings per player color (Tailwind can't see interpolated names).
 const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
@@ -81,9 +83,11 @@ function PieceGlyph({ type }: { type: (typeof LEGEND)[number]['type'] }) {
   }
 }
 
-export default function GamePlay({ controller, view }: { controller: GameController; view: ViewState }) {
+export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }: { controller: GameController; view: ViewState; gameSlug?: string }) {
   const { myColor, spectator, turn, winner } = view;
   const yours = !spectator && turn === myColor && !winner;
+  const social = useSocial();
+  const gameRank = social?.rankInfo?.[gameSlug] ?? null;
 
   const turnText = winner ? `${colorName(winner)} wins` : yours ? 'Your move' : `${colorName(turn)} to move`;
   const reviewing = view.reviewIndex != null;
@@ -101,7 +105,9 @@ export default function GamePlay({ controller, view }: { controller: GameControl
       controller.toast('Copy failed — select and copy the link');
     }
   };
-  const leave = () => (window.location.href = window.location.pathname);
+  // Quitting a live game resigns it, so let the controller notify the server
+  // before the navigation tears the socket down.
+  const leave = () => controller.leave(() => (window.location.href = window.location.pathname));
 
   if (!view.connected || !controller.hasState()) {
     return <GameLoadingSkeleton view={view} leave={leave} />;
@@ -121,6 +127,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
         </div>
         {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
         <div className="ml-auto flex items-center gap-2">
+          <RankBadge rating={gameRank?.rating ?? null} size="sm" />
           <ThemeToggle />
           <FriendsMenu />
           <Badge

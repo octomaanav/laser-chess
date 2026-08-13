@@ -7,6 +7,9 @@ import { createGame, listSetups } from './setupStore';
 import { applyAction, opposite } from '../game/engine';
 import { resolveAccountFromReq } from './auth/cookies';
 import { getStore, type PersistedRoom } from './store';
+import { applyResult, getRank, normalizeRating } from '../game/ranking';
+import { socialHub } from './social/socialHub';
+import { registerCreateRankedRoom } from './matchmaking';
 import type { Color, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
 
@@ -18,6 +21,7 @@ interface Client extends WebSocket {
   color?: Color | null;
   userId?: string | null; // set when the connection carries a valid session cookie
   accountName?: string | null; // the account's display name (used in place of a free-text name)
+  authReady?: Promise<void>; // resolves once userId/accountName are populated
 }
 
 interface Room {
@@ -33,18 +37,26 @@ interface Room {
   forfeitColor: Color | null; // who is about to forfeit (the disconnected player)
   forfeitDeadline: number | null; // epoch ms when the forfeit fires
   rematch: PlayerSlots; // rematch consent votes (both must agree)
+  isRanked: boolean;
+  rankedGameSlug: string;
+  rankedUserIds: { red: string | null; silver: string | null };
+  rankedSettled: boolean; // prevents double rating settlement if multiple end-events fire
 }
 
 const rooms = new Map<string, Room>();
 
 // ---- account identity (from the session cookie on the WS upgrade) ----------
-// Anonymous quick-play never sets this; it's here so the coming matchmaking
-// system can trust who is connected without changing the join protocol.
+// Anonymous quick-play never sets this; ranked rooms rely on it to seat players
+// by account rather than by arrival order, without changing the join protocol.
 // (cookie parsing lives in ./auth/cookies, shared with the social hub)
 
 // If a seated player disconnects while their opponent is present, they have this
 // long to return before forfeiting the game. Override with FORFEIT_MS.
 const DISCONNECT_FORFEIT_MS = Number(process.env.FORFEIT_MS) || 90_000;
+// Ranked games get a much shorter leash: long enough to survive a refresh or a
+// brief network drop, short enough that a quitter doesn't strand their opponent.
+// A deliberate Leave (the `leave` message) skips the countdown entirely.
+const RANKED_FORFEIT_MS = Number(process.env.RANKED_FORFEIT_MS) || 20_000;
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function makeCode(): string {
@@ -69,6 +81,10 @@ function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
     forfeitColor: null,
     forfeitDeadline: null,
     rematch: { red: false, silver: false },
+    isRanked: false,
+    rankedGameSlug: '',
+    rankedUserIds: { red: null, silver: null },
+    rankedSettled: false,
   };
 }
 
@@ -83,6 +99,10 @@ function toPersisted(room: Room): PersistedRoom {
     turnStartedAt: room.turnStartedAt,
     forfeitColor: room.forfeitColor,
     forfeitDeadline: room.forfeitDeadline,
+    isRanked: room.isRanked,
+    rankedGameSlug: room.rankedGameSlug,
+    rankedUserIds: room.rankedUserIds,
+    rankedSettled: room.rankedSettled,
   };
 }
 function persist(room: Room) {
@@ -104,7 +124,95 @@ function hydrateRoom(p: PersistedRoom): Room {
     forfeitColor: p.forfeitColor ?? null,
     forfeitDeadline: p.forfeitDeadline ?? null,
     rematch: { red: false, silver: false },
+    isRanked: p.isRanked ?? false,
+    rankedGameSlug: p.rankedGameSlug ?? '',
+    rankedUserIds: p.rankedUserIds ?? { red: null, silver: null },
+    rankedSettled: p.rankedSettled ?? false, // settlement is NOT idempotent (±1 rank, +1 win/loss)
   };
+}
+
+// ---- ranked rooms ---------------------------------------------------------
+// Called by the matchmaking queue once two players are paired. Creates a room
+// pre-loaded with both player IDs so rating settlement can find them after the game.
+export async function createRankedRoom(redUserId: string, silverUserId: string, gameSlug: string): Promise<string> {
+  const code = makeCode();
+  const room = makeRoom(code, await createGame('Classic'), 0);
+  room.isRanked = true;
+  room.rankedGameSlug = gameSlug;
+  room.rankedUserIds = { red: redUserId, silver: silverUserId };
+  rooms.set(code, room);
+  persist(room);
+  return code;
+}
+
+// Register with the matchmaking module so it can create ranked rooms without a
+// circular module dependency (matchmaking imports socialHub, gameServer imports matchmaking).
+registerCreateRankedRoom('laser-chess', createRankedRoom);
+
+// Settle rank after a ranked game ends. Called from every game-ending path
+// (move win, timeout, forfeit). `rankedSettled` prevents double-execution.
+async function finalizeRanked(room: Room, winner: Color) {
+  if (!room.isRanked || room.rankedSettled) return;
+  const { red: redId, silver: silverId } = room.rankedUserIds;
+  if (!redId || !silverId) return;
+  room.rankedSettled = true;
+  persist(room); // durable before the awaits below, so a restart can't re-award
+
+  const store = getStore();
+  const gameSlug = room.rankedGameSlug;
+  const [redRec, silverRec] = await Promise.all([
+    store.getRating(redId, gameSlug),
+    store.getRating(silverId, gameSlug),
+  ]);
+
+  const redRating = normalizeRating(redRec?.rating);
+  const silverRating = normalizeRating(silverRec?.rating);
+
+  const newRedRating = applyResult(redRating, winner === 'red');
+  const newSilverRating = applyResult(silverRating, winner === 'silver');
+  const now = Date.now();
+
+  await Promise.all([
+    store.upsertRating({
+      userId: redId, gameSlug,
+      rating: newRedRating,
+      peakRating: Math.max(normalizeRating(redRec?.peakRating), newRedRating),
+      wins: (redRec?.wins ?? 0) + (winner === 'red' ? 1 : 0),
+      losses: (redRec?.losses ?? 0) + (winner === 'red' ? 0 : 1),
+      updatedAt: now,
+    }),
+    store.upsertRating({
+      userId: silverId, gameSlug,
+      rating: newSilverRating,
+      peakRating: Math.max(normalizeRating(silverRec?.peakRating), newSilverRating),
+      wins: (silverRec?.wins ?? 0) + (winner === 'silver' ? 1 : 0),
+      losses: (silverRec?.losses ?? 0) + (winner === 'silver' ? 0 : 1),
+      updatedAt: now,
+    }),
+  ]);
+
+  socialHub.notify(redId, {
+    type: 'rating-updated',
+    gameSlug,
+    newRating: newRedRating,
+    delta: newRedRating - redRating,
+    rankName: getRank(newRedRating).name,
+  });
+  socialHub.notify(silverId, {
+    type: 'rating-updated',
+    gameSlug,
+    newRating: newSilverRating,
+    delta: newSilverRating - silverRating,
+    rankName: getRank(newSilverRating).name,
+  });
+}
+
+// Which side a signed-in account is entitled to in a ranked room, if any.
+function rankedSeatFor(room: Room, userId: string | null | undefined): Color | null {
+  if (!userId) return null;
+  if (room.rankedUserIds.red === userId) return 'red';
+  if (room.rankedUserIds.silver === userId) return 'silver';
+  return null;
 }
 
 function seatOf(room: Room, playerId: string): Color | null {
@@ -163,6 +271,7 @@ function onTimeout(room: Room) {
   persist(room);
   broadcast(room, { type: 'timeout', winner: room.game.winner });
   broadcast(room, snapshot(room));
+  void finalizeRanked(room, room.game.winner).catch((e) => console.error('finalizeRanked failed:', e));
 }
 
 // ---- disconnect handling / forfeit ----------------------------------------
@@ -195,19 +304,36 @@ function refreshForfeit(room: Room) {
   const offline: Color | null = !online.red && room.seats.red ? 'red' : !online.silver && room.seats.silver ? 'silver' : null;
   if (!offline) return;
   room.forfeitColor = offline;
-  room.forfeitDeadline = Date.now() + DISCONNECT_FORFEIT_MS;
+  room.forfeitDeadline = Date.now() + (room.isRanked ? RANKED_FORFEIT_MS : DISCONNECT_FORFEIT_MS);
   armForfeit(room);
 }
-function doForfeit(room: Room) {
-  const loser = room.forfeitColor;
-  room.forfeitTimer = null;
-  if (room.game.winner || !loser || presence(room)[loser]) return clearForfeit(room);
+// End the game against `loser` right now — no countdown. Used by the disconnect
+// timer and by an explicit Leave.
+function forfeitNow(room: Room, loser: Color) {
+  if (room.game.winner) return;
   room.game.winner = opposite(loser);
   clearForfeit(room);
   stopTurnClock(room);
   persist(room);
   broadcast(room, { type: 'forfeit', winner: room.game.winner });
   broadcast(room, snapshot(room));
+  void finalizeRanked(room, room.game.winner).catch((e) => console.error('finalizeRanked failed:', e));
+}
+
+function doForfeit(room: Room) {
+  const loser = room.forfeitColor;
+  room.forfeitTimer = null;
+  if (room.game.winner || !loser || presence(room)[loser]) return clearForfeit(room);
+  forfeitNow(room, loser);
+}
+
+// Quitting a game in progress is a resignation: the opponent wins immediately and
+// rank settles right away, instead of everyone waiting out the disconnect timer.
+// Spectators, finished games and rooms missing an opponent just close the socket.
+function onLeave(ws: Client) {
+  const room = ws.room;
+  if (!room || !ws.color) return;
+  if (!room.game.winner && bothSeated(room)) forfeitNow(room, ws.color);
 }
 
 function presence(room: Room): PlayerSlots {
@@ -254,14 +380,18 @@ export function createGameWss(): WebSocketServer {
       ws.isAlive = true;
     });
 
-    // Resolve the account (if signed in) before their `join` arrives — anonymous
-    // players simply resolve to null and keep their client-chosen name.
-    void resolveAccountFromReq(req)
+    // Resolve the account (if signed in) — anonymous players simply resolve to
+    // null and keep their client-chosen name. onJoin awaits `authReady` rather
+    // than racing it: in a ranked room the account decides the seat.
+    ws.authReady = resolveAccountFromReq(req)
       .then((acct) => {
         ws.userId = acct?.userId ?? null;
         ws.accountName = acct?.name ?? null;
       })
-      .catch(() => {});
+      .catch(() => {
+        ws.userId = null;
+        ws.accountName = null;
+      });
 
     ws.on('message', async (buf) => {
       let msg: ClientMessage;
@@ -335,6 +465,7 @@ async function handle(ws: Client, msg: ClientMessage) {
   if (msg.type === 'action') return onAction(ws, msg);
   if (msg.type === 'rematch') return onRematch(ws, msg);
   if (msg.type === 'rematch-decline') return onRematchDecline(ws);
+  if (msg.type === 'leave') return onLeave(ws);
   if (msg.type === 'chat') {
     const room = ws.room;
     if (room && ws.name)
@@ -343,6 +474,7 @@ async function handle(ws: Client, msg: ClientMessage) {
 }
 
 async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>) {
+  await ws.authReady; // the session cookie may still be resolving
   const playerId = String(msg.playerId || '').slice(0, 64);
   if (!playerId) return send(ws, { type: 'error', message: 'missing playerId' });
   ws.playerId = playerId;
@@ -371,8 +503,14 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
     rooms.set(code, room);
   }
 
-  let color = seatOf(room, playerId);
-  if (!color) {
+  // In a ranked room matchmaking already decided who plays which side, so the
+  // account owns the seat — arrival order and the client's colour preference are
+  // ignored, and anyone else holding the code joins as a spectator. Without this
+  // the seats and `rankedUserIds` can disagree and settlement credits the wrong
+  // player. Keyed on userId, not playerId, so a reconnect from another device
+  // still lands in the right seat.
+  let color = room.isRanked ? rankedSeatFor(room, ws.userId) : seatOf(room, playerId);
+  if (!color && !room.isRanked) {
     const want: Color = msg.color === 'red' || msg.color === 'silver' ? msg.color : Math.random() < 0.5 ? 'red' : 'silver';
     if (!room.seats[want]) color = want;
     else if (!room.seats[opposite(want)]) color = opposite(want);
@@ -409,8 +547,12 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
   room.game.winner = result.winner;
   room.game.moveCount++;
 
-  if (result.winner) stopTurnClock(room);
-  else resetTurnClockForNewTurn(room); // reset the clock for the next player's turn
+  if (result.winner) {
+    stopTurnClock(room);
+    void finalizeRanked(room, result.winner).catch((e) => console.error('finalizeRanked failed:', e));
+  } else {
+    resetTurnClockForNewTurn(room); // reset the clock for the next player's turn
+  }
 
   persist(room);
 
@@ -459,6 +601,13 @@ async function performRematch(room: Room, requestedSetup?: string) {
     oldNames = { ...room.names };
   room.seats = { red: oldSeats.silver, silver: oldSeats.red };
   room.names = { red: oldNames.silver, silver: oldNames.red };
+  // Sides swap, so the ranked account→seat map has to swap with them, otherwise
+  // settlement would credit the rematch to the wrong player. Re-arm settlement
+  // so the rematch counts for rank like any other ranked game.
+  if (room.isRanked) {
+    room.rankedUserIds = { red: room.rankedUserIds.silver, silver: room.rankedUserIds.red };
+    room.rankedSettled = false;
+  }
   for (const c of room.clients) {
     if (c.playerId && seatOf(room, c.playerId)) c.color = seatOf(room, c.playerId);
   }
