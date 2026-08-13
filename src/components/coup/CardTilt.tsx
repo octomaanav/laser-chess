@@ -60,10 +60,7 @@ export default function CardTilt({ children, disabled }: CardTiltProps) {
         style={{
           rotateX: springX,
           rotateY: springY,
-          transformStyle: 'preserve-3d',
           position: 'relative',
-          borderRadius: 8,
-          overflow: 'hidden',
         }}
       >
         {children}
@@ -72,6 +69,8 @@ export default function CardTilt({ children, disabled }: CardTiltProps) {
           style={{
             position: 'absolute',
             inset: 0,
+            borderRadius: 8,
+            overflow: 'hidden',
             background: sheenBackground,
             opacity: sheenOpacity,
             pointerEvents: 'none',

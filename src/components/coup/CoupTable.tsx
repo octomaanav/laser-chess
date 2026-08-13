@@ -25,7 +25,7 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
   const opponentIds = state.players.filter((p) => p.id !== state.you && !p.eliminated).map((p) => p.id);
 
   return (
-    <div className="flex h-full flex-col gap-3 p-3 lg:mx-auto lg:w-full lg:max-w-[1800px] lg:gap-8 lg:p-8">
+    <div className="flex flex-1 flex-col gap-3 p-3 lg:mx-auto lg:w-full lg:max-w-[1800px] lg:gap-8 lg:p-8">
       <div className="flex flex-wrap justify-center gap-2 lg:gap-6">
         {opponents.map((p) => {
           const isActive = p.id === activeId;

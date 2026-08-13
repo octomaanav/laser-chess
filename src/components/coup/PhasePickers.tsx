@@ -42,7 +42,7 @@ export function VariantSetupPicker({ state, controller }: { state: ClientCoupSta
 
   return (
     <div
-      className="flex h-full flex-col items-center justify-center gap-4 p-6"
+      className="flex flex-1 flex-col items-center justify-center gap-4 p-6"
       style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}
     >
       <h2 className="text-lg font-bold" style={{ color: 'var(--coup-gold)' }}>
