@@ -68,7 +68,14 @@ export default function ResponseModal({ state, controller }: ResponseModalProps)
       return <PassiveNotice character={action.claimedCharacter} text={describeAction(state, action)} secondsLeft={secondsLeft} />;
     }
     if (responded) {
-      return <PassiveNotice character={action.claimedCharacter} text="You responded — waiting on others…" secondsLeft={secondsLeft} />;
+      const othersLeft = state.players.filter((p) => !p.eliminated && p.id !== state.you && p.id !== action.actorId).length;
+      return (
+        <PassiveNotice
+          character={action.claimedCharacter}
+          text={othersLeft > 0 ? 'You responded — waiting on others…' : 'You responded — resolving…'}
+          secondsLeft={secondsLeft}
+        />
+      );
     }
 
     return (
@@ -104,7 +111,14 @@ export default function ResponseModal({ state, controller }: ResponseModalProps)
     );
   }
   if (responded) {
-    return <PassiveNotice character={block.claimedCharacter} text="You responded — waiting on others…" secondsLeft={secondsLeft} />;
+    const othersLeft = state.players.filter((p) => !p.eliminated && p.id !== state.you && p.id !== block.byId).length;
+    return (
+      <PassiveNotice
+        character={block.claimedCharacter}
+        text={othersLeft > 0 ? 'You responded — waiting on others…' : 'You responded — resolving…'}
+        secondsLeft={secondsLeft}
+      />
+    );
   }
 
   return (

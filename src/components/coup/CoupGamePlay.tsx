@@ -11,6 +11,7 @@ import ResponseModal from './ResponseModal';
 import GameLog from './GameLog';
 import MomentBanner from './MomentBanner';
 import CoupLogoMark from './CoupLogoMark';
+import ReferenceCard from './ReferenceCard';
 import ThemeToggle from '../ThemeToggle';
 import { VariantSetupPicker, RevealPicker, ExchangePicker } from './PhasePickers';
 import { useTurnAttention } from './useTurnAttention';
@@ -160,12 +161,13 @@ export default function CoupGamePlay({ controller, view }: { controller: CoupCon
         <div className="relative flex min-h-0 flex-1 flex-col">
           <FitToScreen>
             <div className="flex flex-col">
-              <CoupTable state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} />
+              <CoupTable state={stateWithCountdown} />
               <ActionBar state={stateWithCountdown} controller={controller} selectedTarget={selectedTarget} onSelectTarget={setSelectedTarget} />
             </div>
           </FitToScreen>
           <MomentBanner state={stateWithCountdown} />
           <GameLog entries={view.state.log} />
+          <ReferenceCard />
           <ResponseModal state={stateWithCountdown} controller={controller} />
           {/* awaiting_reveal and exchange_choice also have no server-side
               timeout — these overlays are the only way out of those phases. */}

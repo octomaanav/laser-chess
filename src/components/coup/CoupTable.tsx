@@ -4,43 +4,20 @@ import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { WifiOff } from 'lucide-react';
 import CharacterCard from './CharacterCard';
-import DraggableCard from './DraggableCard';
+import CoupCoin from './CoupCoin';
 import CardTilt from './CardTilt';
 import Treasury from './Treasury';
 import CoinFlights from './CoinFlights';
 import TurnOrder from './TurnOrder';
 import PlayerAvatar from './PlayerAvatar';
 import { useTableEvents } from './useTableEvents';
-import { CLAIM_ACTION_FOR } from './claimActionFor';
 import type { StateWithCountdown } from './types';
-import type { CoupController } from '@/client/coupController';
-import type { ActionType } from '@/game/coup/types';
-
-// Plain-language confirmation shown while dragging a hand card, so a
-// multi-ability card (e.g. Captain: steal / block-stealing) never leaves
-// you guessing which effect the drag is about to commit.
-function describeClaimAction(action: ActionType, targetName?: string): string {
-  switch (action) {
-    case 'tax':
-      return 'Draw 3 coins (Tax)';
-    case 'steal':
-      return targetName ? `Steal 2 coins from ${targetName}` : 'Steal 2 coins';
-    case 'assassinate':
-      return targetName ? `Pay 3 coins to assassinate ${targetName}` : 'Pay 3 coins to assassinate';
-    case 'exchange':
-      return 'Exchange cards with the deck';
-    default:
-      return action;
-  }
-}
 
 interface CoupTableProps {
   state: StateWithCountdown;
-  controller: CoupController;
-  selectedTarget: string | null;
 }
 
-export default function CoupTable({ state, controller, selectedTarget }: CoupTableProps) {
+export default function CoupTable({ state }: CoupTableProps) {
   const you = state.players.find((p) => p.id === state.you)!;
   const opponents = state.players.filter((p) => p.id !== state.you);
   const activeId = state.players[state.turn]?.id;
@@ -50,8 +27,6 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
   const treasuryRef = useRef<HTMLDivElement>(null);
 
   const yourTurn = activeId === you.id;
-  const canDeclare = yourTurn && state.phase === 'idle' && you.coins < 10;
-  const opponentIds = state.players.filter((p) => p.id !== state.you && !p.eliminated).map((p) => p.id);
 
   return (
     <div ref={containerRef} className="relative flex flex-col gap-2 p-3 lg:gap-4 lg:p-4">
@@ -170,38 +145,13 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
             </span>
           )}
         </div>
+        {/* Your hand is display-only. Every action is declared from the
+            ActionRail buttons, so there's no gesture on a card that can
+            commit a move. */}
         <div className="flex gap-2 lg:gap-4">
           {you.influence.map((c, i) => {
             const revealedNow = events.find((e) => e.kind === 'card-revealed' && e.playerId === you.id && e.cardIndex === i);
-            const claimAction = c.character && !c.revealed ? CLAIM_ACTION_FOR[c.character] : undefined;
-
             const dealDelay = (opponents.length * 2 + i) * 0.07;
-
-            if (!canDeclare || !claimAction) {
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: -18, scale: 0.6 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: dealDelay, duration: 0.35, ease: 'easeOut' }}
-                >
-                  <CardTilt>
-                    <CharacterCard
-                      character={c.character}
-                      revealed={c.revealed}
-                      size="lg"
-                      className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
-                    />
-                  </CardTilt>
-                </motion.div>
-              );
-            }
-
-            const needsTarget = claimAction === 'steal' || claimAction === 'assassinate';
-            const minCoins = claimAction === 'assassinate' ? 3 : 0;
-            const target = needsTarget ? (selectedTarget ?? opponentIds[0] ?? null) : null;
-            const disabled = you.coins < minCoins || (needsTarget && !target);
-            const targetName = target ? state.players.find((p) => p.id === target)?.name : undefined;
 
             return (
               <motion.div
@@ -210,15 +160,14 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: dealDelay, duration: 0.35, ease: 'easeOut' }}
               >
-                <DraggableCard
-                  character={c.character}
-                  revealed={c.revealed}
-                  size="lg"
-                  disabled={disabled}
-                  onCommit={() => controller.declareAction(claimAction, target)}
-                  activeAbilityIndex={0}
-                  actionLabel={describeClaimAction(claimAction, targetName)}
-                />
+                <CardTilt>
+                  <CharacterCard
+                    character={c.character}
+                    revealed={c.revealed}
+                    size="lg"
+                    className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
+                  />
+                </CardTilt>
               </motion.div>
             );
           })}
@@ -233,11 +182,7 @@ function CoinChips({ coins, danger }: { coins: number; danger?: boolean }) {
   return (
     <div className="flex items-center" style={{ animation: danger ? 'coup-shake 400ms ease-in-out' : undefined }}>
       {Array.from({ length: visible }).map((_, i) => (
-        <span
-          key={i}
-          className="-ml-1.5 inline-block h-3.5 w-3.5 rounded-full border first:ml-0 lg:-ml-2 lg:h-7 lg:w-7"
-          style={{ background: danger ? 'var(--coup-danger)' : 'var(--coup-gold)', borderColor: 'var(--coup-gold-dark)' }}
-        />
+        <CoupCoin key={i} danger={danger} className="-ml-1.5 inline-block h-3.5 w-3.5 first:ml-0 lg:-ml-2 lg:h-7 lg:w-7" />
       ))}
       <span className="ml-1 text-[11px] lg:ml-2 lg:text-base" style={{ color: 'var(--coup-text-muted)' }}>
         {coins}

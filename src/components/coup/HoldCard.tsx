@@ -16,8 +16,11 @@ interface HoldCardProps {
   onCommit: () => void;
 }
 
-// Press and hold to reveal — there's no meaningful drag direction for a
-// single reveal target, so this is a separate gesture from DraggableCard.
+// Press and hold to reveal, used only by RevealPicker. Choosing which
+// influence to lose is irreversible, so it deliberately costs a held press
+// rather than a tap that could be mis-aimed. Declaring actions is NOT done
+// this way — those go through the ActionRail buttons.
+//
 // The tilt effect goes flat once a hold is in progress (progress > 0) so
 // the ring-fill and tilt don't compete visually.
 export default function HoldCard({ character, size = 'lg', onCommit }: HoldCardProps) {
