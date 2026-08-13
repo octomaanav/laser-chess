@@ -1,11 +1,18 @@
 import CardFace from './CardFace';
 
-export default function AssassinCard() {
+export default function AssassinCard({ activeAbilityIndex }: { activeAbilityIndex?: number }) {
   const bg = '#4b4d54';
   const icon = '#7c8189';
 
   return (
-    <CardFace bg={bg} icon={icon} name="ASSASSIN" ability={['PAY THREE COINS TO ASSASSINATE']} label="Assassin card">
+    <CardFace
+      bg={bg}
+      icon={icon}
+      name="ASSASSIN"
+      ability={['PAY THREE COINS TO ASSASSINATE']}
+      label="Assassin card"
+      activeAbilityIndex={activeAbilityIndex}
+    >
       {/* Skull head — dome top, square body */}
       <path d="M 113 205 L 113 170 A 37 42 0 0 1 187 170 L 187 205 Z" fill={icon} />
 

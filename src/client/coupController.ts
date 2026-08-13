@@ -19,6 +19,7 @@ export interface CoupView {
   state: ClientCoupState | null;
   responseDeadline: number | null;
   error: string | null;
+  rematchVotes: string[]; // player ids who've clicked "Rematch" so far
 }
 
 const INITIAL_VIEW: CoupView = {
@@ -30,6 +31,7 @@ const INITIAL_VIEW: CoupView = {
   state: null,
   responseDeadline: null,
   error: null,
+  rematchVotes: [],
 };
 
 function loadOrCreatePlayerId(): string {
@@ -81,6 +83,17 @@ export class CoupController {
   private ensureIdentity() {
     if (typeof window === 'undefined') return;
     if (!this.playerId) this.playerId = loadOrCreatePlayerId();
+  }
+
+  // Have we been seated in this room before (from this browser)? Used to decide
+  // whether to auto-rejoin on returning to a /?game=CODE link, vs. showing the
+  // pre-join screen so a brand-new visitor from a shared link can set their name.
+  wasInRoom(code: string): boolean {
+    if (typeof window === 'undefined' || !code) return false;
+    return window.localStorage.getItem('coup_room_' + code.toUpperCase()) != null;
+  }
+  private rememberRoom(code: string) {
+    if (typeof window !== 'undefined') window.localStorage.setItem('coup_room_' + code.toUpperCase(), '1');
   }
 
   start(opts: { code?: string; name?: string } = {}) {
@@ -146,6 +159,7 @@ export class CoupController {
           window.history.replaceState(null, '', `${window.location.pathname}?game=${msg.code}`);
           shareUrl = `${window.location.origin}${window.location.pathname}?game=${msg.code}`;
         }
+        this.rememberRoom(msg.code);
         this.setView({ screen: 'in-lobby', code: msg.code, shareUrl, playerId: msg.playerId, error: null });
         break;
       }
@@ -158,8 +172,10 @@ export class CoupController {
       case 'error':
         this.setView({ error: msg.message });
         break;
-      case 'forfeit':
       case 'rematch-votes':
+        this.setView({ rematchVotes: msg.ids });
+        break;
+      case 'forfeit':
       case 'rematch':
         break; // no dedicated view slot yet — state broadcasts cover the resulting game state
     }

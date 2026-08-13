@@ -1,11 +1,18 @@
 import CardFace from './CardFace';
 
-export default function CaptainCard() {
+export default function CaptainCard({ activeAbilityIndex }: { activeAbilityIndex?: number }) {
   const bg = '#2d4178';
   const icon = '#5db8e8';
 
   return (
-    <CardFace bg={bg} icon={icon} name="CAPTAIN" ability={['STEAL TWO COINS', 'BLOCK STEALING']} label="Captain card">
+    <CardFace
+      bg={bg}
+      icon={icon}
+      name="CAPTAIN"
+      ability={['STEAL TWO COINS', 'BLOCK STEALING']}
+      label="Captain card"
+      activeAbilityIndex={activeAbilityIndex}
+    >
       {/* Up arrow — pointing up */}
       <polygon points="150,138 122,172 178,172" fill={icon} />
       <rect x="140" y="170" width="20" height="38" fill={icon} />

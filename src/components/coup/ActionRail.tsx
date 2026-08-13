@@ -43,13 +43,19 @@ export default function ActionRail({ state, controller, selectedTarget, onSelect
                   <button
                     key={p.id}
                     onClick={() => onSelectTarget(p.id)}
-                    className="rounded-full border px-2 py-0.5 text-xs transition-colors"
+                    className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors"
                     style={{
                       borderColor: selectedTarget === p.id ? 'var(--coup-gold)' : 'var(--coup-panel-border)',
                       color: selectedTarget === p.id ? 'var(--coup-gold-dark)' : 'var(--coup-text-muted)',
                     }}
                   >
-                    {p.name}
+                    <span>{p.name}</span>
+                    <span
+                      className="flex items-center gap-0.5 rounded-full px-1.5 text-[10px] font-semibold"
+                      style={{ background: 'color-mix(in oklab, var(--coup-gold) 18%, transparent)', color: 'var(--coup-gold-dark)' }}
+                    >
+                      {p.coins}c
+                    </span>
                   </button>
                 ))}
               </div>
@@ -68,10 +74,15 @@ export default function ActionRail({ state, controller, selectedTarget, onSelect
                     key={a.type}
                     disabled={disabled}
                     onClick={() => controller.declareAction(a.type, target)}
-                    className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-                    style={{ borderColor: a.accentVar, color: a.accentVar, background: 'var(--coup-panel-bg)' }}
+                    className="group flex items-center gap-3 rounded-lg border px-2.5 py-2 text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                    style={{ borderColor: 'var(--coup-panel-border)', color: 'var(--coup-text)', background: 'var(--coup-panel-bg)' }}
                   >
-                    <Icon className="h-4 w-4" />
+                    <span
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md transition-transform duration-150 group-hover:scale-110"
+                      style={{ background: `color-mix(in oklab, ${a.accentVar} 20%, transparent)`, color: a.accentVar }}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
                     {a.label}
                   </button>
                 );
@@ -104,10 +115,15 @@ export default function ActionRail({ state, controller, selectedTarget, onSelect
                           controller.declareAction(a.type, target);
                           setClaimOpen(false);
                         }}
-                        className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-                        style={{ color: a.accentVar }}
+                        className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ color: 'var(--coup-text)' }}
                       >
-                        <Icon className="h-3.5 w-3.5" />
+                        <span
+                          className="flex size-6 shrink-0 items-center justify-center rounded transition-transform duration-150 group-hover:scale-110"
+                          style={{ background: `color-mix(in oklab, ${a.accentVar} 22%, transparent)`, color: a.accentVar }}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
                         {a.label}
                       </button>
                     );

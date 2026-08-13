@@ -10,3 +10,16 @@ _shot.mts
 next-env.d.ts
 tsconfig.tsbuildinfo
 .env*.local
+
+# AI assistant config/instructions — local only, never committed
+CLAUDE.md
+AGENTS.md
+.claude/
+.clinerules/
+.cursor/
+.github/
+.opencode/
+.superpowers/
+.windsurf/
+.playwright-mcp/
+docs/superpowers/

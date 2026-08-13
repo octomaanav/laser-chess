@@ -15,6 +15,15 @@ interface DraggableCardProps {
   disabled?: boolean;
   marked?: boolean; // e.g. "kept" outline in the exchange picker
   onCommit: () => void;
+  // Index of the ability line this drag claims (see CardFace) — dims the
+  // card's other ability line so it reads as inert while this one is live.
+  activeAbilityIndex?: number;
+  // Plain-language confirmation of exactly what committing will do, e.g.
+  // "Steal 2 coins from Bob" — shown in a floating badge once the drag
+  // crosses the commit threshold, so multi-ability cards (Captain,
+  // Ambassador, Duke) never leave you guessing which effect you're about
+  // to trigger.
+  actionLabel?: string;
 }
 
 // Drag straight up to play a card. `disabled` still allows the drag
@@ -22,12 +31,27 @@ interface DraggableCardProps {
 // commit with a shake instead of calling onCommit. The tilt effect goes
 // flat for the duration of an active drag so the two transforms never
 // compete for the same frame.
-export default function DraggableCard({ character, revealed, size = 'lg', disabled, marked, onCommit }: DraggableCardProps) {
+export default function DraggableCard({
+  character,
+  revealed,
+  size = 'lg',
+  disabled,
+  marked,
+  onCommit,
+  activeAbilityIndex,
+  actionLabel,
+}: DraggableCardProps) {
   const controls = useAnimation();
   const [dragging, setDragging] = useState(false);
+  const [armedLive, setArmedLive] = useState(false);
+
+  const handleDrag = (_event: unknown, info: PanInfo) => {
+    setArmedLive(shouldCommitDrag(info.offset.y, COMMIT_THRESHOLD_PX));
+  };
 
   const handleDragEnd = (_event: unknown, info: PanInfo) => {
     setDragging(false);
+    setArmedLive(false);
     const armed = shouldCommitDrag(info.offset.y, COMMIT_THRESHOLD_PX);
 
     if (armed && disabled) {
@@ -43,25 +67,41 @@ export default function DraggableCard({ character, revealed, size = 'lg', disabl
   };
 
   return (
-    <motion.div
-      drag="y"
-      dragConstraints={{ top: -160, bottom: 0 }}
-      dragElastic={0.15}
-      animate={controls}
-      whileDrag={{ scale: 1.06 }}
-      onDragStart={() => setDragging(true)}
-      onDragEnd={handleDragEnd}
-      style={{
-        cursor: 'grab',
-        outline: marked ? '2px solid var(--coup-success)' : 'none',
-        outlineOffset: 2,
-        borderRadius: 8,
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      <CardTilt disabled={dragging}>
-        <CharacterCard character={character} revealed={revealed} size={size} />
-      </CardTilt>
-    </motion.div>
+    <div style={{ position: 'relative' }}>
+      {dragging && actionLabel && (
+        <div
+          className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold shadow-lg transition-opacity"
+          style={{
+            background: armedLive ? 'var(--coup-success)' : 'var(--coup-panel-bg)',
+            color: armedLive ? '#0a1a0d' : 'var(--coup-text)',
+            border: armedLive ? 'none' : '1px solid var(--coup-panel-border)',
+            opacity: armedLive ? 1 : 0.85,
+          }}
+        >
+          {armedLive ? actionLabel : 'Keep dragging to play…'}
+        </div>
+      )}
+      <motion.div
+        drag="y"
+        dragConstraints={{ top: -160, bottom: 0 }}
+        dragElastic={0.15}
+        animate={controls}
+        whileDrag={{ scale: 1.06 }}
+        onDragStart={() => setDragging(true)}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
+        style={{
+          cursor: 'grab',
+          outline: marked ? '2px solid var(--coup-success)' : 'none',
+          outlineOffset: 2,
+          borderRadius: 8,
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        <CardTilt disabled={dragging}>
+          <CharacterCard character={character} revealed={revealed} size={size} activeAbilityIndex={activeAbilityIndex} />
+        </CardTilt>
+      </motion.div>
+    </div>
   );
 }

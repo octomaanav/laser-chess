@@ -1,11 +1,18 @@
 import CardFace from './CardFace';
 
-export default function AmbassadorCard() {
+export default function AmbassadorCard({ activeAbilityIndex }: { activeAbilityIndex?: number }) {
   const bg = '#4b8c5c';
   const icon = '#6aad7c';
 
   return (
-    <CardFace bg={bg} icon={icon} name="AMBASSADOR" ability={['EXCHANGE TWO CARDS', 'BLOCK STEALING']} label="Ambassador card">
+    <CardFace
+      bg={bg}
+      icon={icon}
+      name="AMBASSADOR"
+      ability={['EXCHANGE TWO CARDS', 'BLOCK STEALING']}
+      label="Ambassador card"
+      activeAbilityIndex={activeAbilityIndex}
+    >
       {/* Center diamond */}
       <polygon points="150,127 208,184 150,241 92,184" fill={icon} />
 
