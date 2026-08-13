@@ -11,6 +11,7 @@ import type { ClientCoupState } from '@/game/coup/redact';
 import type { Character } from '@/game/coup/types';
 import type { CoupController } from '@/client/coupController';
 import CharacterCard from './CharacterCard';
+import CardTilt from './CardTilt';
 import HoldCard from './HoldCard';
 import DraggableCard from './DraggableCard';
 
@@ -60,7 +61,9 @@ export function VariantSetupPicker({ state, controller }: { state: ClientCoupSta
                 controller.chooseStartingCharacter(c);
               }}
             >
-              <CharacterCard character={c} size="lg" />
+              <CardTilt>
+                <CharacterCard character={c} size="lg" />
+              </CardTilt>
             </button>
           ))}
         </div>
