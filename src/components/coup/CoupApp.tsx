@@ -9,7 +9,11 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
   const { controller, view } = useCoupController();
 
   useEffect(() => {
-    if (initialRoomCode) controller.start({ code: initialRoomCode });
+    // Only auto-rejoin silently if this browser was already seated in this
+    // room before (e.g. a refresh mid-game). A brand-new visitor arriving via
+    // a shared link should land on the pre-join screen so they can set their
+    // name first, instead of being auto-joined under a stale/default name.
+    if (initialRoomCode && controller.wasInRoom(initialRoomCode)) controller.start({ code: initialRoomCode });
   }, [controller, initialRoomCode]);
 
   // Don't force the game screen just because a room code is in the URL —
@@ -20,8 +24,24 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
   // useEffect above.
   const showGame = view.screen === 'game';
   return (
-    <div data-game="coup" className="flex min-h-dvh flex-col" style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}>
-      {showGame ? <CoupGamePlay controller={controller} view={view} /> : <CoupLobby controller={controller} view={view} />}
+    <div
+      data-game="coup"
+      className={showGame ? 'flex h-dvh flex-col overflow-hidden' : 'flex min-h-dvh flex-col'}
+      style={{
+        background: 'var(--coup-table-bg)',
+        color: 'var(--coup-text)',
+        // Faint radial glow + grid, matching Laser Chess's backdrop treatment
+        // (--app-backdrop) — applied app-wide, subtle enough to sit behind the
+        // table felt without competing with cards/pieces.
+        backgroundImage: 'var(--coup-backdrop)',
+        backgroundSize: '100% 100%, 100% 100%, 44px 44px, 44px 44px',
+      }}
+    >
+      {showGame ? (
+        <CoupGamePlay controller={controller} view={view} />
+      ) : (
+        <CoupLobby controller={controller} view={view} initialRoomCode={initialRoomCode} />
+      )}
     </div>
   );
 }

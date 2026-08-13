@@ -1,11 +1,18 @@
 import CardFace from './CardFace';
 
-export default function ContessaCard() {
+export default function ContessaCard({ activeAbilityIndex }: { activeAbilityIndex?: number }) {
   const bg = '#a84c35';
   const icon = '#e8a848';
 
   return (
-    <CardFace bg={bg} icon={icon} name="CONTESSA" ability={['BLOCK ASSASSINATION']} label="Contessa card">
+    <CardFace
+      bg={bg}
+      icon={icon}
+      name="CONTESSA"
+      ability={['BLOCK ASSASSINATION']}
+      label="Contessa card"
+      activeAbilityIndex={activeAbilityIndex}
+    >
       {/* Diamond gem — top portion of icon */}
       <polygon points="118,162 132,143 168,143 182,162 150,198" fill={icon} />
 

@@ -1,12 +1,38 @@
 // src/components/coup/CoupTable.tsx
+'use client';
+import { useRef } from 'react';
+import { motion } from 'framer-motion';
+import { WifiOff } from 'lucide-react';
 import CharacterCard from './CharacterCard';
 import DraggableCard from './DraggableCard';
 import CardTilt from './CardTilt';
 import Treasury from './Treasury';
+import CoinFlights from './CoinFlights';
+import TurnOrder from './TurnOrder';
+import PlayerAvatar from './PlayerAvatar';
 import { useTableEvents } from './useTableEvents';
 import { CLAIM_ACTION_FOR } from './claimActionFor';
 import type { StateWithCountdown } from './types';
 import type { CoupController } from '@/client/coupController';
+import type { ActionType } from '@/game/coup/types';
+
+// Plain-language confirmation shown while dragging a hand card, so a
+// multi-ability card (e.g. Captain: steal / block-stealing) never leaves
+// you guessing which effect the drag is about to commit.
+function describeClaimAction(action: ActionType, targetName?: string): string {
+  switch (action) {
+    case 'tax':
+      return 'Draw 3 coins (Tax)';
+    case 'steal':
+      return targetName ? `Steal 2 coins from ${targetName}` : 'Steal 2 coins';
+    case 'assassinate':
+      return targetName ? `Pay 3 coins to assassinate ${targetName}` : 'Pay 3 coins to assassinate';
+    case 'exchange':
+      return 'Exchange cards with the deck';
+    default:
+      return action;
+  }
+}
 
 interface CoupTableProps {
   state: StateWithCountdown;
@@ -19,15 +45,20 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
   const opponents = state.players.filter((p) => p.id !== state.you);
   const activeId = state.players[state.turn]?.id;
   const events = useTableEvents(state);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const seatRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const treasuryRef = useRef<HTMLDivElement>(null);
 
   const yourTurn = activeId === you.id;
   const canDeclare = yourTurn && state.phase === 'idle' && you.coins < 10;
   const opponentIds = state.players.filter((p) => p.id !== state.you && !p.eliminated).map((p) => p.id);
 
   return (
-    <div className="flex flex-1 flex-col gap-3 p-3 lg:mx-auto lg:w-full lg:max-w-[1800px] lg:gap-8 lg:p-8">
+    <div ref={containerRef} className="relative flex flex-col gap-2 p-3 lg:gap-4 lg:p-4">
+      <CoinFlights events={events} containerRef={containerRef} seatRefs={seatRefs} treasuryRef={treasuryRef} />
+      <TurnOrder state={state} />
       <div className="flex flex-wrap justify-center gap-2 lg:gap-6">
-        {opponents.map((p) => {
+        {opponents.map((p, seatIndex) => {
           const isActive = p.id === activeId;
           const stolenFrom = events.find((e) => e.kind === 'coins-stolen' && e.fromId === p.id);
           const proved = events.find((e) => e.kind === 'claim-proved' && e.playerId === p.id);
@@ -37,15 +68,21 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
           return (
             <div
               key={p.id}
-              className="relative flex flex-col items-center gap-1 rounded-xl border p-2 lg:gap-3 lg:rounded-2xl lg:p-4"
+              ref={(el) => {
+                seatRefs.current[p.id] = el;
+              }}
+              className="relative flex flex-col items-center gap-1 rounded-xl border p-2 transition-opacity lg:gap-3 lg:rounded-2xl lg:p-4"
               style={{
                 background: 'var(--coup-panel-bg)',
                 borderColor: proved ? 'var(--coup-success)' : hit ? 'var(--coup-danger)' : 'var(--coup-panel-border)',
                 boxShadow: isActive ? 'var(--coup-glow-ring)' : undefined,
+                opacity: p.eliminated ? 0.45 : !p.connected ? 0.7 : 1,
+                filter: p.eliminated ? 'grayscale(0.8)' : undefined,
                 animation: [
                   isActive && 'coup-pulse-glow 1.8s ease-in-out infinite',
                   stolenFrom && 'coup-shake 400ms ease-in-out',
                   hit && 'coup-shake 400ms ease-in-out',
+                  !p.connected && !p.eliminated && 'coup-disconnected-pulse 1.6s ease-in-out infinite',
                 ]
                   .filter(Boolean)
                   .join(', ') || undefined,
@@ -59,6 +96,14 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
                   their turn
                 </span>
               )}
+              {p.eliminated && (
+                <span
+                  className="absolute -top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white lg:-top-3 lg:px-3 lg:py-1 lg:text-xs"
+                  style={{ background: 'var(--coup-danger)' }}
+                >
+                  eliminated
+                </span>
+              )}
               {blocked && (
                 <span
                   className="absolute -right-2 -top-2 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
@@ -67,23 +112,33 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
                   blocked
                 </span>
               )}
-              <div className="text-xs font-medium lg:text-base" style={{ color: 'var(--coup-text)' }}>
-                {p.name} {p.eliminated && '(out)'}
-                {!p.connected && !p.eliminated && ' · reconnecting…'}
+              <div className="flex items-center gap-1.5 text-xs font-medium lg:text-base" style={{ color: 'var(--coup-text)' }}>
+                <PlayerAvatar id={p.id} name={p.name} size={20} muted={p.eliminated} />
+                <span>{p.name}</span>
+                {!p.connected && !p.eliminated && (
+                  <WifiOff className="size-3 shrink-0 lg:size-4" style={{ color: 'var(--coup-danger)' }} />
+                )}
               </div>
               <CoinChips coins={p.coins} danger={!!stolenFrom} />
               <div className="flex gap-1 lg:gap-2">
                 {p.influence.map((c, i) => {
                   const revealedNow = events.find((e) => e.kind === 'card-revealed' && e.playerId === p.id && e.cardIndex === i);
                   return (
-                    <CardTilt key={i}>
-                      <CharacterCard
-                        character={c.character}
-                        revealed={c.revealed}
-                        size="sm"
-                        className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
-                      />
-                    </CardTilt>
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: -18, scale: 0.6 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: (seatIndex * 2 + i) * 0.07, duration: 0.35, ease: 'easeOut' }}
+                    >
+                      <CardTilt>
+                        <CharacterCard
+                          character={c.character}
+                          revealed={c.revealed}
+                          size="sm"
+                          className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
+                        />
+                      </CardTilt>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -92,12 +147,18 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
         })}
       </div>
 
-      <div className="flex flex-1 items-center justify-center">
+      <div ref={treasuryRef} className="flex items-center justify-center py-2 lg:py-4">
         <Treasury amount={state.treasury} events={events} />
       </div>
 
-      <div className="flex flex-col items-center gap-2 lg:gap-4">
+      <div
+        ref={(el) => {
+          seatRefs.current[you.id] = el;
+        }}
+        className="flex flex-col items-center gap-2 lg:gap-4"
+      >
         <div className="flex items-center gap-2 text-sm font-semibold lg:gap-3 lg:text-xl" style={{ color: 'var(--coup-text)' }}>
+          <PlayerAvatar id={you.id} name={you.name} size={24} />
           <span>{you.name}</span>
           <CoinChips coins={you.coins} danger={!!events.find((e) => e.kind === 'coins-stolen' && e.fromId === you.id)} />
           {yourTurn && (
@@ -109,21 +170,30 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
             </span>
           )}
         </div>
-        <div className="flex gap-2 lg:gap-4 lg:pt-24">
+        <div className="flex gap-2 lg:gap-4">
           {you.influence.map((c, i) => {
             const revealedNow = events.find((e) => e.kind === 'card-revealed' && e.playerId === you.id && e.cardIndex === i);
             const claimAction = c.character && !c.revealed ? CLAIM_ACTION_FOR[c.character] : undefined;
 
+            const dealDelay = (opponents.length * 2 + i) * 0.07;
+
             if (!canDeclare || !claimAction) {
               return (
-                <CardTilt key={i}>
-                  <CharacterCard
-                    character={c.character}
-                    revealed={c.revealed}
-                    size="lg"
-                    className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
-                  />
-                </CardTilt>
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: -18, scale: 0.6 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: dealDelay, duration: 0.35, ease: 'easeOut' }}
+                >
+                  <CardTilt>
+                    <CharacterCard
+                      character={c.character}
+                      revealed={c.revealed}
+                      size="lg"
+                      className={revealedNow ? 'animate-[coup-card-flip_500ms_ease-in-out]' : undefined}
+                    />
+                  </CardTilt>
+                </motion.div>
               );
             }
 
@@ -131,16 +201,25 @@ export default function CoupTable({ state, controller, selectedTarget }: CoupTab
             const minCoins = claimAction === 'assassinate' ? 3 : 0;
             const target = needsTarget ? (selectedTarget ?? opponentIds[0] ?? null) : null;
             const disabled = you.coins < minCoins || (needsTarget && !target);
+            const targetName = target ? state.players.find((p) => p.id === target)?.name : undefined;
 
             return (
-              <DraggableCard
+              <motion.div
                 key={i}
-                character={c.character}
-                revealed={c.revealed}
-                size="lg"
-                disabled={disabled}
-                onCommit={() => controller.declareAction(claimAction, target)}
-              />
+                initial={{ opacity: 0, y: -18, scale: 0.6 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: dealDelay, duration: 0.35, ease: 'easeOut' }}
+              >
+                <DraggableCard
+                  character={c.character}
+                  revealed={c.revealed}
+                  size="lg"
+                  disabled={disabled}
+                  onCommit={() => controller.declareAction(claimAction, target)}
+                  activeAbilityIndex={0}
+                  actionLabel={describeClaimAction(claimAction, targetName)}
+                />
+              </motion.div>
             );
           })}
         </div>

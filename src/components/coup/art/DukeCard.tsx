@@ -1,6 +1,6 @@
 import CardFace from './CardFace';
 
-export default function DukeCard() {
+export default function DukeCard({ activeAbilityIndex }: { activeAbilityIndex?: number }) {
   const bg = '#6e3578';
   const icon = '#d088c8';
 
@@ -28,7 +28,7 @@ export default function DukeCard() {
   })();
 
   return (
-    <CardFace bg={bg} icon={icon} name="DUKE" ability={['DRAW THREE COINS', 'BLOCK FOREIGN AID']} label="Duke card">
+    <CardFace bg={bg} icon={icon} name="DUKE" ability={['DRAW THREE COINS', 'BLOCK FOREIGN AID']} label="Duke card" activeAbilityIndex={activeAbilityIndex}>
       <circle cx="150" cy="185" r="55" fill="none" stroke={icon} strokeWidth="10" />
       <polygon points={star} fill={icon} />
       <circle cx="150" cy="185" r="22" fill={bg} />

@@ -25,13 +25,19 @@ export default function ActionBar({ state, controller, selectedTarget, onSelectT
             <button
               key={p.id}
               onClick={() => onSelectTarget(p.id)}
-              className="rounded-full border px-2 py-0.5 text-xs transition-colors"
+              className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors"
               style={{
                 borderColor: selectedTarget === p.id ? 'var(--coup-gold)' : 'var(--coup-panel-border)',
                 color: selectedTarget === p.id ? 'var(--coup-gold-dark)' : 'var(--coup-text-muted)',
               }}
             >
-              {p.name}
+              <span>{p.name}</span>
+              <span
+                className="flex items-center gap-0.5 rounded-full px-1.5 text-[10px] font-semibold"
+                style={{ background: 'color-mix(in oklab, var(--coup-gold) 18%, transparent)', color: 'var(--coup-gold-dark)' }}
+              >
+                {p.coins}c
+              </span>
             </button>
           ))}
         </div>

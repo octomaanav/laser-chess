@@ -13,9 +13,10 @@ export type TableEvent =
   | { id: string; kind: 'coins-gained'; playerId: string; amount: number }
   | { id: string; kind: 'coins-stolen'; fromId: string; toId: string; amount: number }
   | { id: string; kind: 'treasury-paid'; playerId: string; amount: number }
-  | { id: string; kind: 'card-revealed'; playerId: string; cardIndex: 0 | 1; cause: 'challenge-lost' | 'hit' | null }
+  | { id: string; kind: 'card-revealed'; playerId: string; cardIndex: 0 | 1; cause: 'challenge-lost' | 'hit' | null; claimedCharacter?: Character | null }
   | { id: string; kind: 'claim-proved'; playerId: string; character: Character }
-  | { id: string; kind: 'block-declared'; actorId: string };
+  | { id: string; kind: 'block-declared'; actorId: string; blockerId: string; claimedCharacter: Character }
+  | { id: string; kind: 'player-eliminated'; playerId: string };
 
 export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoupState): TableEvent[] {
   if (!prev) return [];
@@ -47,6 +48,10 @@ export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoup
     if (coinDelta > 0) gains.push({ playerId: nextPlayer.id, amount: coinDelta });
     if (coinDelta < 0) losses.push({ playerId: nextPlayer.id, amount: -coinDelta });
 
+    if (nextPlayer.eliminated && !prevPlayer.eliminated) {
+      events.push({ id: `eliminated-${nextPlayer.id}-${tick}`, kind: 'player-eliminated', playerId: nextPlayer.id });
+    }
+
     nextPlayer.influence.forEach((card, index) => {
       const prevCard = prevPlayer.influence[index];
       if (card.revealed && !prevCard.revealed) {
@@ -55,7 +60,14 @@ export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoup
           if (accusedId === nextPlayer.id && claimedCharacter) cause = 'challenge-lost';
           else if (prev.pendingAction && (prev.pendingAction.type === 'coup' || prev.pendingAction.type === 'assassinate') && prev.pendingAction.targetId === nextPlayer.id) cause = 'hit';
         }
-        events.push({ id: `reveal-${nextPlayer.id}-${index}-${tick}`, kind: 'card-revealed', playerId: nextPlayer.id, cardIndex: index as 0 | 1, cause });
+        events.push({
+          id: `reveal-${nextPlayer.id}-${index}-${tick}`,
+          kind: 'card-revealed',
+          playerId: nextPlayer.id,
+          cardIndex: index as 0 | 1,
+          cause,
+          claimedCharacter: cause === 'challenge-lost' ? claimedCharacter : null,
+        });
       }
     });
   }
@@ -97,7 +109,13 @@ export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoup
   }
 
   if (next.pendingBlock && !prev.pendingBlock && next.pendingAction) {
-    events.push({ id: `block-${next.pendingAction.actorId}-${tick}`, kind: 'block-declared', actorId: next.pendingAction.actorId });
+    events.push({
+      id: `block-${next.pendingAction.actorId}-${tick}`,
+      kind: 'block-declared',
+      actorId: next.pendingAction.actorId,
+      blockerId: next.pendingBlock.byId,
+      claimedCharacter: next.pendingBlock.claimedCharacter,
+    });
   }
 
   return events;

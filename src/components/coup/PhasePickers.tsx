@@ -6,6 +6,7 @@
 //   - exchange_choice: Ambassador exchange (choosing which cards to keep)
 'use client';
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import type { ClientCoupState } from '@/game/coup/redact';
 import type { Character } from '@/game/coup/types';
@@ -13,12 +14,11 @@ import type { CoupController } from '@/client/coupController';
 import CharacterCard from './CharacterCard';
 import CardTilt from './CardTilt';
 import HoldCard from './HoldCard';
-import DraggableCard from './DraggableCard';
 
 function Overlay({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="absolute inset-x-0 bottom-0 flex flex-col gap-3 rounded-t-xl border p-3 backdrop-blur"
+      className="absolute inset-x-0 bottom-0 z-30 flex flex-col gap-3 rounded-t-xl border p-3 backdrop-blur"
       style={{ borderColor: 'var(--coup-panel-border)', background: 'color-mix(in oklab, var(--coup-panel-bg) 92%, transparent)' }}
     >
       {children}
@@ -44,7 +44,7 @@ export function VariantSetupPicker({ state, controller }: { state: ClientCoupSta
   return (
     <div
       className="flex flex-1 flex-col items-center justify-center gap-4 p-6"
-      style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}
+      style={{ color: 'var(--coup-text)' }}
     >
       <h2 className="text-lg font-bold" style={{ color: 'var(--coup-gold)' }}>
         Choose your starting character
@@ -122,6 +122,7 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   const active = state.phase === 'exchange_choice' && state.exchangeOffer != null && state.players[state.turn]?.id === state.you;
   const [selected, setSelected] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [dealt, setDealt] = useState(false);
 
   // Same class of bug as VariantSetupPicker: key on the offer's *contents*,
@@ -132,14 +133,11 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   useEffect(() => {
     setSelected([]);
     setSubmitted(false);
+    setConfirming(false);
     setDealt(false);
     if (active) {
       // Deck-draw beat: cards start face-down, then flip up a moment later.
-      // (Fixed from the prior version, which animated the flip on the
-      // face-down placeholder and then swapped to the real character
-      // instantly with no animation at the actual reveal moment — the
-      // animation now runs on `dealt` becoming true, not on it being false.)
-      const id = setTimeout(() => setDealt(true), 250);
+      const id = setTimeout(() => setDealt(true), 280);
       return () => clearTimeout(id);
     }
   }, [active, state.exchangeOffer?.join(',')]);
@@ -162,61 +160,72 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   return (
     <Overlay>
       <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
-        {submitted ? 'Exchanging…' : `Drag up to keep ${requiredKeep} card${requiredKeep === 1 ? '' : 's'}.`}
+        {submitted
+          ? 'Exchanging…'
+          : confirming
+            ? 'Swapping cards…'
+            : `Tap to keep ${requiredKeep} card${requiredKeep === 1 ? '' : 's'}.`}
       </p>
       {!submitted && (
         <>
-          <div className="flex flex-wrap justify-center gap-3 lg:pt-10">
+          <div className="flex flex-wrap justify-center gap-3 lg:pt-6">
             {candidates.map((c, i) => {
               const marked = selected.includes(i);
               const disabled = !marked && selected.length >= requiredKeep;
+              // Once confirmed: returned cards flip face-down first (reads
+              // as "going back into the deck") before sinking toward the
+              // deck pile; kept cards stay face-up and lift into your hand.
+              const returning = confirming && !marked;
+              const settledAnimate = confirming
+                ? marked
+                  ? { x: 0, y: -36, scale: 1.08, opacity: 1 }
+                  : { x: 0, y: 64, scale: 0.78, opacity: 0 }
+                : { x: 0, y: 0, scale: 1, opacity: 1 };
+              const displayCharacter = returning ? null : dealt ? c : null;
+              const flipping = (dealt && !confirming) || returning;
               return (
-                <div key={i} className={dealt ? 'animate-[coup-card-flip_400ms_ease-in-out]' : undefined}>
-                  {/* Below `lg`: original tap-to-toggle behavior, unchanged from before drag-to-keep. */}
-                  <button
-                    type="button"
-                    className="lg:hidden"
-                    disabled={disabled}
-                    onClick={() => toggle(i)}
-                    style={{
-                      outline: marked ? '2px solid var(--coup-success)' : 'none',
-                      outlineOffset: 2,
-                      borderRadius: 8,
-                      opacity: disabled ? 0.6 : 1,
-                    }}
-                  >
-                    <CharacterCard character={dealt ? c : null} size="lg" />
-                  </button>
-                  {/* `lg` and up: drag-to-keep, wrapped for keyboard access (Enter/Space toggles). */}
-                  <div
-                    className="hidden lg:block"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggle(i);
-                      }
-                    }}
-                  >
-                    <DraggableCard
-                      character={dealt ? c : null}
-                      size="lg"
-                      marked={marked}
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: -18, scale: 0.6 }}
+                  animate={settledAnimate}
+                  transition={{
+                    duration: 0.5,
+                    ease: 'easeOut',
+                    delay: confirming ? (returning ? 0.1 : 0) : i * 0.09,
+                  }}
+                  style={{ pointerEvents: confirming ? 'none' : undefined }}
+                >
+                  <div className={flipping ? 'animate-[coup-card-flip_400ms_ease-in-out]' : undefined}>
+                    <button
+                      type="button"
                       disabled={disabled}
-                      onCommit={() => toggle(i)}
-                    />
+                      onClick={() => toggle(i)}
+                      style={{
+                        outline: marked ? '2px solid var(--coup-success)' : 'none',
+                        outlineOffset: 2,
+                        borderRadius: 8,
+                        opacity: disabled ? 0.6 : 1,
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <CardTilt>
+                        <CharacterCard character={displayCharacter} size="lg" />
+                      </CardTilt>
+                    </button>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
           <Button
             size="sm"
-            disabled={selected.length !== requiredKeep}
+            disabled={selected.length !== requiredKeep || confirming}
             onClick={() => {
-              setSubmitted(true);
-              controller.chooseExchange(selected);
+              setConfirming(true);
+              setTimeout(() => {
+                setSubmitted(true);
+                controller.chooseExchange(selected);
+              }, 520);
             }}
           >
             Confirm
