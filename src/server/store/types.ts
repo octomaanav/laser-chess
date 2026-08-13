@@ -1,6 +1,7 @@
 // Storage abstraction. Two backends implement this: a file backend (local dev,
 // zero setup) and a Postgres backend (production, via DATABASE_URL).
 import type { Color, GameState, SetupDef } from '../../game/types';
+import type { CoupState } from '../../game/coup/types';
 
 export interface PersistedRoom {
   code: string;
@@ -33,6 +34,17 @@ export interface OAuthIdentity {
   userId: string;
 }
 
+// A persisted Coup room (separate table/namespace from Laser Chess's rooms — see roomServer.ts).
+export interface PersistedCoupRoom {
+  code: string;
+  state: CoupState;
+  seats: string[]; // player ids in seat order
+  names: Record<string, string>;
+  responseDeadline: number | null; // epoch ms, survives restart
+  forfeitPlayerId: string | null;
+  forfeitDeadline: number | null;
+}
+
 // One side of a friendship as seen by a given user. `direction` only matters
 // while `pending` (did I send it or receive it); it's 'outgoing' for accepted.
 export interface FriendEdge {
@@ -55,6 +67,12 @@ export interface Store {
   saveRoom(room: PersistedRoom): Promise<void>;
   deleteRoom(code: string): Promise<void>;
   sweepRooms(maxAgeMs: number): Promise<void>;
+
+  // Coup rooms (separate table/namespace from Laser Chess's rooms — see roomServer.ts)
+  loadCoupRoom(code: string): Promise<PersistedCoupRoom | null>;
+  saveCoupRoom(room: PersistedCoupRoom): Promise<void>;
+  deleteCoupRoom(code: string): Promise<void>;
+  sweepCoupRooms(maxAgeMs: number): Promise<void>;
 
   // user accounts (email/password + linked OAuth identities)
   createUser(user: User): Promise<void>;

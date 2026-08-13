@@ -1,0 +1,228 @@
+// Overlays for the three phases that have no server-side timeout and
+// therefore MUST have a reachable UI path, or the room deadlocks forever:
+//   - variant-setup: 2-player-only starting-character draft (blocks move zero
+//     of every 2p game)
+//   - awaiting_reveal: choosing which influence card to flip face up
+//   - exchange_choice: Ambassador exchange (choosing which cards to keep)
+'use client';
+import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import type { ClientCoupState } from '@/game/coup/redact';
+import type { Character } from '@/game/coup/types';
+import type { CoupController } from '@/client/coupController';
+import CharacterCard from './CharacterCard';
+import CardTilt from './CardTilt';
+import HoldCard from './HoldCard';
+import DraggableCard from './DraggableCard';
+
+function Overlay({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="absolute inset-x-0 bottom-0 flex flex-col gap-3 rounded-t-xl border p-3 backdrop-blur"
+      style={{ borderColor: 'var(--coup-panel-border)', background: 'color-mix(in oklab, var(--coup-panel-bg) 92%, transparent)' }}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function VariantSetupPicker({ state, controller }: { state: ClientCoupState; controller: CoupController }) {
+  const [chosen, setChosen] = useState(false);
+  const pool = state.variantPoolForYou;
+
+  // Reset if the server ever cycles us back into a fresh draft (e.g. rematch).
+  // Keyed on state.phase (not `pool`) deliberately: `pool` is a freshly
+  // parsed array on every single state broadcast (including the ones fired
+  // right after the choice this player just made, while waiting on the
+  // other player), so keying on its identity re-armed the picker and let a
+  // second click hit the server's "already chosen" rejection. `state.phase`
+  // only changes when we actually leave/re-enter variant-setup.
+  useEffect(() => {
+    setChosen(false);
+  }, [state.phase]);
+
+  return (
+    <div
+      className="flex flex-1 flex-col items-center justify-center gap-4 p-6"
+      style={{ background: 'var(--coup-table-bg)', color: 'var(--coup-text)' }}
+    >
+      <h2 className="text-lg font-bold" style={{ color: 'var(--coup-gold)' }}>
+        Choose your starting character
+      </h2>
+      {!pool || chosen ? (
+        <p className="text-sm" style={{ color: 'var(--coup-text-muted)' }}>Waiting for your opponent to choose…</p>
+      ) : (
+        <div className="flex flex-wrap justify-center gap-3">
+          {pool.map((c, i) => (
+            <button
+              key={`${c}-${i}`}
+              onClick={() => {
+                setChosen(true);
+                controller.chooseStartingCharacter(c);
+              }}
+            >
+              <CardTilt>
+                <CharacterCard character={c} size="lg" />
+              </CardTilt>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function RevealPicker({ state, controller }: { state: ClientCoupState; controller: CoupController }) {
+  const active = state.pendingRevealPlayerId === state.you;
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!active) setSubmitted(false);
+  }, [active]);
+
+  if (!active) return null;
+
+  const you = state.players.find((p) => p.id === state.you);
+  const options = (you?.influence ?? [])
+    .map((c, i) => ({ ...c, index: i as 0 | 1 }))
+    .filter((c) => !c.revealed);
+
+  return (
+    <Overlay>
+      <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
+        {submitted ? 'Revealing…' : 'Hold a card to reveal it.'}
+      </p>
+      {!submitted && (
+        <div className="flex justify-center gap-3">
+          {options.map((c) => {
+            const commit = () => {
+              setSubmitted(true);
+              controller.chooseReveal(c.index);
+            };
+            return (
+              <div key={c.index}>
+                {/* Below `lg`: original tap-to-reveal behavior, unchanged from before hold-to-reveal. */}
+                <button type="button" className="lg:hidden" onClick={commit}>
+                  <CharacterCard character={c.character} size="lg" />
+                </button>
+                {/* `lg` and up: press-and-hold to reveal. */}
+                <div className="hidden lg:block">
+                  <HoldCard character={c.character} size="lg" onCommit={commit} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Overlay>
+  );
+}
+
+export function ExchangePicker({ state, controller }: { state: ClientCoupState; controller: CoupController }) {
+  const active = state.phase === 'exchange_choice' && state.exchangeOffer != null && state.players[state.turn]?.id === state.you;
+  const [selected, setSelected] = useState<number[]>([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [dealt, setDealt] = useState(false);
+
+  // Same class of bug as VariantSetupPicker: key on the offer's *contents*,
+  // not the array reference, since state.exchangeOffer is a fresh array on
+  // every broadcast (e.g. an unrelated opponent reconnect) even when the
+  // offer itself hasn't changed — keying on the reference wiped in-progress
+  // selections for no reason.
+  useEffect(() => {
+    setSelected([]);
+    setSubmitted(false);
+    setDealt(false);
+    if (active) {
+      // Deck-draw beat: cards start face-down, then flip up a moment later.
+      // (Fixed from the prior version, which animated the flip on the
+      // face-down placeholder and then swapped to the real character
+      // instantly with no animation at the actual reveal moment — the
+      // animation now runs on `dealt` becoming true, not on it being false.)
+      const id = setTimeout(() => setDealt(true), 250);
+      return () => clearTimeout(id);
+    }
+  }, [active, state.exchangeOffer?.join(',')]);
+
+  if (!active) return null;
+
+  const you = state.players.find((p) => p.id === state.you);
+  const ownUnrevealed = (you?.influence ?? []).filter((c) => !c.revealed).map((c) => c.character) as Character[];
+  const candidates: Character[] = [...ownUnrevealed, ...(state.exchangeOffer ?? [])];
+  const requiredKeep = ownUnrevealed.length;
+
+  const toggle = (i: number) => {
+    setSelected((prev) => {
+      if (prev.includes(i)) return prev.filter((x) => x !== i);
+      if (prev.length >= requiredKeep) return prev;
+      return [...prev, i];
+    });
+  };
+
+  return (
+    <Overlay>
+      <p className="text-sm" style={{ color: 'var(--coup-text)' }}>
+        {submitted ? 'Exchanging…' : `Drag up to keep ${requiredKeep} card${requiredKeep === 1 ? '' : 's'}.`}
+      </p>
+      {!submitted && (
+        <>
+          <div className="flex flex-wrap justify-center gap-3 lg:pt-10">
+            {candidates.map((c, i) => {
+              const marked = selected.includes(i);
+              const disabled = !marked && selected.length >= requiredKeep;
+              return (
+                <div key={i} className={dealt ? 'animate-[coup-card-flip_400ms_ease-in-out]' : undefined}>
+                  {/* Below `lg`: original tap-to-toggle behavior, unchanged from before drag-to-keep. */}
+                  <button
+                    type="button"
+                    className="lg:hidden"
+                    disabled={disabled}
+                    onClick={() => toggle(i)}
+                    style={{
+                      outline: marked ? '2px solid var(--coup-success)' : 'none',
+                      outlineOffset: 2,
+                      borderRadius: 8,
+                      opacity: disabled ? 0.6 : 1,
+                    }}
+                  >
+                    <CharacterCard character={dealt ? c : null} size="lg" />
+                  </button>
+                  {/* `lg` and up: drag-to-keep, wrapped for keyboard access (Enter/Space toggles). */}
+                  <div
+                    className="hidden lg:block"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle(i);
+                      }
+                    }}
+                  >
+                    <DraggableCard
+                      character={dealt ? c : null}
+                      size="lg"
+                      marked={marked}
+                      disabled={disabled}
+                      onCommit={() => toggle(i)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <Button
+            size="sm"
+            disabled={selected.length !== requiredKeep}
+            onClick={() => {
+              setSubmitted(true);
+              controller.chooseExchange(selected);
+            }}
+          >
+            Confirm
+          </Button>
+        </>
+      )}
+    </Overlay>
+  );
+}

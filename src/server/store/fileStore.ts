@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SetupDef } from '../../game/types';
-import type { FriendEdge, OAuthIdentity, PersistedRoom, Store, User } from './types';
+import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, Store, User } from './types';
 
 const dir = () => path.join(process.cwd(), 'data');
 const setupsFile = () => path.join(dir(), 'setups.json');
@@ -69,6 +69,14 @@ export class FileStore implements Store {
   async saveRoom(): Promise<void> {}
   async deleteRoom(): Promise<void> {}
   async sweepRooms(): Promise<void> {}
+
+  // coup rooms: not persisted in dev
+  async loadCoupRoom(): Promise<PersistedCoupRoom | null> {
+    return null;
+  }
+  async saveCoupRoom(): Promise<void> {}
+  async deleteCoupRoom(): Promise<void> {}
+  async sweepCoupRooms(): Promise<void> {}
 
   // users: persisted (accounts should outlive a dev restart, like setups)
   private readUsers(): UsersData {
