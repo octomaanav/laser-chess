@@ -13,8 +13,10 @@ interface ActionRailProps {
 
 // Desktop-only (rendered hidden below `lg`, see CoupGamePlay.tsx) home for
 // turn-taking actions: the three character-less actions as buttons, the
-// target picker, and a "claim a character" popover for declaring a
-// character action you don't actually hold (bluffing) or without dragging.
+// target picker, and a "use a character" popover. This is the ONLY way to
+// declare an action — hand cards are display-only, with no gesture that
+// commits a move — so a character you don't actually hold is declared from
+// here too (that's the bluff).
 export default function ActionRail({ state, controller, selectedTarget, onSelectTarget }: ActionRailProps) {
   const [claimOpen, setClaimOpen] = useState(false);
   const you = state.players.find((p) => p.id === state.you)!;
@@ -96,7 +98,7 @@ export default function ActionRail({ state, controller, selectedTarget, onSelect
                 className="rounded-lg border px-3 py-2 text-sm font-semibold transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md"
                 style={{ borderColor: 'var(--coup-gold)', color: 'var(--coup-gold-dark)', background: 'var(--coup-panel-bg)' }}
               >
-                Claim a character…
+                Use a character…
               </button>
               {claimOpen && (
                 <div

@@ -1,12 +1,13 @@
 // src/components/coup/CoupLobby.tsx
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, Check, Copy, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CoupController, CoupView } from '@/client/coupController';
+import { useSession } from '@/client/useSession';
 import CoupLogoMark from './CoupLogoMark';
 import ThemeToggle from '../ThemeToggle';
 
@@ -45,6 +46,12 @@ export default function CoupLobby({
   const [copied, setCopied] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const invited = !!initialRoomCode;
+  const { user } = useSession();
+
+  // Signed-in players always play under their account's display name.
+  useEffect(() => {
+    if (user) setName(user.displayName);
+  }, [user]);
 
   const copyLink = async () => {
     if (!view.shareUrl) return;

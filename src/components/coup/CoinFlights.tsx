@@ -3,6 +3,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TableEvent } from './tableEvents';
+import { CoupCoinGlyph } from './CoupCoin';
 
 interface FlightSpec {
   id: string;
@@ -91,15 +92,17 @@ export default function CoinFlights({
     <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
       <AnimatePresence>
         {flights.map((f) => (
-          <motion.span
+          <motion.svg
             key={f.id}
-            className="absolute size-4 rounded-full border-2 lg:size-6"
-            style={{ background: 'var(--coup-gold)', borderColor: 'var(--coup-gold-dark)' }}
+            viewBox="0 0 48 48"
+            className="absolute size-4 lg:size-6"
             initial={{ x: f.x1 - 8, y: f.y1 - 8, opacity: 0, scale: 0.8 }}
             animate={{ x: f.x2 - 8, y: f.y2 - 8, opacity: [0, 1, 1, 0], scale: [0.8, 0.8, 1.15, 0.9] }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.65, delay: f.delay, ease: 'easeInOut', times: [0, 0.05, 0.85, 1] }}
-          />
+          >
+            <CoupCoinGlyph />
+          </motion.svg>
         ))}
       </AnimatePresence>
     </div>

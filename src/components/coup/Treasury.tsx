@@ -1,4 +1,5 @@
 import type { TableEvent } from './tableEvents';
+import CoupCoin from './CoupCoin';
 
 const MAX_VISIBLE_COINS = 14;
 
@@ -14,11 +15,7 @@ export default function Treasury({ amount, events }: { amount: number; events: T
         style={{ animation: paidEvent ? 'coup-treasury-pay 500ms ease-out' : undefined }}
       >
         {Array.from({ length: visibleCoins }).map((_, i) => (
-          <span
-            key={i}
-            className="h-4 w-4 rounded-full border-2 lg:h-8 lg:w-8"
-            style={{ background: 'var(--coup-gold)', borderColor: 'var(--coup-gold-dark)' }}
-          />
+          <CoupCoin key={i} className="h-4 w-4 lg:h-8 lg:w-8" />
         ))}
       </div>
       <div className="text-xs font-semibold uppercase tracking-wide lg:text-lg" style={{ color: 'var(--coup-text-muted)' }}>
