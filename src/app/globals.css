@@ -237,6 +237,129 @@
   text-shadow: var(--text-glow);
 }
 
+/* ---- rank change celebration (RankUpModal) ------------------------------
+   The modal sets --rank to the tier colour (see game/ranking.ts) and these
+   classes derive everything from it. The palette is picked for the dark theme,
+   so the light rules mix it toward ink/paper to keep contrast usable. */
+.rank-ink {
+  color: color-mix(in oklab, var(--rank) 55%, #14161c);
+}
+.rank-wash {
+  background: radial-gradient(50% 60% at 50% 50%, color-mix(in oklab, var(--rank) 26%, transparent), transparent 70%);
+}
+.rank-face {
+  background:
+    radial-gradient(70% 70% at 50% 26%, color-mix(in oklab, var(--rank) 26%, transparent), transparent 72%),
+    color-mix(in oklab, var(--rank) 14%, var(--card));
+  border: 2px solid color-mix(in oklab, var(--rank) 45%, var(--border));
+  box-shadow:
+    0 8px 24px rgba(80, 60, 30, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.rank-rim {
+  border-color: color-mix(in oklab, var(--rank) 26%, transparent);
+}
+.rank-ring {
+  border-color: color-mix(in oklab, var(--rank) 65%, transparent);
+}
+.rank-spark {
+  background: var(--rank);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--rank) 70%, transparent);
+}
+.rank-seg {
+  background: color-mix(in oklab, var(--rank) 72%, #14161c);
+}
+
+.dark .rank-ink {
+  color: var(--rank);
+}
+.dark .rank-headline {
+  text-shadow: 0 0 24px color-mix(in oklab, var(--rank) 35%, transparent);
+}
+.dark .rank-wash {
+  background: radial-gradient(50% 60% at 50% 50%, color-mix(in oklab, var(--rank) 40%, transparent), transparent 70%);
+}
+.dark .rank-face {
+  background:
+    radial-gradient(70% 70% at 50% 26%, color-mix(in oklab, var(--rank) 32%, transparent), transparent 78%),
+    color-mix(in oklab, var(--rank) 10%, var(--card));
+  border-color: color-mix(in oklab, var(--rank) 60%, transparent);
+  box-shadow:
+    0 0 46px color-mix(in oklab, var(--rank) 30%, transparent),
+    0 2px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 color-mix(in oklab, var(--rank) 50%, transparent),
+    inset 0 0 30px color-mix(in oklab, var(--rank) 15%, transparent);
+}
+.dark .rank-rim {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.dark .rank-seg {
+  background: var(--rank);
+}
+
+@keyframes rank-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-10deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.1) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+/* halo expanding out of the medal, like a shockwave */
+@keyframes rank-ring {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+@keyframes rank-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+/* one-shot gloss sweeping across the medal face */
+@keyframes rank-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-130%) skewX(-20deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(230%) skewX(-20deg);
+  }
+}
+/* each --dx/--dy pair sends one spark on its own outward path */
+@keyframes rank-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1);
+  }
+}
+
 /* thin cyan scrollbars to match the theme */
 * {
   scrollbar-width: thin;

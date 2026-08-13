@@ -4,7 +4,8 @@
 import crypto from 'node:crypto';
 import { Pool } from 'pg';
 import type { SetupDef } from '../../game/types';
-import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, Store, User } from './types';
+import { DEFAULT_RATING, MAX_RATING } from '../../game/ranking';
+import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, PlayerRating, Store, User } from './types';
 
 export class PgStore implements Store {
   private pool: Pool;
@@ -65,6 +66,25 @@ export class PgStore implements Store {
       );
       create unique index if not exists friendships_pair
         on friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
+      create table if not exists player_ratings (
+        user_id text not null references users(id) on delete cascade,
+        game_slug text not null,
+        rating int not null default ${DEFAULT_RATING},
+        peak_rating int not null default ${DEFAULT_RATING},
+        wins int not null default 0,
+        losses int not null default 0,
+        updated_at timestamptz not null default now(),
+        primary key (user_id, game_slug)
+      );
+      -- "create table if not exists" is a no-op on a database that predates the
+      -- switch from Elo scores to rank indices, so bring both the column
+      -- defaults and any surviving Elo rows onto the 0-${MAX_RATING} scale.
+      alter table player_ratings alter column rating set default ${DEFAULT_RATING};
+      alter table player_ratings alter column peak_rating set default ${DEFAULT_RATING};
+      update player_ratings set rating = ${DEFAULT_RATING}
+        where rating < 0 or rating > ${MAX_RATING};
+      update player_ratings set peak_rating = greatest(rating, ${DEFAULT_RATING})
+        where peak_rating < 0 or peak_rating > ${MAX_RATING};
     `);
   }
   private async q(text: string, params?: unknown[]) {
@@ -213,5 +233,37 @@ export class PgStore implements Store {
       status: row.status,
       direction: row.requester_id === userId ? 'outgoing' : 'incoming',
     }));
+  }
+
+  async getRating(userId: string, gameSlug: string): Promise<PlayerRating | null> {
+    const r = await this.q(
+      'select user_id, game_slug, rating, peak_rating, wins, losses, updated_at from player_ratings where user_id = $1 and game_slug = $2',
+      [userId, gameSlug],
+    );
+    if (!r.rows[0]) return null;
+    const row = r.rows[0];
+    return {
+      userId: row.user_id,
+      gameSlug: row.game_slug,
+      rating: row.rating,
+      peakRating: row.peak_rating,
+      wins: row.wins,
+      losses: row.losses,
+      updatedAt: new Date(row.updated_at).getTime(),
+    };
+  }
+
+  async upsertRating(rt: PlayerRating): Promise<void> {
+    await this.q(
+      `insert into player_ratings(user_id, game_slug, rating, peak_rating, wins, losses, updated_at)
+       values($1, $2, $3, $4, $5, $6, to_timestamp($7 / 1000.0))
+       on conflict(user_id, game_slug) do update set
+         rating = excluded.rating,
+         peak_rating = excluded.peak_rating,
+         wins = excluded.wins,
+         losses = excluded.losses,
+         updated_at = excluded.updated_at`,
+      [rt.userId, rt.gameSlug, rt.rating, rt.peakRating, rt.wins, rt.losses, rt.updatedAt],
+    );
   }
 }

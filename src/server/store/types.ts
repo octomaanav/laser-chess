@@ -12,6 +12,23 @@ export interface PersistedRoom {
   turnStartedAt?: number | null; // epoch ms the current turn started
   forfeitColor?: Color | null; // a disconnected player with a running forfeit clock
   forfeitDeadline?: number | null; // epoch ms the forfeit fires (survives restart)
+  isRanked?: boolean;
+  rankedGameSlug?: string;
+  rankedUserIds?: { red: string | null; silver: string | null };
+  rankedSettled?: boolean; // rank already awarded — survives a restart so it can't be awarded twice
+}
+
+// Skill rating for one player in one game. `gameSlug` scopes ratings per game
+// so the same account can hold a separate rank in Laser Chess, Poker, etc.
+// `rating` is a rank index (see game/ranking.ts), not an Elo score.
+export interface PlayerRating {
+  userId: string;
+  gameSlug: string;
+  rating: number;
+  peakRating: number;
+  wins: number;
+  losses: number;
+  updatedAt: number; // epoch ms
 }
 
 // A registered account. `email` and `username` are stored already-lowercased so
@@ -89,4 +106,8 @@ export interface Store {
   acceptFriendRequest(addresseeId: string, requesterId: string): Promise<void>;
   deleteFriendship(userId: string, otherId: string): Promise<void>; // deny / cancel / unfriend
   listFriendships(userId: string): Promise<FriendEdge[]>;
+
+  // per-player rank indices, scoped per game slug
+  getRating(userId: string, gameSlug: string): Promise<PlayerRating | null>;
+  upsertRating(r: PlayerRating): Promise<void>;
 }

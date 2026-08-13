@@ -16,7 +16,9 @@ export type SocialEvent =
   | { type: 'friend-request'; from: SocialUser }
   | { type: 'friend-accepted'; user: SocialUser }
   | { type: 'friend-removed'; userId: string }
-  | { type: 'game-invite'; from: SocialUser; gameSlug: string; code: string };
+  | { type: 'game-invite'; from: SocialUser; gameSlug: string; code: string }
+  | { type: 'ranked-matched'; code: string; gameSlug: string; opponent: SocialUser }
+  | { type: 'rating-updated'; gameSlug: string; newRating: number; delta: number; rankName: string };
 
 interface Sock extends WebSocket {
   userId?: string;
