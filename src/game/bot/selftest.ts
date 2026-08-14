@@ -25,7 +25,7 @@ function testMoveGen() {
 testMoveGen();
 
 import type { Board, GameState as GS } from '../types';
-import { evaluate } from './evaluate';
+import { evaluate, DEFAULT_WEIGHTS, type Weights } from './evaluate';
 
 function emptyBoard(): Board {
   return Array.from({ length: 8 }, () => Array.from({ length: 10 }, () => null));
@@ -114,4 +114,28 @@ function testChooseMoveRespectsBudget() {
 }
 
 testChooseMoveRespectsBudget();
+
+function testEvaluateCustomWeights() {
+  // Same position as testEvaluateMaterial, but with offenseHit zeroed out —
+  // if a silver piece can currently hit red's laser-exposed piece for
+  // points, zeroing that weight must lower silver's score relative to
+  // DEFAULT_WEIGHTS. This is the only way to prove the weights parameter
+  // actually flows into the score instead of being ignored.
+  const board = emptyBoard();
+  board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 1 };
+  board[0][5] = { id: 'r1', type: 'pyramid', color: 'red', orient: 0 };
+  board[7][9] = { id: 's2', type: 'sphinx', color: 'red', orient: 0 };
+  const state = stateWith(board);
+
+  const zeroOffense: Weights = { ...DEFAULT_WEIGHTS, offenseHit: 0 };
+  const defaultScore = evaluate(state, 'silver');
+  const zeroedScore = evaluate(state, 'silver', zeroOffense);
+  assert.ok(
+    zeroedScore < defaultScore,
+    `zeroing offenseHit should lower silver's score, got default=${defaultScore} zeroed=${zeroedScore}`,
+  );
+  console.log(`ok: evaluate custom weights (default=${defaultScore}, zeroed=${zeroedScore})`);
+}
+
+testEvaluateCustomWeights();
 console.log('all bot selftests passed');

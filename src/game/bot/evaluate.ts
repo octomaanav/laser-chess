@@ -4,7 +4,8 @@ import { enumerateActions } from './moveGen';
 
 // Pharaoh capture is a terminal state handled by search.ts (±Infinity), not
 // scored as material here. Sphinx is never captured. Scarab > anubis >
-// pyramid, reflecting how hard each is to remove from the board.
+// pyramid, reflecting how hard each is to remove from the board. Not part
+// of Weights/tuning — these reflect known game rules, not a guess.
 const PIECE_VALUE: Record<PieceType, number> = {
   pharaoh: 0,
   scarab: 30,
@@ -13,7 +14,16 @@ const PIECE_VALUE: Record<PieceType, number> = {
   sphinx: 0,
 };
 
-const MOBILITY_WEIGHT = 0.5;
+// The tunable tactical weights — see scripts/tune-bot-weights.ts for the
+// self-play search that produced DEFAULT_WEIGHTS's values.
+export interface Weights {
+  mobility: number;
+  offenseHit: number;
+  offensePharaoh: number;
+  defenseHit: number;
+  defensePharaoh: number;
+  pharaohProximity: number;
+}
 
 // Offense (color's own laser threatening the enemy) is weighted above
 // defense (enemy's laser threatening color) so the bot is rewarded more for
@@ -21,10 +31,18 @@ const MOBILITY_WEIGHT = 0.5;
 // split, sitting still and staying safe scored the same as advancing, so
 // the search had no reason to prefer the latter. Kept modest (not e.g. 2x)
 // so the bot still avoids feeding pieces to the enemy laser.
-const OFFENSE_LASER_HIT_WEIGHT = 32;
-const OFFENSE_LASER_PHARAOH_WEIGHT = OFFENSE_LASER_HIT_WEIGHT * 4;
-const DEFENSE_LASER_HIT_WEIGHT = 22;
-const DEFENSE_LASER_PHARAOH_WEIGHT = DEFENSE_LASER_HIT_WEIGHT * 4;
+export const DEFAULT_WEIGHTS: Weights = {
+  mobility: 0.5,
+  offenseHit: 32,
+  offensePharaoh: 32 * 4,
+  defenseHit: 22,
+  defensePharaoh: 22 * 4,
+  pharaohProximity: 8,
+};
+
+// Board is 10 wide (x 0..9) x 8 tall (y 0..7); this bounds any Manhattan
+// distance on it.
+const MAX_LASER_DISTANCE = 10 + 8;
 
 // Score of firing `fromColor`'s laser right now, from `perspective`'s point
 // of view. Positive if it would hit an enemy-of-perspective piece, negative
@@ -44,22 +62,11 @@ function laserScoreFor(
   return hitsEnemy ? weight : -weight;
 }
 
-function laserExposure(state: GameState, color: Color): number {
-  const offense = laserScoreFor(state, color, color, OFFENSE_LASER_HIT_WEIGHT, OFFENSE_LASER_PHARAOH_WEIGHT);
-  const defense = laserScoreFor(
-    state,
-    opposite(color),
-    color,
-    DEFENSE_LASER_HIT_WEIGHT,
-    DEFENSE_LASER_PHARAOH_WEIGHT,
-  );
+function laserExposure(state: GameState, color: Color, weights: Weights): number {
+  const offense = laserScoreFor(state, color, color, weights.offenseHit, weights.offensePharaoh);
+  const defense = laserScoreFor(state, opposite(color), color, weights.defenseHit, weights.defensePharaoh);
   return offense + defense;
 }
-
-const PHARAOH_PROXIMITY_WEIGHT = 8;
-// Board is 10 wide (x 0..9) x 8 tall (y 0..7); this bounds any Manhattan
-// distance on it.
-const MAX_LASER_DISTANCE = 10 + 8;
 
 function findPharaoh(state: GameState, color: Color): { x: number; y: number } | null {
   for (let y = 0; y < state.board.length; y++) {
@@ -77,7 +84,7 @@ function findPharaoh(state: GameState, color: Color): { x: number; y: number } |
 // immediate hit had any value, so the bot never built up pressure. Skipped
 // when the laser already hits the pharaoh (laserExposure's pharaoh weight
 // covers that case).
-function pharaohProximityBonus(state: GameState, color: Color): number {
+function pharaohProximityBonus(state: GameState, color: Color, weights: Weights): number {
   const { path, hit } = fireLaser(state.board, color);
   if (hit?.piece.type === 'pharaoh') return 0;
   const enemyPharaoh = findPharaoh(state, opposite(color));
@@ -89,16 +96,16 @@ function pharaohProximityBonus(state: GameState, color: Color): number {
     if (dist < minDist) minDist = dist;
   }
   if (!Number.isFinite(minDist)) return 0;
-  return PHARAOH_PROXIMITY_WEIGHT * (1 - minDist / MAX_LASER_DISTANCE);
+  return weights.pharaohProximity * (1 - minDist / MAX_LASER_DISTANCE);
 }
 
-function mobility(state: GameState, color: Color): number {
+function mobility(state: GameState, color: Color, weights: Weights): number {
   const mine = enumerateActions(state, color).length;
   const theirs = enumerateActions(state, opposite(color)).length;
-  return (mine - theirs) * MOBILITY_WEIGHT;
+  return (mine - theirs) * weights.mobility;
 }
 
-export function evaluate(state: GameState, color: Color): number {
+export function evaluate(state: GameState, color: Color, weights: Weights = DEFAULT_WEIGHTS): number {
   let material = 0;
   for (const row of state.board) {
     for (const piece of row) {
@@ -107,5 +114,10 @@ export function evaluate(state: GameState, color: Color): number {
       material += piece.color === color ? value : -value;
     }
   }
-  return material + mobility(state, color) + laserExposure(state, color) + pharaohProximityBonus(state, color);
+  return (
+    material +
+    mobility(state, color, weights) +
+    laserExposure(state, color, weights) +
+    pharaohProximityBonus(state, color, weights)
+  );
 }
