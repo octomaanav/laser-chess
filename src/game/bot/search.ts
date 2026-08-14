@@ -1,7 +1,7 @@
 import { applyAction, opposite } from '../engine';
 import type { Action, Color, GameState } from '../types';
 import { enumerateActions } from './moveGen';
-import { evaluate } from './evaluate';
+import { evaluate, DEFAULT_WEIGHTS, type Weights } from './evaluate';
 
 export interface SearchResult {
   action: Action;
@@ -58,21 +58,22 @@ function minimax(
   beta: number,
   deadline: number,
   timedOut: TimedOut,
+  weights: Weights,
 ): number {
   if (state.winner) return state.winner === color ? Infinity : -Infinity;
-  if (depth === 0) return evaluate(state, color);
+  if (depth === 0) return evaluate(state, color, weights);
   if (Date.now() > deadline) {
     timedOut.timedOut = true;
-    return evaluate(state, color);
+    return evaluate(state, color, weights);
   }
 
   const ordered = orderActions(state, toMove, enumerateActions(state, toMove));
-  if (ordered.length === 0) return evaluate(state, color);
+  if (ordered.length === 0) return evaluate(state, color, weights);
 
   const maximizing = toMove === color;
   let best = maximizing ? -Infinity : Infinity;
   for (const { next } of ordered) {
-    const score = minimax(next, color, opposite(toMove), depth - 1, alpha, beta, deadline, timedOut);
+    const score = minimax(next, color, opposite(toMove), depth - 1, alpha, beta, deadline, timedOut, weights);
     if (maximizing) {
       best = Math.max(best, score);
       alpha = Math.max(alpha, best);
@@ -108,6 +109,7 @@ export function search(
   deadline: number,
   noise = 0,
   maxDepth = Infinity,
+  weights: Weights = DEFAULT_WEIGHTS,
 ): SearchResult {
   const rootActions = orderActions(state, color, enumerateActions(state, color));
   if (rootActions.length === 0) throw new Error('no legal actions for bot');
@@ -126,7 +128,7 @@ export function search(
         completed = false;
         break;
       }
-      const score = minimax(next, color, opposite(color), depth - 1, -Infinity, Infinity, deadline, timedOut);
+      const score = minimax(next, color, opposite(color), depth - 1, -Infinity, Infinity, deadline, timedOut, weights);
       // Noise is applied once per root candidate here, not per leaf inside
       // minimax — jittering every leaf and taking the max/min over many
       // noisy samples systematically inflates scores (grows with subtree
