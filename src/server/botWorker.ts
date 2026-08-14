@@ -10,9 +10,9 @@ import type { Action, Color, GameState } from '../game/types';
 // random-move play (see randomFallback below) with only a console.error to
 // notice.
 const WORKER_FILE_URL = new URL('./botWorkerThread.ts', import.meta.url).href;
-// Hard ceiling above the largest difficulty budget (hard = 3000ms), so a
+// Hard ceiling above the largest difficulty budget (hard = 6000ms), so a
 // stuck search can never hang a room indefinitely.
-const WORKER_TIMEOUT_MS = 5000;
+const WORKER_TIMEOUT_MS = 8000;
 
 // Simple concurrency cap: an unbounded number of hard-difficulty bot rooms
 // (each spawning a full-CPU worker thread for up to 3s) could otherwise pin

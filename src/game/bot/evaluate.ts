@@ -14,23 +14,82 @@ const PIECE_VALUE: Record<PieceType, number> = {
 };
 
 const MOBILITY_WEIGHT = 0.5;
-const LASER_HIT_WEIGHT = 25;
-const LASER_PHARAOH_WEIGHT = LASER_HIT_WEIGHT * 4;
+
+// Offense (color's own laser threatening the enemy) is weighted above
+// defense (enemy's laser threatening color) so the bot is rewarded more for
+// pressing an attack than for merely not being under threat — without this
+// split, sitting still and staying safe scored the same as advancing, so
+// the search had no reason to prefer the latter. Kept modest (not e.g. 2x)
+// so the bot still avoids feeding pieces to the enemy laser.
+const OFFENSE_LASER_HIT_WEIGHT = 32;
+const OFFENSE_LASER_PHARAOH_WEIGHT = OFFENSE_LASER_HIT_WEIGHT * 4;
+const DEFENSE_LASER_HIT_WEIGHT = 22;
+const DEFENSE_LASER_PHARAOH_WEIGHT = DEFENSE_LASER_HIT_WEIGHT * 4;
 
 // Score of firing `fromColor`'s laser right now, from `perspective`'s point
 // of view. Positive if it would hit an enemy-of-perspective piece, negative
 // if it would hit perspective's own piece (friendly fire) — fireLaser()
 // doesn't filter by color, so this check is required.
-function laserScoreFor(state: GameState, fromColor: Color, perspective: Color): number {
+function laserScoreFor(
+  state: GameState,
+  fromColor: Color,
+  perspective: Color,
+  hitWeight: number,
+  pharaohWeight: number,
+): number {
   const { hit } = fireLaser(state.board, fromColor);
   if (!hit) return 0;
-  const weight = hit.piece.type === 'pharaoh' ? LASER_PHARAOH_WEIGHT : LASER_HIT_WEIGHT;
+  const weight = hit.piece.type === 'pharaoh' ? pharaohWeight : hitWeight;
   const hitsEnemy = hit.piece.color !== perspective;
   return hitsEnemy ? weight : -weight;
 }
 
 function laserExposure(state: GameState, color: Color): number {
-  return laserScoreFor(state, color, color) + laserScoreFor(state, opposite(color), color);
+  const offense = laserScoreFor(state, color, color, OFFENSE_LASER_HIT_WEIGHT, OFFENSE_LASER_PHARAOH_WEIGHT);
+  const defense = laserScoreFor(
+    state,
+    opposite(color),
+    color,
+    DEFENSE_LASER_HIT_WEIGHT,
+    DEFENSE_LASER_PHARAOH_WEIGHT,
+  );
+  return offense + defense;
+}
+
+const PHARAOH_PROXIMITY_WEIGHT = 8;
+// Board is 10 wide (x 0..9) x 8 tall (y 0..7); this bounds any Manhattan
+// distance on it.
+const MAX_LASER_DISTANCE = 10 + 8;
+
+function findPharaoh(state: GameState, color: Color): { x: number; y: number } | null {
+  for (let y = 0; y < state.board.length; y++) {
+    for (let x = 0; x < state.board[y].length; x++) {
+      const piece = state.board[y][x];
+      if (piece?.type === 'pharaoh' && piece.color === color) return { x, y };
+    }
+  }
+  return null;
+}
+
+// Rewards `color`'s laser path passing near the enemy pharaoh even when it
+// doesn't hit it this turn, so the search prefers repositioning the laser
+// toward an exposed king over an aimless safe move — without this, only an
+// immediate hit had any value, so the bot never built up pressure. Skipped
+// when the laser already hits the pharaoh (laserExposure's pharaoh weight
+// covers that case).
+function pharaohProximityBonus(state: GameState, color: Color): number {
+  const { path, hit } = fireLaser(state.board, color);
+  if (hit?.piece.type === 'pharaoh') return 0;
+  const enemyPharaoh = findPharaoh(state, opposite(color));
+  if (!enemyPharaoh || path.length === 0) return 0;
+
+  let minDist = Infinity;
+  for (const point of path) {
+    const dist = Math.abs(point.x - enemyPharaoh.x) + Math.abs(point.y - enemyPharaoh.y);
+    if (dist < minDist) minDist = dist;
+  }
+  if (!Number.isFinite(minDist)) return 0;
+  return PHARAOH_PROXIMITY_WEIGHT * (1 - minDist / MAX_LASER_DISTANCE);
 }
 
 function mobility(state: GameState, color: Color): number {
@@ -48,5 +107,5 @@ export function evaluate(state: GameState, color: Color): number {
       material += piece.color === color ? value : -value;
     }
   }
-  return material + mobility(state, color) + laserExposure(state, color);
+  return material + mobility(state, color) + laserExposure(state, color) + pharaohProximityBonus(state, color);
 }

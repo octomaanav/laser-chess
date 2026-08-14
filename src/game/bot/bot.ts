@@ -6,14 +6,14 @@ import type { Action, Color, GameState } from '../types';
 // budget, eval noise, and max search depth differ. Easy adds noise so it
 // doesn't always play the objectively-best move (reads as "beatable," not
 // "broken"). A time budget alone barely separates the tiers in practice —
-// depth cost grows roughly 83x per ply in this game, so 300ms/1000ms/3000ms
-// budgets mostly land at the same depth on typical hardware. An explicit
+// depth cost grows roughly 83x per ply in this game, so a shared time budget
+// alone mostly lands at the same depth on typical hardware. An explicit
 // per-tier depth cap makes the tiers meaningfully distinct regardless of
 // hardware speed; hard is left uncapped (limited only by its time budget).
 const BUDGET_MS: Record<Difficulty, number> = {
   easy: 300,
   medium: 1000,
-  hard: 3000,
+  hard: 6000,
 };
 const NOISE: Record<Difficulty, number> = {
   easy: 15,
