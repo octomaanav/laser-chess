@@ -28,6 +28,14 @@ const TUNE_DEPTH = 3;
 // determinism so each generation actually samples a different midgame
 // instead of replaying the same fixed forced lines.
 const RANDOM_OPENING_PLIES = 6;
+// Each (setup, mutant-color) matchup is replayed this many times with a
+// fresh random opening each time. At REPEATS=1 (8 games/match total), many
+// "ADOPTED" mutations won by exactly 4.5/8 games — right at the 55%
+// threshold, well within noise for an 8-sample match. Bumping repeats
+// trades runtime for a match size where a marginal win rate reflects an
+// actual difference in strength rather than which side got the luckier
+// random opening.
+const REPEATS = 3;
 
 type WeightKey = keyof Weights;
 const WEIGHT_KEYS = Object.keys(DEFAULT_WEIGHTS) as WeightKey[];
@@ -87,13 +95,15 @@ function playGame(weightsA: Weights, weightsB: Weights, setupName: string, aColo
 // the mutant's weaker color assignment against the current-best's stronger
 // one (or vice versa) on the same setups every generation. Enumerating
 // setup x color explicitly guarantees every unique matchup is covered.
-const MATCH_GAMES = DEFAULT_SETUPS.length * 2;
+const MATCH_GAMES = DEFAULT_SETUPS.length * 2 * REPEATS;
 
 function playMatch(mutant: Weights, current: Weights): number {
   let mutantScore = 0;
   for (const setup of DEFAULT_SETUPS) {
-    mutantScore += playMatchGame(mutant, current, true, setup.name);
-    mutantScore += playMatchGame(mutant, current, false, setup.name);
+    for (let r = 0; r < REPEATS; r++) {
+      mutantScore += playMatchGame(mutant, current, true, setup.name);
+      mutantScore += playMatchGame(mutant, current, false, setup.name);
+    }
   }
   return mutantScore / MATCH_GAMES;
 }
