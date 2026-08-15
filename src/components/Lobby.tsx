@@ -15,7 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MatchmakingModal from './MatchmakingModal';
 import Navbar from './Navbar';
 import RankBadge from './RankBadge';
-import { AUTHOR_NAME, AUTHOR_URL } from '@/lib/site';
+import TutorialModal from './tutorials/TutorialModal';
+import { LASER_CHESS_TUTORIAL_STEPS } from './tutorials/laserChessTutorial';
+import { AUTHOR_NAME, AUTHOR_URL, CO_AUTHOR_NAME, CO_AUTHOR_URL } from '@/lib/site';
 import { useSocial } from '@/client/social/SocialProvider';
 
 const PERKS = [
@@ -29,7 +31,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
   const [setup, setSetup] = useState('Classic');
   const [color, setColor] = useState<'random' | 'silver' | 'red'>('random');
   const [code, setCode] = useState('');
-  const [showRules, setShowRules] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [invited, setInvited] = useState(false);
   const [names, setNames] = useState<string[]>(SETUP_NAMES);
   const [perMove, setPerMove] = useState(0); // minutes per move; 0 = no timer
@@ -115,34 +117,16 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
               ))}
             </ul>
             <div className="mt-6">
-              <Button variant="link" className="h-auto p-0 text-laser" onClick={() => setShowRules((s) => !s)}>
-                How to play {showRules ? '▴' : '▾'}
+              <Button variant="link" className="h-auto p-0 text-laser" onClick={() => setTutorialOpen(true)}>
+                How to play →
               </Button>
-              {showRules && (
-                <div className="mt-3 space-y-2 rounded-xl border border-border bg-card/60 p-4 text-left text-[13px] leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-top-1">
-                  <p>
-                    Each turn: <b className="text-foreground">move</b> a piece one square or{' '}
-                    <b className="text-foreground">rotate</b> it 90°. Then your laser fires automatically from your Sphinx.
-                  </p>
-                  <ul className="list-disc space-y-1 pl-5">
-                    <li>
-                      <b className="text-foreground">Pharaoh:</b> your king. If a laser hits it, you lose.
-                    </li>
-                    <li>
-                      <b className="text-foreground">Pyramid:</b> single mirror; deflects 90°. Hit flat and it&apos;s gone.
-                    </li>
-                    <li>
-                      <b className="text-foreground">Scarab:</b> double mirror; never dies. Can swap with a neighbor.
-                    </li>
-                    <li>
-                      <b className="text-foreground">Anubis:</b> shielded in front; vulnerable from side or back.
-                    </li>
-                    <li>
-                      <b className="text-foreground">Sphinx:</b> your laser cannon in the corner. Rotate only.
-                    </li>
-                  </ul>
-                </div>
-              )}
+              <TutorialModal
+                open={tutorialOpen}
+                onOpenChange={setTutorialOpen}
+                gameTitle="Laser Chess"
+                steps={LASER_CHESS_TUTORIAL_STEPS}
+                theme="laser"
+              />
             </div>
           </div>
 
@@ -368,6 +352,15 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
             className="font-semibold text-foreground underline decoration-laser/50 underline-offset-4 transition-colors hover:text-laser"
           >
             {AUTHOR_NAME}
+          </a>{' '}
+          &{' '}
+          <a
+            href={CO_AUTHOR_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground underline decoration-laser/50 underline-offset-4 transition-colors hover:text-laser"
+          >
+            {CO_AUTHOR_NAME}
           </a>
         </span>
       </footer>

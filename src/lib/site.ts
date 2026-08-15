@@ -11,6 +11,8 @@ export const SITE_DESCRIPTION =
 
 export const AUTHOR_NAME = 'Manav';
 export const AUTHOR_URL = process.env.NEXT_PUBLIC_AUTHOR_URL || 'https://manav-dev.web.app/';
+export const CO_AUTHOR_NAME = 'Tanmay';
+export const CO_AUTHOR_URL = process.env.NEXT_PUBLIC_CO_AUTHOR_URL || 'https://github.com/TanMan138';
 export const FEEDBACK_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'maanav.vashist@gmail.com';
 
 

@@ -1,12 +1,17 @@
 'use client';
 
 import React from 'react';
+import { HelpCircle } from 'lucide-react';
 import AccountMenu from './AccountMenu';
+import { Button } from './ui/button';
 import FeedbackModal from './FeedbackModal';
 import FriendsMenu from './FriendsMenu';
 import ThemeToggle from './ThemeToggle';
 import LogoMark from './LogoMark';
 import CoupLogoMark from './coup/CoupLogoMark';
+import TutorialModal from './tutorials/TutorialModal';
+import { LASER_CHESS_TUTORIAL_STEPS } from './tutorials/laserChessTutorial';
+import { COUP_TUTORIAL_STEPS } from './tutorials/coupTutorial';
 import { SITE_NAME } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +45,8 @@ export default function Navbar({
 
   const defaultTitle = isCoup ? 'Coup' : isLaser ? 'Laser Chess' : SITE_NAME;
   const resolvedTitle = title || defaultTitle;
+
+  const [tutorialOpen, setTutorialOpen] = React.useState(false);
 
   return (
     <header
@@ -92,6 +99,29 @@ export default function Navbar({
           >
             ← All games
           </a>
+        )}
+
+        {(isLaser || isCoup) && (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTutorialOpen(true)}
+              className={cn(
+                isCoup ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]' : undefined
+              )}
+            >
+              <HelpCircle className="size-4" />
+              <span className="hidden sm:inline">How to play</span>
+            </Button>
+            <TutorialModal
+              open={tutorialOpen}
+              onOpenChange={setTutorialOpen}
+              gameTitle={resolvedTitle}
+              steps={isCoup ? COUP_TUTORIAL_STEPS : LASER_CHESS_TUTORIAL_STEPS}
+              theme={isCoup ? 'coup' : 'laser'}
+            />
+          </>
         )}
 
         <FeedbackModal
