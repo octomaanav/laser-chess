@@ -8,6 +8,7 @@ choice to lean into algorithmic depth (search, pruning, tuning) rather than
 an ML pipeline, given the scope of the project.
 
 ## Difficulty tiers
+
 All three difficulties run the identical search and evaluation code
 ([`bot.ts`](../src/game/bot/bot.ts)) - only the time budget, a per-tier depth
 cap, and score noise differ:
