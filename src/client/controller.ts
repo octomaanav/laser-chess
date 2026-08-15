@@ -85,6 +85,16 @@ interface HistoryEntry {
   laser: LaserPoint[] | null; // laser path fired by this move (for replay)
 }
 
+// Undo `action`, which produced `boardBefore` when applied. Used to animate a
+// history "step back" as the piece sliding/rotating back to where it came from.
+function reverseAction(action: Action, boardBefore: Board): Action {
+  if (action.type === 'move') {
+    return { type: 'move', x: action.tx, y: action.ty, tx: action.x, ty: action.y, swap: action.swap };
+  }
+  const orient = boardBefore[action.y][action.x]?.orient ?? action.orient;
+  return { type: 'rotate', x: action.x, y: action.y, orient, spin: action.spin ? ((-action.spin) as 1 | -1) : undefined };
+}
+
 export class GameController {
   private net = new Net<ServerMessage>(LASER_CHESS_WS_PATH);
   private renderer: Renderer | null = null;
@@ -479,16 +489,17 @@ export class GameController {
   reviewPrev() {
     if (this.busy || this.history.length <= 1) return; // don't interrupt a live move
     const last = this.history.length - 1;
-    // from live, the first ◀ replays the most recent move (the one you likely missed)
-    const target = this.reviewIndex == null ? last : Math.max(0, this.reviewIndex - 1);
-    this.enterReview(target);
+    // from live, the first ◀ replays the most recent move (the one you likely missed);
+    // stepping back further should animate in reverse, current -> previous
+    if (this.reviewIndex == null) this.enterReview(last, 'forward');
+    else this.enterReview(Math.max(0, this.reviewIndex - 1), 'backward');
   }
   reviewNext() {
     if (this.busy || this.reviewIndex == null) return;
     const last = this.history.length - 1;
     const target = this.reviewIndex + 1;
     if (target > last) this.reviewLive();
-    else this.enterReview(target);
+    else this.enterReview(target, 'forward');
   }
   reviewLive() {
     this.reviewIndex = null;
@@ -498,27 +509,49 @@ export class GameController {
     this.renderDisplayed();
     this.emit();
   }
-  private enterReview(idx: number) {
+  private enterReview(idx: number, dir: 'forward' | 'backward') {
     this.reviewIndex = idx;
     this.selected = null;
     this.renderer?.clearSelection();
     this.emit();
-    void this.playHistoryMove(idx);
+    void this.playHistoryMove(idx, dir);
   }
 
   private pause(ms: number): Promise<void> {
     return new Promise((res) => setTimeout(res, ms));
   }
 
-  // Replay move `idx` by animating from the previous position (piece slide/rotate,
-  // then the laser fired on that turn, then the capture).
-  private async playHistoryMove(idx: number) {
+  // Replay the transition into move `idx`. Forward: animate from the previous
+  // position into idx (piece slide/rotate, then the laser fired on that turn,
+  // then the capture). Backward: animate in reverse, from the move being
+  // undone (idx + 1) back to idx, so a "step back" visually moves backward.
+  private async playHistoryMove(idx: number, dir: 'forward' | 'backward') {
     const r = this.renderer;
     const seq = ++this.reviewSeq;
     if (!r) return;
     r.cancelAnimations();
     const h = this.history[idx];
     if (!h) return;
+
+    if (dir === 'backward') {
+      const acting = this.history[idx + 1];
+      if (!acting || !acting.action) {
+        r.setBoard(h.board, { flip: this.myColor === 'red' });
+        r.setReviewMark(idx === 0 ? null : h.action);
+        return;
+      }
+      r.setBoard(acting.board, { flip: this.myColor === 'red' }); // start from the position being undone
+      r.setReviewMark(null);
+      await this.pause(250);
+      if (seq !== this.reviewSeq) return;
+      const reversed = reverseAction(acting.action, h.board);
+      await r.animatePieceAction(reversed, acting.board, h.board, 550);
+      if (seq !== this.reviewSeq) return;
+      r.setBoardQuiet(h.board);
+      r.setReviewMark(idx === 0 ? null : h.action);
+      return;
+    }
+
     const prevEntry = this.history[idx - 1];
     // start position (or missing data) → just show it, no animation
     if (idx === 0 || !h.action || !prevEntry) {
@@ -549,10 +582,7 @@ export class GameController {
   private onPointer(e: PointerEvent) {
     const r = this.renderer;
     if (!r || !this.board) return;
-    if (this.reviewIndex != null) {
-      this.toast('Return to the live game to move');
-      return;
-    }
+    if (this.reviewIndex != null) this.reviewLive(); // clicking a piece snaps back to the live game
     if (this.busy || this.spectator || this.winner) return;
     const pick = r.pick(e.clientX, e.clientY);
     if (!pick) return this.deselect();
