@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Copy, Loader2, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Clock, Copy, Loader2, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color, PieceType } from '@/game/types';
 import { opposite } from '@/game/engine';
@@ -129,6 +129,15 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
         <div className="ml-auto flex items-center gap-2">
           <RankBadge rating={gameRank?.rating ?? null} size="sm" />
           <ThemeToggle />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => controller.toggleSound()}
+            title={view.soundNotifyEnabled ? 'Turn notifications on — click to mute' : 'Turn notifications muted — click to unmute'}
+            aria-label="Toggle turn notifications"
+          >
+            {view.soundNotifyEnabled ? <Bell className="size-4" /> : <BellOff className="size-4 text-muted-foreground" />}
+          </Button>
           <FriendsMenu />
           <Badge
             variant="outline"

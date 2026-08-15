@@ -41,6 +41,7 @@ export interface ViewState {
   rotations: { spin: 1 | -1 }[]; // rotation options for the selected piece (Action Panel)
   toast: { id: number; text: string } | null;
   captured: { red: PieceType[]; silver: PieceType[] }; // pieces each color has lost, in capture order
+  soundNotifyEnabled: boolean; // turn-notification chime/Notification when tab is hidden
 }
 
 // Laser Chess lives under its own route + WebSocket namespace within Game Night.
@@ -74,6 +75,7 @@ const INITIAL: ViewState = {
   rotations: [],
   toast: null,
   captured: { red: [], silver: [] },
+  soundNotifyEnabled: true,
 };
 function blank(): PlayerView {
   return { name: null, seated: false, online: false };
@@ -189,6 +191,7 @@ export class GameController {
       rotations: this.selected ? this.selectedRotations.map((r) => ({ spin: r.spin })) : [],
       toast: this.snapshot.toast,
       captured: this.capturedFor(),
+      soundNotifyEnabled: this.soundEnabled(),
     };
     for (const cb of this.listeners) cb();
   }
@@ -491,7 +494,57 @@ export class GameController {
     this.board = msg.board;
     this.turn = msg.turn;
     this.winner = msg.winner;
+    this.notifyIfMyTurn();
     this.emit();
+  }
+
+  // ---- turn notifications (sound + browser Notification when tab is hidden) -
+  soundEnabled(): boolean {
+    if (typeof window === 'undefined') return true;
+    return window.localStorage.getItem('lc_sound_muted') !== '1';
+  }
+  toggleSound() {
+    if (typeof window === 'undefined') return;
+    if (this.soundEnabled()) {
+      window.localStorage.setItem('lc_sound_muted', '1');
+    } else {
+      window.localStorage.removeItem('lc_sound_muted');
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') void Notification.requestPermission();
+    }
+    this.emit();
+  }
+  private notifyIfMyTurn() {
+    if (typeof document === 'undefined' || !document.hidden) return;
+    if (this.spectator || this.winner || !this.myColor || this.turn !== this.myColor) return;
+    if (!this.soundEnabled()) return;
+    this.playChime();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('Your move — Laser Chess', { body: 'It’s your turn.', icon: '/og.png', tag: 'laser-chess-turn' });
+    }
+  }
+  private playChime() {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      [880, 660].forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.type = 'sine';
+        o.frequency.value = freq;
+        const t = now + i * 0.16;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+        o.start(t);
+        o.stop(t + 0.32);
+      });
+      setTimeout(() => void ctx.close(), 600);
+    } catch {
+      // audio unsupported/blocked — silently skip, the visual game state is still accurate
+    }
   }
 
   // ---- move-history review (view-only; no undo) -----------------------------
