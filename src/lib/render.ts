@@ -126,6 +126,26 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
+// Mixes a #rrggbb color toward white by `amt` (0..1) — used to build the
+// piece sheen gradient without hand-picking a second color per palette.
+function lighten(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    b = n & 255;
+  const mix = (c: number) => Math.round(c + (255 - c) * amt);
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
+// Mixes a #rrggbb color toward black by `amt` (0..1).
+function darken(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    b = n & 255;
+  const mix = (c: number) => Math.round(c * (1 - amt));
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
+
 type Ctx = CanvasRenderingContext2D;
 type Pt = { x: number; y: number };
 
@@ -280,14 +300,13 @@ export class Renderer {
     roundRect(ctx, ox, oy, w, h, radius);
     ctx.clip();
 
-    // decorative hatching on each sphinx's home column
-    for (let y = 0; y < ROWS; y++) {
-      for (const x of [0, COLS - 1]) {
-        const p = this.toPx(x, y);
-        const sx = this.flip ? p.x - cell : p.x;
-        const sy = this.flip ? p.y - cell : p.y;
-        this.hatchCell(ctx, sx, sy, cell, HATCH[x === 0 ? 'red' : 'silver']);
-      }
+    // decorative hatching on each sphinx's home column — one continuous
+    // diagonal band per column, so the stripe phase never resets at row
+    // boundaries (a per-cell reset here would visibly stagger the stripes).
+    for (const x of [0, COLS - 1]) {
+      const p = this.toPx(x, 0);
+      const sx = this.flip ? p.x - cell : p.x;
+      this.hatchColumn(ctx, sx, oy, cell, h, HATCH[x === 0 ? 'red' : 'silver']);
     }
 
     // grid lines
@@ -312,17 +331,17 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private hatchCell(ctx: Ctx, sx: number, sy: number, cell: number, color: string) {
+  private hatchColumn(ctx: Ctx, sx: number, top: number, cell: number, height: number, color: string) {
     ctx.save();
     ctx.beginPath();
-    ctx.rect(sx, sy, cell, cell);
+    ctx.rect(sx, top, cell, height);
     ctx.clip();
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1.5, cell * 0.05);
     ctx.beginPath();
-    for (let d = -cell; d < cell * 2; d += cell * 0.3) {
-      ctx.moveTo(sx + d, sy);
-      ctx.lineTo(sx + d + cell, sy + cell);
+    for (let d = -height; d < cell + height; d += cell * 0.3) {
+      ctx.moveTo(sx + d, top);
+      ctx.lineTo(sx + d + height, top + height);
     }
     ctx.stroke();
     ctx.restore();
@@ -368,9 +387,11 @@ export class Renderer {
 
   drawPiece(ctx: Ctx, p: Piece, cx: number, cy: number, angle: number) {
     const s = this.geom.cell;
-    const fill = FILL[p.color];
     ctx.save();
     ctx.translate(cx, cy);
+    // Fixed screen-space light (not rotated with the piece) so orientation
+    // changes don't flip the highlight — subtle sheen instead of flat fill.
+    const fill = this.pieceFill(ctx, s, FILL[p.color]);
     ctx.rotate(p.type === 'pharaoh' ? 0 : angle); // crown always upright
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
@@ -385,6 +406,16 @@ export class Renderer {
   private lw(s: number) {
     return Math.max(2, s * 0.05);
   }
+  // Subtle top-left → bottom-right sheen instead of a flat fill, so pieces
+  // read with a bit of depth. Gradient is built in screen space (before the
+  // piece's own rotate), so the highlight stays fixed as pieces turn.
+  private pieceFill(ctx: Ctx, s: number, base: string): CanvasGradient {
+    const g = ctx.createLinearGradient(-s * 0.36, -s * 0.36, s * 0.36, s * 0.36);
+    g.addColorStop(0, lighten(base, 0.22));
+    g.addColorStop(0.55, base);
+    g.addColorStop(1, darken(base, 0.14));
+    return g;
+  }
   private line(ctx: Ctx, x1: number, y1: number, x2: number, y2: number) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -392,7 +423,7 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private _pyramid(ctx: Ctx, s: number, fill: string) {
+  private _pyramid(ctx: Ctx, s: number, fill: CanvasGradient) {
     const h = s * 0.38;
     ctx.beginPath();
     ctx.moveTo(-h, -h);
@@ -411,7 +442,7 @@ export class Renderer {
     this.line(ctx, -h * 0.7 - o, -h * 0.7 + o, h * 0.7 - o, h * 0.7 + o);
   }
 
-  private _scarab(ctx: Ctx, s: number, fill: string) {
+  private _scarab(ctx: Ctx, s: number, fill: CanvasGradient) {
     const a = s * 0.32,
       t = s * 0.26;
     ctx.lineCap = 'round';
@@ -427,7 +458,7 @@ export class Renderer {
     this.line(ctx, -a * 0.66 + o / SQ2, -a * 0.66 - o / SQ2, a * 0.66 + o / SQ2, a * 0.66 - o / SQ2);
   }
 
-  private _anubis(ctx: Ctx, s: number, fill: string) {
+  private _anubis(ctx: Ctx, s: number, fill: CanvasGradient) {
     const w = s * 0.32,
       top = -s * 0.34,
       bot = s * 0.34,
@@ -452,7 +483,7 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private _pharaoh(ctx: Ctx, s: number, fill: string) {
+  private _pharaoh(ctx: Ctx, s: number, fill: CanvasGradient) {
     const W = s * 0.34,
       base = s * 0.16,
       midTop = -s * 0.3,
@@ -483,7 +514,7 @@ export class Renderer {
     this.line(ctx, -W * 0.85, base + s * 0.11, W * 0.85, base + s * 0.11);
   }
 
-  private _sphinx(ctx: Ctx, s: number, fill: string) {
+  private _sphinx(ctx: Ctx, s: number, fill: CanvasGradient) {
     const R = s * 0.3;
     roundRect(ctx, -R, -R, R * 2, R * 2, R * 0.55);
     ctx.fillStyle = fill;

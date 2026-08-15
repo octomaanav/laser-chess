@@ -90,6 +90,88 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
 }
 
+/* ============================================================================
+   Coup — "warm tabletop" theme, scoped so it never leaks into Laser Chess.
+   Character colors are identical in both themes (they're the accent system);
+   only the neutral surfaces (table/panel/text) swap for contrast.
+   ========================================================================= */
+[data-game='coup'] {
+  --coup-table-bg: #f0e6d2;
+  --coup-panel-bg: #fff8ea;
+  --coup-panel-border: rgba(35, 30, 20, 0.14);
+  --coup-text: #2a2417;
+  --coup-text-muted: #8a7f66;
+  --coup-gold: #c99a3d;
+  --coup-gold-dark: #9c7527;
+  --coup-danger: #b3392a;
+  --coup-success: #3f7d4f;
+  --coup-duke: #6e3578;
+  --coup-assassin: #4b4d54;
+  --coup-captain: #2d4178;
+  --coup-contessa: #a84c35;
+  --coup-ambassador: #4b8c5c;
+  --coup-glow-ring: 0 0 0 3px rgba(201, 154, 61, 0.45);
+  --coup-text-glow: none;
+  --coup-backdrop:
+    radial-gradient(58rem 42rem at 8% -10%, color-mix(in oklab, var(--coup-gold) 12%, transparent), transparent 60%),
+    radial-gradient(50rem 40rem at 104% 108%, color-mix(in oklab, var(--coup-danger) 10%, transparent), transparent 58%),
+    linear-gradient(to right, rgba(35, 30, 20, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(35, 30, 20, 0.035) 1px, transparent 1px);
+}
+
+.dark [data-game='coup'] {
+  --coup-table-bg: #15130f;
+  --coup-panel-bg: #1e1a14;
+  --coup-panel-border: rgba(255, 245, 225, 0.1);
+  --coup-text: #f3ead9;
+  --coup-text-muted: #a89a7d;
+  --coup-gold: #e0b354;
+  --coup-gold-dark: #a97f2e;
+  --coup-text-glow: 0 0 22px color-mix(in oklab, var(--coup-gold) 55%, transparent);
+  --coup-backdrop:
+    radial-gradient(58rem 42rem at 8% -10%, color-mix(in oklab, var(--coup-gold) 10%, transparent), transparent 60%),
+    radial-gradient(50rem 40rem at 104% 4%, color-mix(in oklab, var(--coup-danger) 10%, transparent), transparent 58%),
+    linear-gradient(to right, rgba(255, 245, 225, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 245, 225, 0.02) 1px, transparent 1px);
+  --coup-danger: #ff6b57;
+  --coup-success: #7fd08a;
+  --coup-glow-ring: 0 0 12px 2px rgba(224, 179, 84, 0.55);
+}
+
+@keyframes coup-float-up {
+  0% { opacity: 0; transform: translateY(4px) scale(0.9); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-28px) scale(1); }
+}
+
+@keyframes coup-treasury-pay {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+
+@keyframes coup-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+@keyframes coup-card-flip {
+  0% { transform: rotateY(0deg); }
+  50% { transform: rotateY(90deg); }
+  100% { transform: rotateY(0deg); }
+}
+
+@keyframes coup-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 154, 61, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(201, 154, 61, 0); }
+}
+
+@keyframes coup-disconnected-pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0.4; }
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -131,7 +213,7 @@
   }
   html,
   body {
-    height: 100%;
+    min-height: 100%;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
@@ -153,6 +235,129 @@
 }
 @utility text-glow {
   text-shadow: var(--text-glow);
+}
+
+/* ---- rank change celebration (RankUpModal) ------------------------------
+   The modal sets --rank to the tier colour (see game/ranking.ts) and these
+   classes derive everything from it. The palette is picked for the dark theme,
+   so the light rules mix it toward ink/paper to keep contrast usable. */
+.rank-ink {
+  color: color-mix(in oklab, var(--rank) 55%, #14161c);
+}
+.rank-wash {
+  background: radial-gradient(50% 60% at 50% 50%, color-mix(in oklab, var(--rank) 26%, transparent), transparent 70%);
+}
+.rank-face {
+  background:
+    radial-gradient(70% 70% at 50% 26%, color-mix(in oklab, var(--rank) 26%, transparent), transparent 72%),
+    color-mix(in oklab, var(--rank) 14%, var(--card));
+  border: 2px solid color-mix(in oklab, var(--rank) 45%, var(--border));
+  box-shadow:
+    0 8px 24px rgba(80, 60, 30, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.rank-rim {
+  border-color: color-mix(in oklab, var(--rank) 26%, transparent);
+}
+.rank-ring {
+  border-color: color-mix(in oklab, var(--rank) 65%, transparent);
+}
+.rank-spark {
+  background: var(--rank);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--rank) 70%, transparent);
+}
+.rank-seg {
+  background: color-mix(in oklab, var(--rank) 72%, #14161c);
+}
+
+.dark .rank-ink {
+  color: var(--rank);
+}
+.dark .rank-headline {
+  text-shadow: 0 0 24px color-mix(in oklab, var(--rank) 35%, transparent);
+}
+.dark .rank-wash {
+  background: radial-gradient(50% 60% at 50% 50%, color-mix(in oklab, var(--rank) 40%, transparent), transparent 70%);
+}
+.dark .rank-face {
+  background:
+    radial-gradient(70% 70% at 50% 26%, color-mix(in oklab, var(--rank) 32%, transparent), transparent 78%),
+    color-mix(in oklab, var(--rank) 10%, var(--card));
+  border-color: color-mix(in oklab, var(--rank) 60%, transparent);
+  box-shadow:
+    0 0 46px color-mix(in oklab, var(--rank) 30%, transparent),
+    0 2px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 color-mix(in oklab, var(--rank) 50%, transparent),
+    inset 0 0 30px color-mix(in oklab, var(--rank) 15%, transparent);
+}
+.dark .rank-rim {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.dark .rank-seg {
+  background: var(--rank);
+}
+
+@keyframes rank-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-10deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.1) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+/* halo expanding out of the medal, like a shockwave */
+@keyframes rank-ring {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+@keyframes rank-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+/* one-shot gloss sweeping across the medal face */
+@keyframes rank-sheen {
+  0% {
+    opacity: 0;
+    transform: translateX(-130%) skewX(-20deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(230%) skewX(-20deg);
+  }
+}
+/* each --dx/--dy pair sends one spark on its own outward path */
+@keyframes rank-spark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.3);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1);
+  }
 }
 
 /* thin cyan scrollbars to match the theme */

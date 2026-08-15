@@ -11,10 +11,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AccountMenu from './AccountMenu';
 import FriendsMenu from './FriendsMenu';
 import LogoMark from './LogoMark';
+import MatchmakingModal from './MatchmakingModal';
+import RankBadge from './RankBadge';
 import ThemeToggle from './ThemeToggle';
+import { useSocial } from '@/client/social/SocialProvider';
 
 const PERKS = [
   { c: 'bg-laser/15 border-laser/60', t: 'No account needed — just share a link or code' },
@@ -22,7 +26,7 @@ const PERKS = [
   { c: 'bg-player-teal/15 border-player-teal/60', t: 'Spectators, live presence, reconnect & move timers' },
 ];
 
-export default function Lobby({ controller, view }: { controller: GameController; view: ViewState }) {
+export default function Lobby({ controller, gameSlug }: { controller: GameController; view: ViewState; gameSlug: string }) {
   const [name, setName] = useState('');
   const [setup, setSetup] = useState('Classic');
   const [color, setColor] = useState<'random' | 'silver' | 'red'>('random');
@@ -32,7 +36,14 @@ export default function Lobby({ controller, view }: { controller: GameController
   const [names, setNames] = useState<string[]>(SETUP_NAMES);
   const [perMove, setPerMove] = useState(0); // minutes per move; 0 = no timer
   const [botDifficulty, setBotDifficulty] = useState<Difficulty | null>(null);
+  const [matchmaking, setMatchmaking] = useState(false);
   const { user } = useSession();
+  const social = useSocial();
+  const gameRank = social?.rankInfo?.[gameSlug] ?? null;
+
+  useEffect(() => {
+    if (user) social?.refreshRank(gameSlug);
+  }, [user, gameSlug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Signed-in players always play under their account's display name.
   useEffect(() => {
@@ -54,7 +65,7 @@ export default function Lobby({ controller, view }: { controller: GameController
       .then((d: { setups: { name: string }[] }) => {
         if (Array.isArray(d.setups) && d.setups.length) setNames(d.setups.map((s) => s.name));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [controller]);
 
   const create = () => {
@@ -153,123 +164,204 @@ export default function Lobby({ controller, view }: { controller: GameController
           {/* play card */}
           <Card className="glow-primary relative mx-auto w-full max-w-md border-border/70 bg-card/80 backdrop-blur">
             <CardContent className="flex flex-col gap-4">
-              <div>
-                <h2 className="font-display text-2xl font-bold tracking-tight">{invited ? 'Join the game' : 'New game'}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {invited ? `You're invited to ${code}. Enter a name and join.` : 'Set it up, then share the link.'}
-                </p>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label htmlFor="name">Your name</Label>
-                <Input
-                  id="name"
-                  maxLength={24}
-                  placeholder="Player"
-                  value={name}
-                  readOnly={!!user}
-                  onChange={(e) => setName(e.target.value)}
-                />
-                {user && (
-                  <p className="text-xs text-muted-foreground">
-                    Playing as your account name.{' '}
-                    <a className="text-laser hover:underline" href="/account">
-                      Change in Account
-                    </a>
-                    .
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label>Board</Label>
-                  <Select value={setup} onValueChange={setSetup}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {names.map((n) => (
-                        <SelectItem key={n} value={n}>
-                          {n}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Play as</Label>
-                  <Select value={color} onValueChange={(v) => setColor(v as 'random' | 'silver' | 'red')}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="random">Random</SelectItem>
-                      <SelectItem value="silver">Teal (moves first)</SelectItem>
-                      <SelectItem value="red">Red</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label>Time per move</Label>
-                <Select value={String(perMove)} onValueChange={(v) => setPerMove(Number(v))}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">No timer</SelectItem>
-                    <SelectItem value="1">1 minute</SelectItem>
-                    <SelectItem value="2">2 minutes</SelectItem>
-                    <SelectItem value="3">3 minutes</SelectItem>
-                    <SelectItem value="5">5 minutes</SelectItem>
-                    <SelectItem value="10">10 minutes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-1.5">
-                <Label>Opponent</Label>
-                <Select
-                  value={botDifficulty ?? 'human'}
-                  onValueChange={(v) => setBotDifficulty(v === 'human' ? null : (v as Difficulty))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="human">Another player</SelectItem>
-                    <SelectItem value="easy">Bot — Easy</SelectItem>
-                    <SelectItem value="medium">Bot — Medium</SelectItem>
-                    <SelectItem value="hard">Bot — Hard</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button size="lg" className="glow-primary mt-1 w-full font-semibold" onClick={create}>
-                {botDifficulty ? 'Play vs Bot' : 'Create game & get share link'} <ArrowRight className="size-4" />
-              </Button>
-
-              <div className="relative my-1 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="h-px flex-1 bg-border" />
-                or join a game
-                <span className="h-px flex-1 bg-border" />
-              </div>
-
-              <div className="flex gap-2.5">
-                <Input
-                  maxLength={5}
-                  placeholder="CODE"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && join()}
-                  className="text-center font-mono text-base font-bold uppercase tracking-[0.35em]"
-                />
-                <Button variant="secondary" onClick={join}>
-                  Join
-                </Button>
-              </div>
+              {invited ? (
+                <>
+                  <div>
+                    <h2 className="font-display text-2xl font-bold tracking-tight">Join the game</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      You're invited to {code}. Enter a name and join.
+                    </p>
+                  </div>
+                  <div className="grid gap-1.5 mt-2">
+                    <Label htmlFor="name">Your name</Label>
+                    <Input
+                      id="name"
+                      maxLength={24}
+                      placeholder="Player"
+                      value={name}
+                      readOnly={!!user}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                    {user && (
+                      <p className="text-xs text-muted-foreground">
+                        Playing as your account name.{' '}
+                        <a className="text-laser hover:underline" href="/account">
+                          Change in Account
+                        </a>
+                        .
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2.5 mt-4">
+                    <Input
+                      maxLength={5}
+                      placeholder="CODE"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === 'Enter' && join()}
+                      className="text-center font-mono text-base font-bold uppercase tracking-[0.35em]"
+                    />
+                    <Button variant="secondary" onClick={join}>
+                      Join
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <Tabs defaultValue="casual" className="w-full mt-2">
+                  <TabsList className="grid w-full grid-cols-2 mb-6 h-12 rounded-xl">
+                    <TabsTrigger value="casual" className="text-base font-semibold h-full rounded-lg">Casual</TabsTrigger>
+                    <TabsTrigger value="ranked" className="text-base font-semibold h-full rounded-lg">Ranked</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="casual" className="flex flex-col gap-4">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="name">Your name</Label>
+                      <Input
+                        id="name"
+                        maxLength={24}
+                        placeholder="Player"
+                        value={name}
+                        readOnly={!!user}
+                        onChange={(e) => setName(e.target.value)}
+                      />
+                      {user && (
+                        <p className="text-xs text-muted-foreground">
+                          Playing as your account name.{' '}
+                          <a className="text-laser hover:underline" href="/account">
+                            Change in Account
+                          </a>
+                          .
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-1.5">
+                        <Label>Board</Label>
+                        <Select value={setup} onValueChange={setSetup}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {names.map((n) => (
+                              <SelectItem key={n} value={n}>
+                                {n}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>Play as</Label>
+                        <Select value={color} onValueChange={(v) => setColor(v as 'random' | 'silver' | 'red')}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="random">Random</SelectItem>
+                            <SelectItem value="silver">Teal (moves first)</SelectItem>
+                            <SelectItem value="red">Red</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Time per move</Label>
+                      <Select value={String(perMove)} onValueChange={(v) => setPerMove(Number(v))}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">No timer</SelectItem>
+                          <SelectItem value="1">1 minute</SelectItem>
+                          <SelectItem value="2">2 minutes</SelectItem>
+                          <SelectItem value="3">3 minutes</SelectItem>
+                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="10">10 minutes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>Opponent</Label>
+                      <Select
+                        value={botDifficulty ?? 'human'}
+                        onValueChange={(v) => setBotDifficulty(v === 'human' ? null : (v as Difficulty))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="human">Another player</SelectItem>
+                          <SelectItem value="easy">Bot — Easy</SelectItem>
+                          <SelectItem value="medium">Bot — Medium</SelectItem>
+                          <SelectItem value="hard">Bot — Hard</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button size="lg" className="glow-primary mt-1 w-full font-semibold" onClick={create}>
+                      {botDifficulty ? 'Play vs Bot' : 'Create game & get share link'} <ArrowRight className="size-4" />
+                    </Button>
+                    <div className="relative my-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="h-px flex-1 bg-border" />
+                      or join a game
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
+                    <div className="flex gap-2.5">
+                      <Input
+                        maxLength={5}
+                        placeholder="CODE"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => e.key === 'Enter' && join()}
+                        className="text-center font-mono text-base font-bold uppercase tracking-[0.35em]"
+                      />
+                      <Button variant="secondary" onClick={join}>
+                        Join
+                      </Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="ranked" className="flex flex-col gap-6 py-2">
+                    {user ? (
+                      <>
+                        <div className="flex flex-col items-center justify-center gap-4 text-center">
+                          <div className="rounded-2xl bg-muted/20 p-6 border border-border w-full flex items-center justify-center">
+                            <RankBadge rating={gameRank?.rating ?? null} size="md" />
+                          </div>
+                          <p className="text-sm text-muted-foreground px-2">
+                            Win games to climb the ranks. Each win promotes you 1 rank, each loss demotes you 1 rank.
+                          </p>
+                        </div>
+                        <Button
+                          size="lg"
+                          className="glow-primary w-full font-semibold"
+                          onClick={async () => {
+                            await fetch('/api/ranked/queue', {
+                              method: 'POST',
+                              headers: { 'content-type': 'application/json' },
+                              body: JSON.stringify({ gameSlug }),
+                            }).catch(() => { });
+                            setMatchmaking(true);
+                          }}
+                        >
+                          Find Ranked Match
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+                        <div className="rounded-full bg-muted/30 p-4 border border-border text-4xl">
+                          🏆
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Sign in to play ranked matches and climb the leaderboard.
+                        </p>
+                        <Button variant="outline" onClick={() => window.location.href = '/account'}>
+                          Sign in
+                        </Button>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -281,6 +373,8 @@ export default function Lobby({ controller, view }: { controller: GameController
           Edit starting configurations →
         </a>
       </footer>
+
+      {matchmaking && <MatchmakingModal gameSlug={gameSlug} onClose={() => setMatchmaking(false)} />}
     </section>
   );
 }

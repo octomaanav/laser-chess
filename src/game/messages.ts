@@ -17,6 +17,7 @@ export type ClientMessage =
   | { type: 'action'; action: Action }
   | { type: 'rematch'; setup?: string } // request or accept a rematch
   | { type: 'rematch-decline' } // decline / cancel a pending rematch
+  | { type: 'leave' } // deliberately quitting a live game — an immediate loss
   | { type: 'chat'; text: string };
 
 // ---- server → client -------------------------------------------------------

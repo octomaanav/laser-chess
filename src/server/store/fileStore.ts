@@ -4,13 +4,18 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SetupDef } from '../../game/types';
-import type { FriendEdge, OAuthIdentity, PersistedRoom, Store, User } from './types';
+import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, PlayerRating, Store, User } from './types';
 
 const dir = () => path.join(process.cwd(), 'data');
 const setupsFile = () => path.join(dir(), 'setups.json');
 const secretFile = () => path.join(dir(), 'adminSecret.json');
 const usersFile = () => path.join(dir(), 'users.json');
 const friendsFile = () => path.join(dir(), 'friends.json');
+const ratingsFile = () => path.join(dir(), 'ratings.json');
+
+interface RatingsData {
+  entries: PlayerRating[];
+}
 
 interface UsersData {
   users: Record<string, User>; // keyed by id
@@ -69,6 +74,14 @@ export class FileStore implements Store {
   async saveRoom(): Promise<void> {}
   async deleteRoom(): Promise<void> {}
   async sweepRooms(): Promise<void> {}
+
+  // coup rooms: not persisted in dev
+  async loadCoupRoom(): Promise<PersistedCoupRoom | null> {
+    return null;
+  }
+  async saveCoupRoom(): Promise<void> {}
+  async deleteCoupRoom(): Promise<void> {}
+  async sweepCoupRooms(): Promise<void> {}
 
   // users: persisted (accounts should outlive a dev restart, like setups)
   private readUsers(): UsersData {
@@ -150,5 +163,20 @@ export class FileStore implements Store {
         status: e.status,
         direction: e.requesterId === userId ? 'outgoing' : 'incoming',
       }));
+  }
+
+  // ratings
+  private readRatings(): RatingsData {
+    return readJSON<RatingsData>(ratingsFile(), { entries: [] });
+  }
+  async getRating(userId: string, gameSlug: string): Promise<PlayerRating | null> {
+    return this.readRatings().entries.find((e) => e.userId === userId && e.gameSlug === gameSlug) ?? null;
+  }
+  async upsertRating(r: PlayerRating): Promise<void> {
+    const data = this.readRatings();
+    const idx = data.entries.findIndex((e) => e.userId === r.userId && e.gameSlug === r.gameSlug);
+    if (idx >= 0) data.entries[idx] = r;
+    else data.entries.push(r);
+    writeJSON(ratingsFile(), data);
   }
 }

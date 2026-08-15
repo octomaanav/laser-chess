@@ -2,6 +2,7 @@
 // zero setup) and a Postgres backend (production, via DATABASE_URL).
 import type { Color, GameState, SetupDef } from '../../game/types';
 import type { Difficulty } from '../../game/bot/types';
+import type { CoupState } from '../../game/coup/types';
 
 export interface PersistedRoom {
   code: string;
@@ -13,6 +14,23 @@ export interface PersistedRoom {
   forfeitColor?: Color | null; // a disconnected player with a running forfeit clock
   forfeitDeadline?: number | null; // epoch ms the forfeit fires (survives restart)
   botDifficulty?: Partial<Record<Color, Difficulty>>; // which seat(s), if any, are bots
+  isRanked?: boolean;
+  rankedGameSlug?: string;
+  rankedUserIds?: { red: string | null; silver: string | null };
+  rankedSettled?: boolean; // rank already awarded — survives a restart so it can't be awarded twice
+}
+
+// Skill rating for one player in one game. `gameSlug` scopes ratings per game
+// so the same account can hold a separate rank in Laser Chess, Poker, etc.
+// `rating` is a rank index (see game/ranking.ts), not an Elo score.
+export interface PlayerRating {
+  userId: string;
+  gameSlug: string;
+  rating: number;
+  peakRating: number;
+  wins: number;
+  losses: number;
+  updatedAt: number; // epoch ms
 }
 
 // A registered account. `email` and `username` are stored already-lowercased so
@@ -33,6 +51,17 @@ export interface OAuthIdentity {
   provider: string; // 'google' | 'github'
   providerId: string; // the provider's stable user id (sub / numeric id)
   userId: string;
+}
+
+// A persisted Coup room (separate table/namespace from Laser Chess's rooms — see roomServer.ts).
+export interface PersistedCoupRoom {
+  code: string;
+  state: CoupState;
+  seats: string[]; // player ids in seat order
+  names: Record<string, string>;
+  responseDeadline: number | null; // epoch ms, survives restart
+  forfeitPlayerId: string | null;
+  forfeitDeadline: number | null;
 }
 
 // One side of a friendship as seen by a given user. `direction` only matters
@@ -58,6 +87,12 @@ export interface Store {
   deleteRoom(code: string): Promise<void>;
   sweepRooms(maxAgeMs: number): Promise<void>;
 
+  // Coup rooms (separate table/namespace from Laser Chess's rooms — see roomServer.ts)
+  loadCoupRoom(code: string): Promise<PersistedCoupRoom | null>;
+  saveCoupRoom(room: PersistedCoupRoom): Promise<void>;
+  deleteCoupRoom(code: string): Promise<void>;
+  sweepCoupRooms(maxAgeMs: number): Promise<void>;
+
   // user accounts (email/password + linked OAuth identities)
   createUser(user: User): Promise<void>;
   getUserById(id: string): Promise<User | null>;
@@ -73,4 +108,8 @@ export interface Store {
   acceptFriendRequest(addresseeId: string, requesterId: string): Promise<void>;
   deleteFriendship(userId: string, otherId: string): Promise<void>; // deny / cancel / unfriend
   listFriendships(userId: string): Promise<FriendEdge[]>;
+
+  // per-player rank indices, scoped per game slug
+  getRating(userId: string, gameSlug: string): Promise<PlayerRating | null>;
+  upsertRating(r: PlayerRating): Promise<void>;
 }

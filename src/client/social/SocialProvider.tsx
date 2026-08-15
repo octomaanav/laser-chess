@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useSession } from '@/client/useSession';
 import { getGame } from '@/lib/games';
 import { Net } from '@/lib/net';
+import RankUpModal from '@/components/RankUpModal';
 
 export interface SocialUser {
   id: string;
@@ -29,7 +30,22 @@ type SocialEvent =
   | { type: 'friend-request'; from: SocialUser }
   | { type: 'friend-accepted'; user: SocialUser }
   | { type: 'friend-removed'; userId: string }
-  | { type: 'game-invite'; from: SocialUser; gameSlug: string; code: string };
+  | { type: 'game-invite'; from: SocialUser; gameSlug: string; code: string }
+  | { type: 'ranked-matched'; code: string; gameSlug: string; opponent: SocialUser }
+  | { type: 'rating-updated'; gameSlug: string; newRating: number; delta: number; rankName: string };
+
+export interface RankInfo {
+  rating: number;
+  rank: string;
+}
+
+export type RankInfoMap = Record<string, RankInfo>;
+
+export interface RankTransition {
+  oldRating: number;
+  newRating: number;
+  gameSlug: string;
+}
 
 interface SocialContextValue {
   friends: SocialFriend[];
@@ -42,6 +58,10 @@ interface SocialContextValue {
   invite: (toUserId: string) => Promise<{ ok: boolean; error?: string }>;
   setGameContext: (ctx: GameContext | null) => void;
   canInvite: boolean;
+  rankInfo: RankInfoMap;
+  refreshRank: (gameSlug: string) => Promise<void>;
+  rankTransition: RankTransition | null;
+  clearRankTransition: () => void;
 }
 
 const SocialContext = createContext<SocialContextValue | null>(null);
@@ -56,6 +76,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [incoming, setIncoming] = useState<SocialUser[]>([]);
   const [outgoing, setOutgoing] = useState<SocialUser[]>([]);
   const [gameContext, setGameContext] = useState<GameContext | null>(null);
+  const [rankInfo, setRankInfo] = useState<RankInfoMap>({});
+  const [rankTransition, setRankTransition] = useState<RankTransition | null>(null);
+
+  const refreshRank = useCallback(async (gameSlug: string) => {
+    if (!user) return;
+    try {
+      const r = await fetch(`/api/ranked/rating?gameSlug=${encodeURIComponent(gameSlug)}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      setRankInfo((prev) => ({ ...prev, [gameSlug]: { rating: d.rating, rank: d.rank } }));
+    } catch {
+      /* offline */
+    }
+  }, [user]);
 
   const refresh = useCallback(async () => {
     try {
@@ -96,6 +130,17 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           });
           break;
         }
+        case 'ranked-matched':
+          // Navigate immediately — the room is already created server-side.
+          window.location.href = `/games/${m.gameSlug}?game=${m.code}`;
+          break;
+        case 'rating-updated': {
+          // delta 0 = already at the floor or ceiling; nothing to animate.
+          if (m.delta !== 0)
+            setRankTransition({ oldRating: m.newRating - m.delta, newRating: m.newRating, gameSlug: m.gameSlug });
+          setRankInfo((prev) => ({ ...prev, [m.gameSlug]: { rating: m.newRating, rank: m.rankName } }));
+          break;
+        }
       }
     },
     [refresh],
@@ -107,11 +152,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       setFriends([]);
       setIncoming([]);
       setOutgoing([]);
+      setRankInfo({});
       return;
     }
     void refresh();
     const net = new Net<SocialEvent>('/ws/social');
-    net.on('open', () => void refresh()); // resync presence after a (re)connect
+    net.on('open', () => { void refresh(); }); // resync after a (re)connect
     net.on('message', (m) => handleEvent(m));
     net.connect();
     const onVisible = () => {
@@ -190,9 +236,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       invite,
       setGameContext,
       canInvite: !!gameContext,
+      rankInfo,
+      refreshRank,
+      rankTransition,
+      clearRankTransition: () => setRankTransition(null),
     }),
-    [friends, incoming, outgoing, addFriend, respond, unfriend, invite, gameContext],
+    [friends, incoming, outgoing, addFriend, respond, unfriend, invite, gameContext, rankInfo, refreshRank, rankTransition],
   );
 
-  return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
+  return (
+    <SocialContext.Provider value={value}>
+      {children}
+      {rankTransition && (
+        <RankUpModal
+          oldRating={rankTransition.oldRating}
+          newRating={rankTransition.newRating}
+          gameSlug={rankTransition.gameSlug}
+          onClose={() => setRankTransition(null)}
+        />
+      )}
+    </SocialContext.Provider>
+  );
 }

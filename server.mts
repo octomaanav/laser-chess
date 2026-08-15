@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import next from 'next';
 import { GAME_WSS } from './src/server/games';
 import { socialHub } from './src/server/social/socialHub';
+import { matchmakingQueue } from './src/server/matchmaking';
 
 const dev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT || 3000);
@@ -37,6 +38,9 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
   }
 });
+
+const mmTick = setInterval(() => matchmakingQueue.tick(), 3000);
+server.on('close', () => clearInterval(mmTick));
 
 server.listen(port, () => {
   console.log(`\n  🎲 Game Night ${dev ? '(dev)' : ''} running at  http://localhost:${port}`);

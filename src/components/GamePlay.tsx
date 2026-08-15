@@ -15,7 +15,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import Board from './Board';
 import FriendsMenu from './FriendsMenu';
 import LogoMark, { PersonIcon } from './LogoMark';
+import RankBadge from './RankBadge';
 import ThemeToggle from './ThemeToggle';
+import { useSocial } from '@/client/social/SocialProvider';
 
 // Full, static class strings per player color (Tailwind can't see interpolated names).
 const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
@@ -33,16 +35,59 @@ const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
 const YOURS_TINT = 'border-laser/40 bg-laser/10 text-laser';
 
 const LEGEND = [
-  { color: '#f5b73f', name: 'Pharaoh', desc: 'protect it at all costs.' },
-  { color: 'var(--player-red)', name: 'Pyramid', desc: 'single mirror, deflects 90°.' },
-  { color: 'var(--player-teal)', name: 'Scarab', desc: 'double mirror, indestructible; can swap.' },
-  { color: '#64708a', name: 'Anubis', desc: 'shielded front, vulnerable behind.' },
-  { color: '#9aa6bd', name: 'Sphinx', desc: 'your laser; rotate only.' },
-];
+  { type: 'pharaoh', name: 'Pharaoh', desc: 'protect it at all costs.' },
+  { type: 'pyramid', name: 'Pyramid', desc: 'single mirror, deflects 90°.' },
+  { type: 'scarab', name: 'Scarab', desc: 'double mirror, indestructible; can swap.' },
+  { type: 'anubis', name: 'Anubis', desc: 'shielded front, vulnerable behind.' },
+  { type: 'sphinx', name: 'Sphinx', desc: 'your laser; rotate only.' },
+] as const;
 
-export default function GamePlay({ controller, view }: { controller: GameController; view: ViewState }) {
+// Small monochrome glyphs mirroring each piece's actual board silhouette —
+// a legend needs to teach shape recognition, not color (color already
+// means "whose piece", shown elsewhere via the player badges).
+function PieceGlyph({ type }: { type: (typeof LEGEND)[number]['type'] }) {
+  const common = { width: 14, height: 14, viewBox: '0 0 14 14', className: 'shrink-0 text-foreground' };
+  switch (type) {
+    case 'pharaoh':
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
+          <path d="M2 11.5V6l2.5 2.2L7 2.5l2.5 5.7L12 6v5.5z" />
+        </svg>
+      );
+    case 'pyramid':
+      return (
+        <svg {...common} fill="currentColor">
+          <path d="M2 12 12 12 2 2Z" />
+        </svg>
+      );
+    case 'scarab':
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+          <path d="M2.5 2.5 11.5 11.5" />
+        </svg>
+      );
+    case 'anubis':
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4">
+          <rect x="2.5" y="1.5" width="9" height="11" rx="2.4" />
+          <path d="M2.5 6h9" />
+        </svg>
+      );
+    case 'sphinx':
+      return (
+        <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+          <rect x="2.5" y="3.5" width="9" height="9" rx="2.4" />
+          <path d="M7 3.5V0.5" />
+        </svg>
+      );
+  }
+}
+
+export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }: { controller: GameController; view: ViewState; gameSlug?: string }) {
   const { myColor, spectator, turn, winner } = view;
   const yours = !spectator && turn === myColor && !winner;
+  const social = useSocial();
+  const gameRank = social?.rankInfo?.[gameSlug] ?? null;
 
   const turnText = winner ? `${colorName(winner)} wins` : yours ? 'Your move' : `${colorName(turn)} to move`;
   const reviewing = view.reviewIndex != null;
@@ -60,7 +105,9 @@ export default function GamePlay({ controller, view }: { controller: GameControl
       controller.toast('Copy failed — select and copy the link');
     }
   };
-  const leave = () => (window.location.href = window.location.pathname);
+  // Quitting a live game resigns it, so let the controller notify the server
+  // before the navigation tears the socket down.
+  const leave = () => controller.leave(() => (window.location.href = window.location.pathname));
 
   if (!view.connected || !controller.hasState()) {
     return <GameLoadingSkeleton view={view} leave={leave} />;
@@ -80,6 +127,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
         </div>
         {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
         <div className="ml-auto flex items-center gap-2">
+          <RankBadge rating={gameRank?.rating ?? null} size="sm" />
           <ThemeToggle />
           <FriendsMenu />
           <Badge
@@ -98,7 +146,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
           <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
 
@@ -185,7 +233,7 @@ export default function GamePlay({ controller, view }: { controller: GameControl
             <ul className="flex flex-col gap-2 text-sm">
               {LEGEND.map((p) => (
                 <li key={p.name} className="flex items-center gap-2.5">
-                  <span className="size-3.5 shrink-0 rounded-[4px] ring-1 ring-white/15" style={{ background: p.color }} />
+                  <PieceGlyph type={p.type} />
                   <span className="text-muted-foreground">
                     <b className="text-foreground">{p.name}</b> — {p.desc}
                   </span>
@@ -359,7 +407,7 @@ function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => vo
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
           <Skeleton className="h-9 w-36 rounded-full" />
 

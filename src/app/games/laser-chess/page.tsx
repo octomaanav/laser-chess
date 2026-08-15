@@ -26,5 +26,5 @@ export default async function LaserChessPage({ searchParams }: { searchParams: P
   const raw = Array.isArray(game) ? game[0] : game;
   const initialGameCode = (raw || '').toUpperCase().trim() || null;
 
-  return <GameApp initialGameCode={initialGameCode} />;
+  return <GameApp initialGameCode={initialGameCode} gameSlug="laser-chess" />;
 }
