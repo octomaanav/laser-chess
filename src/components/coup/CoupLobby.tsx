@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { CoupController, CoupView } from '@/client/coupController';
 import { useSession } from '@/client/useSession';
-import CoupLogoMark from './CoupLogoMark';
-import ThemeToggle from '../ThemeToggle';
+import Navbar from '../Navbar';
+import { AUTHOR_NAME, AUTHOR_URL } from '@/lib/site';
 
 const PERKS = [
   { c: 'var(--coup-gold)', t: 'No account needed. Just share a link or code' },
@@ -64,29 +64,12 @@ export default function CoupLobby({
     }
   };
 
-  const header = (
-    <header className="flex items-center justify-between px-5 py-4 sm:px-8">
-      <a href="/games/coup" className="flex items-center gap-2.5" style={{ color: 'var(--coup-text)' }}>
-        <CoupLogoMark size={26} />
-        <span className="font-display text-lg font-semibold tracking-tight">Coup</span>
-      </a>
-      <div className="flex items-center gap-1.5">
-        <a
-          href="/"
-          className="mr-1 hidden text-sm font-medium transition-colors hover:opacity-80 sm:inline"
-          style={{ color: 'var(--coup-text-muted)' }}
-        >
-          ← All games
-        </a>
-        <ThemeToggle />
-      </div>
-    </header>
-  );
+  const navbar = <Navbar game="coup" showBackToGames className="border-b-0" />;
 
   if (view.screen === 'lobby') {
     return (
       <div className="flex min-h-dvh flex-col">
-        {header}
+        {navbar}
         <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8">
           <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-16">
             {/* hero */}
@@ -250,7 +233,7 @@ export default function CoupLobby({
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {header}
+      {navbar}
       <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8">
         <Panel>
           <div className="flex items-center justify-between">
@@ -326,6 +309,19 @@ export default function CoupLobby({
           )}
         </Panel>
       </main>
+
+      <footer className="px-5 py-6 text-center text-xs" style={{ color: 'var(--coup-text-muted)' }}>
+        Made by{' '}
+        <a
+          href={AUTHOR_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold underline underline-offset-4 transition-opacity hover:opacity-80"
+          style={{ color: 'var(--coup-text)' }}
+        >
+          {AUTHOR_NAME}
+        </a>
+      </footer>
     </div>
   );
 }

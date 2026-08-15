@@ -43,10 +43,9 @@ const mmTick = setInterval(() => matchmakingQueue.tick(), 3000);
 server.on('close', () => clearInterval(mmTick));
 
 server.listen(port, () => {
-  console.log(`\n  🎲 Game Night ${dev ? '(dev)' : ''} running at  http://localhost:${port}`);
+  console.log(`Game Night ${dev ? '(dev)' : ''} running at http://localhost:${port}`);
   if (!process.env.ADMIN_PASSWORD) {
-    if (dev) console.log('  🔑 Admin password is the default "laserchess" - set ADMIN_PASSWORD to change it.');
-    else console.log('  🔒 ADMIN_PASSWORD is not set - admin login is locked out until it is configured.');
+    if (dev) console.log('Admin password is the default "laserchess" (set ADMIN_PASSWORD to change it)');
+    else console.log('ADMIN_PASSWORD is not set (admin login is disabled until configured)');
   }
-  console.log('');
 });

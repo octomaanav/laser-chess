@@ -25,12 +25,12 @@ export default function AccountMenu() {
       {user ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="h-9 gap-2 pl-1.5 pr-3">
-              <span className="grid size-6 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+            <Button variant="outline" className="h-9 gap-2 pl-1.5 pr-3 font-medium text-foreground border-border">
+              <span className="grid size-6 place-items-center rounded-full bg-lime-500 dark:bg-[#c3f53b] text-[11px] font-extrabold text-black shadow-xs">
                 {initial}
               </span>
-              <span className="max-w-28 truncate font-mono text-xs">@{user.username}</span>
-              <ChevronDown className="size-3.5 opacity-60" />
+              <span className="max-w-28 truncate font-mono text-xs font-semibold text-foreground">@{user.username}</span>
+              <ChevronDown className="size-3.5 text-muted-foreground opacity-70" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">

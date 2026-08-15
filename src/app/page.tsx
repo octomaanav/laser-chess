@@ -1,36 +1,8 @@
 import { redirect } from 'next/navigation';
-import AccountMenu from '@/components/AccountMenu';
-import FriendsMenu from '@/components/FriendsMenu';
 import GameCard from '@/components/GameCard';
+import Navbar from '@/components/Navbar';
 import { GAMES } from '@/lib/games';
-import { SITE_NAME } from '@/lib/site';
-
-// A warm-charcoal, arcade palette scoped to the homepage. Overriding these tokens
-// on the wrapper re-skins shared components (AccountMenu, buttons) to match, while
-// the rest of the app - including /games/laser-chess - keeps the neon-cyan theme.
-const arcadeTheme = {
-  '--background': '#16171d',
-  '--foreground': '#f2f3f5',
-  '--card': '#1e2027',
-  '--card-foreground': '#f2f3f5',
-  '--popover': '#1e2027',
-  '--popover-foreground': '#f2f3f5',
-  '--primary': '#c3f53b',
-  '--primary-foreground': '#16171d',
-  '--secondary': '#23262e',
-  '--secondary-foreground': '#f2f3f5',
-  '--muted': '#1f2229',
-  '--muted-foreground': '#9aa0ab',
-  '--accent': '#262a33',
-  '--accent-foreground': '#f2f3f5',
-  '--border': '#2a2d36',
-  '--input': '#2a2d36',
-  '--ring': '#c3f53b',
-  background:
-    'radial-gradient(52rem 40rem at 10% -12%, rgba(195,245,59,0.10), transparent 60%),' +
-    'radial-gradient(46rem 38rem at 102% 108%, rgba(255,176,32,0.09), transparent 58%),' +
-    '#16171d',
-} as React.CSSProperties;
+import { AUTHOR_NAME, AUTHOR_URL, SITE_NAME } from '@/lib/site';
 
 // The Game Night catalogue - the platform's main product. Server-rendered for SEO.
 export default async function Home({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
@@ -44,44 +16,33 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ g
   const liveCount = GAMES.filter((g) => g.status === 'live').length;
 
   return (
-    <main style={arcadeTheme} className="relative min-h-dvh overflow-hidden">
-      {/* faint neon glows + grid for arcade depth */}
+    <main className="relative min-h-dvh overflow-hidden bg-background text-foreground transition-colors duration-200">
+      {/* ambient glows + subtle grid for depth in both light and dark */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 -top-28 size-96 rounded-full bg-[#c3f53b] opacity-[0.07] blur-3xl" />
-        <div className="absolute -bottom-32 right-[-4rem] size-96 rounded-full bg-[#ffb020] opacity-[0.06] blur-3xl" />
+        <div className="absolute -left-24 -top-28 size-96 rounded-full bg-lime-500/10 dark:bg-[#c3f53b]/10 blur-3xl" />
+        <div className="absolute -bottom-32 right-[-4rem] size-96 rounded-full bg-amber-500/10 dark:bg-[#ffb020]/10 blur-3xl" />
         <div
-          className="absolute inset-0 opacity-[0.035]"
+          className="absolute inset-0 opacity-[0.03] dark:opacity-[0.04]"
           style={{
-            backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)',
             backgroundSize: '46px 46px',
           }}
         />
       </div>
 
       <div className="relative z-10 flex min-h-dvh flex-col">
-        <header className="flex items-center justify-between px-5 py-5 sm:px-8">
-          <a href="/" className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-xl bg-[#c3f53b] font-display text-sm font-extrabold text-[#16171d] shadow-[0_0_22px_rgba(195,245,59,0.45)]">
-              GN
-            </span>
-            <span className="font-display text-lg font-bold tracking-tight text-[#f2f3f5]">{SITE_NAME}</span>
-          </a>
-          <div className="flex items-center gap-1.5">
-            <FriendsMenu />
-            <AccountMenu />
-          </div>
-        </header>
+        <Navbar game="platform" className="border-b-0" />
 
         {/* hero */}
         <div className="mx-auto max-w-2xl px-5 pb-2 pt-6 text-center sm:pt-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#2a2d36] bg-[#1e2027]/80 px-4 py-1.5 text-[12px] font-semibold text-[#c3f53b] shadow-sm backdrop-blur">
-            <span className="size-1.5 animate-pulse rounded-full bg-[#c3f53b]" /> Real-time multiplayer · free · no installs
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-4 py-1.5 text-[12px] font-semibold text-lime-700 dark:text-[#c3f53b] shadow-sm backdrop-blur">
+            <span className="size-1.5 animate-pulse rounded-full bg-lime-600 dark:bg-[#c3f53b]" /> Real-time multiplayer · free · no installs
           </span>
-          <h1 className="mt-6 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-[#f2f3f5] sm:text-6xl">
+          <h1 className="mt-6 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
             Your table for{' '}
-            <span className="bg-gradient-to-r from-[#c3f53b] to-[#ffb020] bg-clip-text text-transparent">game night</span>
+            <span className="bg-gradient-to-r from-lime-600 via-amber-500 to-orange-500 dark:from-[#c3f53b] dark:to-[#ffb020] bg-clip-text text-transparent">game night</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#9aa0ab]">
+          <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
             A growing arcade of fast, real-time multiplayer games. Pick one, grab the link, and play with friends in seconds,
             with no downloads and no accounts required.
           </p>
@@ -90,8 +51,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ g
         {/* catalogue */}
         <div className="mx-auto w-full max-w-6xl flex-1 px-5 pb-16 pt-10 sm:px-8">
           <div className="mb-5 flex items-end justify-between gap-3">
-            <h2 className="font-display text-lg font-bold text-[#f2f3f5]">Games</h2>
-            <span className="whitespace-nowrap rounded-full border border-[#2a2d36] bg-[#1e2027] px-3 py-1 text-xs font-medium text-[#9aa0ab]">
+            <h2 className="font-display text-lg font-bold text-foreground">Games</h2>
+            <span className="whitespace-nowrap rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
               {liveCount} playable · {GAMES.length - liveCount} coming soon
             </span>
           </div>
@@ -102,7 +63,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ g
           </div>
         </div>
 
-        <footer className="px-5 py-8 text-center text-xs text-[#6b7280]">{SITE_NAME} · play together, anywhere.</footer>
+        <footer className="px-5 py-8 text-center text-xs text-muted-foreground">
+          Made with ❤️ by{' '}
+          <a
+            href={AUTHOR_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground underline decoration-primary/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+          >
+            {AUTHOR_NAME}
+          </a>
+        </footer>
       </div>
     </main>
   );

@@ -42,10 +42,10 @@ export default function FriendsMenu() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="icon" className="relative" title="Friends" aria-label="Friends">
+        <Button variant="outline" size="icon" className="relative text-foreground" title="Friends" aria-label="Friends">
           <Users className="size-4" />
           {pendingCount > 0 && (
-            <span className="absolute -right-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground">
+            <span className="absolute -right-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full bg-lime-500 dark:bg-[#c3f53b] px-1 text-[10px] font-extrabold leading-4 text-black shadow-xs">
               {pendingCount}
             </span>
           )}

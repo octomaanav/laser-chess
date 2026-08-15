@@ -12,12 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AccountMenu from './AccountMenu';
-import FriendsMenu from './FriendsMenu';
-import LogoMark from './LogoMark';
 import MatchmakingModal from './MatchmakingModal';
+import Navbar from './Navbar';
 import RankBadge from './RankBadge';
-import ThemeToggle from './ThemeToggle';
+import { AUTHOR_NAME, AUTHOR_URL } from '@/lib/site';
 import { useSocial } from '@/client/social/SocialProvider';
 
 const PERKS = [
@@ -83,20 +81,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
 
   return (
     <section className="relative flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between px-5 py-4 sm:px-8">
-        <a href="/games/laser-chess" className="flex items-center gap-2.5 text-foreground">
-          <LogoMark size={26} />
-          <span className="font-display text-lg font-semibold tracking-tight">Laser Chess</span>
-        </a>
-        <div className="flex items-center gap-1.5">
-          <a href="/" className="mr-1 hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline">
-            ← All games
-          </a>
-          <ThemeToggle />
-          <FriendsMenu />
-          <AccountMenu />
-        </div>
-      </header>
+      <Navbar game="laser-chess" showBackToGames className="border-b-0" />
 
       <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8">
         <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-16">
@@ -367,11 +352,24 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
         </div>
       </main>
 
-      <footer className="px-5 py-5 text-center text-xs text-muted-foreground">
-        Teal moves first ·{' '}
-        <a href="/admin" className="font-semibold text-laser hover:underline">
-          Edit starting configurations →
-        </a>
+      <footer className="flex flex-col sm:flex-row items-center justify-between gap-2 px-5 py-5 text-center text-xs text-muted-foreground sm:px-8">
+        <div>
+          Teal moves first ·{' '}
+          <a href="/admin" className="font-semibold text-laser hover:underline">
+            Edit starting configurations →
+          </a>
+        </div>
+        <span>
+          Made by{' '}
+          <a
+            href={AUTHOR_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground underline decoration-laser/50 underline-offset-4 transition-colors hover:text-laser"
+          >
+            {AUTHOR_NAME}
+          </a>
+        </span>
       </footer>
 
       {matchmaking && <MatchmakingModal gameSlug={gameSlug} onClose={() => setMatchmaking(false)} />}

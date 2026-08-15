@@ -12,7 +12,7 @@ import GameLog from './GameLog';
 import MomentBanner from './MomentBanner';
 import CoupLogoMark from './CoupLogoMark';
 import ReferenceCard from './ReferenceCard';
-import ThemeToggle from '../ThemeToggle';
+import Navbar from '../Navbar';
 import { VariantSetupPicker, RevealPicker, ExchangePicker } from './PhasePickers';
 import { useTurnAttention } from './useTurnAttention';
 import FitToScreen from './FitToScreen';
@@ -20,21 +20,15 @@ import FitToScreen from './FitToScreen';
 function GameHeader() {
   const leave = () => (window.location.href = window.location.pathname);
   return (
-    <header
-      className="flex shrink-0 items-center gap-3 border-b px-3 py-2 lg:px-4 lg:py-2.5"
-      style={{ borderColor: 'var(--coup-panel-border)' }}
-    >
-      <a href="/games/coup" className="flex items-center gap-2" style={{ color: 'var(--coup-text)' }}>
-        <CoupLogoMark size={22} />
-        <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Coup</span>
-      </a>
-      <div className="ml-auto flex items-center gap-2">
-        <ThemeToggle />
+    <Navbar
+      game="coup"
+      className="px-3 py-2 lg:px-4 lg:py-2.5"
+      rightContent={
         <Button variant="outline" size="sm" onClick={leave} className="shrink-0">
           <LogOut className="size-4" /> Leave
         </Button>
-      </div>
-    </header>
+      }
+    />
   );
 }
 

@@ -13,10 +13,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import Board from './Board';
-import FriendsMenu from './FriendsMenu';
 import LogoMark, { PersonIcon } from './LogoMark';
+import Navbar from './Navbar';
 import RankBadge from './RankBadge';
-import ThemeToggle from './ThemeToggle';
 import { useSocial } from '@/client/social/SocialProvider';
 
 // Full, static class strings per player color (Tailwind can't see interpolated names).
@@ -125,42 +124,44 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
 
   return (
     <section className="flex h-dvh flex-col overflow-hidden">
-      <header className="flex items-center gap-3 border-b border-border/70 px-4 py-2.5">
-        <a href="/" className="flex items-center gap-2 text-foreground">
-          <LogoMark size={22} />
-          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
-        </a>
-        <div className={cn('rounded-full border px-2.5 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0', turnPill)}>
-          {view.connected ? turnText : 'Connecting…'}
-        </div>
-        {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => controller.toggleSound()}
-            title={view.soundNotifyEnabled ? 'Turn notifications enabled (click to mute)' : 'Turn notifications muted (click to unmute)'}
-            aria-label="Toggle turn notifications"
-          >
-            {view.soundNotifyEnabled ? <Bell className="size-4" /> : <BellOff className="size-4 text-muted-foreground" />}
-          </Button>
-          <FriendsMenu />
-          <Badge
-            variant="outline"
-            className={cn('font-medium whitespace-nowrap shrink-0', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
-          >
-            {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
-          </Badge>
-          <span
-            className={cn('size-2.5 shrink-0 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
-            title={view.connected ? 'connected' : 'disconnected'}
-          />
-          <Button variant="outline" size="sm" onClick={leave} className="shrink-0">
-            <LogOut className="size-4" /> Leave
-          </Button>
-        </div>
-      </header>
+      <Navbar
+        game="laser-chess"
+        className="px-4 py-2.5 sm:px-4 sm:py-2.5"
+        centerContent={
+          <>
+            <div className={cn('rounded-full border px-2.5 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0', turnPill)}>
+              {view.connected ? turnText : 'Connecting…'}
+            </div>
+            {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
+          </>
+        }
+        rightContent={
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => controller.toggleSound()}
+              title={view.soundNotifyEnabled ? 'Turn notifications enabled (click to mute)' : 'Turn notifications muted (click to unmute)'}
+              aria-label="Toggle turn notifications"
+            >
+              {view.soundNotifyEnabled ? <Bell className="size-4" /> : <BellOff className="size-4 text-muted-foreground" />}
+            </Button>
+            <Badge
+              variant="outline"
+              className={cn('font-medium whitespace-nowrap shrink-0', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
+            >
+              {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
+            </Badge>
+            <span
+              className={cn('size-2.5 shrink-0 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
+              title={view.connected ? 'connected' : 'disconnected'}
+            />
+            <Button variant="outline" size="sm" onClick={leave} className="shrink-0">
+              <LogOut className="size-4" /> Leave
+            </Button>
+          </>
+        }
+      />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
@@ -512,22 +513,21 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
 function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => void }) {
   return (
     <section className="flex h-dvh flex-col overflow-hidden">
-      <header className="flex items-center gap-3 border-b border-border/70 px-4 py-2.5">
-        <div className="flex items-center gap-2 text-foreground">
-          <LogoMark size={22} />
-          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-full border border-laser/40 bg-laser/10 px-3 py-1 text-xs font-semibold text-laser animate-pulse">
-          <Loader2 className="size-3.5 animate-spin" />
-          <span>{view.roomCode ? `Joining ${view.roomCode}…` : 'Connecting…'}</span>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <ThemeToggle />
+      <Navbar
+        game="laser-chess"
+        className="px-4 py-2.5 sm:px-4 sm:py-2.5"
+        centerContent={
+          <div className="flex items-center gap-2 rounded-full border border-laser/40 bg-laser/10 px-3 py-1 text-xs font-semibold text-laser animate-pulse">
+            <Loader2 className="size-3.5 animate-spin" />
+            <span>{view.roomCode ? `Joining ${view.roomCode}…` : 'Connecting…'}</span>
+          </div>
+        }
+        rightContent={
           <Button variant="outline" size="sm" onClick={leave}>
             <LogOut className="size-4" /> Leave
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">

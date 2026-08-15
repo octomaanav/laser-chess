@@ -9,3 +9,8 @@ export const SITE_DESCRIPTION =
   'Game Night is a collection of fast, fun multiplayer games you can play with friends right in the browser, ' +
   'featuring Laser Chess and more. Pick a game, share a link, and play in seconds with instant free rooms and no download.';
 
+export const AUTHOR_NAME = 'Manav';
+export const AUTHOR_URL = process.env.NEXT_PUBLIC_AUTHOR_URL || 'https://github.com/octomaanav';
+export const FEEDBACK_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'maanav.vashist@gmail.com';
+
+
