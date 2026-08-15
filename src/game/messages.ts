@@ -17,7 +17,7 @@ export type ClientMessage =
   | { type: 'action'; action: Action }
   | { type: 'rematch'; setup?: string } // request or accept a rematch
   | { type: 'rematch-decline' } // decline / cancel a pending rematch
-  | { type: 'leave' } // deliberately quitting a live game — an immediate loss
+  | { type: 'leave' } // deliberately quitting a live game - an immediate loss
   | { type: 'chat'; text: string };
 
 // ---- server → client -------------------------------------------------------
@@ -53,7 +53,7 @@ export type ServerMessage =
     }
   | { type: 'timeout'; winner: Color } // a player ran out of time
   | { type: 'forfeit'; winner: Color } // opponent disconnected and didn't return in time
-  | { type: 'rematch' } // both agreed — the game has been reset
+  | { type: 'rematch' } // both agreed - the game has been reset
   | { type: 'rematch-declined'; by: Color } // opponent declined/cancelled the rematch
   | { type: 'reseat'; you: Color | null }
   | { type: 'error'; message: string }

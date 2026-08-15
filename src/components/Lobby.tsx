@@ -21,7 +21,7 @@ import ThemeToggle from './ThemeToggle';
 import { useSocial } from '@/client/social/SocialProvider';
 
 const PERKS = [
-  { c: 'bg-laser/15 border-laser/60', t: 'No account needed — just share a link or code' },
+  { c: 'bg-laser/15 border-laser/60', t: 'No account needed. Just share a link or code' },
   { c: 'bg-player-red/15 border-player-red/60', t: 'Authoritative server resolves every laser trace' },
   { c: 'bg-player-teal/15 border-player-teal/60', t: 'Spectators, live presence, reconnect & move timers' },
 ];
@@ -119,7 +119,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
             </h1>
             <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground md:mx-0">
               A fast head-to-head duel of mirrors and lasers. Spin up a board, share the link, and play a friend in
-              seconds — right in the browser.
+              seconds, right in the browser.
             </p>
             <ul className="mx-auto mt-7 hidden max-w-md flex-col gap-3 text-left sm:flex md:mx-0">
               {PERKS.map((p) => (
@@ -141,19 +141,19 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                   </p>
                   <ul className="list-disc space-y-1 pl-5">
                     <li>
-                      <b className="text-foreground">Pharaoh</b> — your king. If a laser hits it, you lose.
+                      <b className="text-foreground">Pharaoh:</b> your king. If a laser hits it, you lose.
                     </li>
                     <li>
-                      <b className="text-foreground">Pyramid</b> — single mirror; deflects 90°. Hit flat and it&apos;s gone.
+                      <b className="text-foreground">Pyramid:</b> single mirror; deflects 90°. Hit flat and it&apos;s gone.
                     </li>
                     <li>
-                      <b className="text-foreground">Scarab</b> — double mirror; never dies. Can swap with a neighbor.
+                      <b className="text-foreground">Scarab:</b> double mirror; never dies. Can swap with a neighbor.
                     </li>
                     <li>
-                      <b className="text-foreground">Anubis</b> — shielded in front; vulnerable from side or back.
+                      <b className="text-foreground">Anubis:</b> shielded in front; vulnerable from side or back.
                     </li>
                     <li>
-                      <b className="text-foreground">Sphinx</b> — your laser cannon in the corner. Rotate only.
+                      <b className="text-foreground">Sphinx:</b> your laser cannon in the corner. Rotate only.
                     </li>
                   </ul>
                 </div>
@@ -291,9 +291,9 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="human">Another player</SelectItem>
-                          <SelectItem value="easy">Bot — Easy</SelectItem>
-                          <SelectItem value="medium">Bot — Medium</SelectItem>
-                          <SelectItem value="hard">Bot — Hard</SelectItem>
+                          <SelectItem value="easy">Bot (Easy)</SelectItem>
+                          <SelectItem value="medium">Bot (Medium)</SelectItem>
+                          <SelectItem value="hard">Bot (Hard)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

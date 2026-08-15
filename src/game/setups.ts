@@ -3,7 +3,7 @@
 // 180° into Silver so they're perfectly fair. The admin editor can override any
 // of these or add new ones (see server/setupStore.ts) with full manual control.
 //
-// This module is isomorphic (no fs) — imported by the browser and the server.
+// This module is isomorphic (no fs) - imported by the browser and the server.
 import { COLS, ROWS, fireLaser, inBounds } from './engine';
 import type { Board, Color, EditablePiece, GameState, PieceType, SetupDef } from './types';
 
@@ -128,6 +128,6 @@ export function validateSetup(def: SetupDef): SetupValidation {
   const hs = (h: { x: number; y: number; piece: { color: string; type: string } } | null) =>
     h ? `${h.piece.color} ${h.piece.type} @ ${h.x},${h.y}` : null;
   const safe = !rl.hit && !sl.hit;
-  if (!safe) warnings.push('the opening laser destroys a piece — a player would lose material without moving');
+  if (!safe) warnings.push('the opening laser destroys a piece - a player would lose material without moving');
   return { errors, warnings, safe, redHit: hs(rl.hit), silverHit: hs(sl.hit), counts };
 }

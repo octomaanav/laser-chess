@@ -17,7 +17,7 @@ export interface PersistedRoom {
   isRanked?: boolean;
   rankedGameSlug?: string;
   rankedUserIds?: { red: string | null; silver: string | null };
-  rankedSettled?: boolean; // rank already awarded — survives a restart so it can't be awarded twice
+  rankedSettled?: boolean; // rank already awarded - survives a restart so it can't be awarded twice
 }
 
 // Skill rating for one player in one game. `gameSlug` scopes ratings per game
@@ -53,7 +53,7 @@ export interface OAuthIdentity {
   userId: string;
 }
 
-// A persisted Coup room (separate table/namespace from Laser Chess's rooms — see roomServer.ts).
+// A persisted Coup room (separate table/namespace from Laser Chess's rooms - see roomServer.ts).
 export interface PersistedCoupRoom {
   code: string;
   state: CoupState;
@@ -87,7 +87,7 @@ export interface Store {
   deleteRoom(code: string): Promise<void>;
   sweepRooms(maxAgeMs: number): Promise<void>;
 
-  // Coup rooms (separate table/namespace from Laser Chess's rooms — see roomServer.ts)
+  // Coup rooms (separate table/namespace from Laser Chess's rooms - see roomServer.ts)
   loadCoupRoom(code: string): Promise<PersistedCoupRoom | null>;
   saveCoupRoom(room: PersistedCoupRoom): Promise<void>;
   deleteCoupRoom(code: string): Promise<void>;

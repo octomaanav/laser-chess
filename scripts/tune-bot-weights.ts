@@ -1,4 +1,4 @@
-// One-off local tool — NOT wired to package.json, NOT imported by production
+// One-off local tool - NOT wired to package.json, NOT imported by production
 // code. Run manually: npx tsx scripts/tune-bot-weights.ts
 //
 // Hill-climbs evaluate.ts's tactical Weights via self-play: each generation
@@ -15,14 +15,14 @@ import type { Action, Color, GameState } from '../src/game/types';
 const GENERATIONS = 30;
 const MAX_PLIES = 120;
 const ADOPT_THRESHOLD = 0.55; // mutant must win > this fraction of the match to replace current best
-// Fixed depth, no time pressure (deadline = Infinity) — depth alone limits
+// Fixed depth, no time pressure (deadline = Infinity) - depth alone limits
 // each move, keeping games fast and fully reproducible across runs.
 const TUNE_DEPTH = 3;
 // The 4 default setups are mirror-symmetric starting positions; at
 // TUNE_DEPTH some resolve via a forced tactical sequence that alpha-beta
 // finds regardless of eval weights (a forced win scores ±Infinity, bypassing
 // evaluate() entirely), and others turned out sensitive to any asymmetry
-// between the two sides' weights rather than genuine strength — see the
+// between the two sides' weights rather than genuine strength - see the
 // design doc's addendum. Randomizing the first few plies with uniformly
 // random legal moves (both sides, weight-independent) breaks that
 // determinism so each generation actually samples a different midgame
@@ -30,7 +30,7 @@ const TUNE_DEPTH = 3;
 const RANDOM_OPENING_PLIES = 6;
 // Each (setup, mutant-color) matchup is replayed this many times with a
 // fresh random opening each time. At REPEATS=1 (8 games/match total), many
-// "ADOPTED" mutations won by exactly 4.5/8 games — right at the 55%
+// "ADOPTED" mutations won by exactly 4.5/8 games - right at the 55%
 // threshold, well within noise for an 8-sample match. Bumping repeats
 // trades runtime for a match size where a marginal win rate reflects an
 // actual difference in strength rather than which side got the luckier
@@ -90,7 +90,7 @@ function playGame(weightsA: Weights, weightsB: Weights, setupName: string, aColo
 // rather than a fixed game count cycling through indices: an earlier
 // index-based version tied mutant color to `i % 2` and setup to `i % 4`,
 // and since 4 is a multiple of 2, every setup always paired with the same
-// mutant color on every repeat — with the random opening below adding
+// mutant color on every repeat - with the random opening below adding
 // variety per game, that periodicity would otherwise have kept comparing
 // the mutant's weaker color assignment against the current-best's stronger
 // one (or vice versa) on the same setups every generation. Enumerating

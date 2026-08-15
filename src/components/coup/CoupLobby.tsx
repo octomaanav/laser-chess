@@ -12,7 +12,7 @@ import CoupLogoMark from './CoupLogoMark';
 import ThemeToggle from '../ThemeToggle';
 
 const PERKS = [
-  { c: 'var(--coup-gold)', t: 'No account needed — just share a link or code' },
+  { c: 'var(--coup-gold)', t: 'No account needed. Just share a link or code' },
   { c: 'var(--coup-danger)', t: 'Authoritative server resolves every bluff, block & challenge' },
   { c: 'var(--coup-success)', t: '2–6 players, live presence, reconnect if you drop' },
 ];
@@ -60,7 +60,7 @@ export default function CoupLobby({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard permission denied — the room code is still visible to copy manually */
+      /* clipboard permission denied - the room code is still visible to copy manually */
     }
   };
 
@@ -140,25 +140,25 @@ export default function CoupLobby({
                     style={{ borderColor: 'var(--coup-panel-border)', background: 'color-mix(in oklab, var(--coup-panel-bg) 60%, transparent)', color: 'var(--coup-text-muted)' }}
                   >
                     <p>
-                      On your turn, <span style={{ color: 'var(--coup-text)' }}>claim</span> a character&apos;s power — you don&apos;t
-                      need to hold that card. Opponents can <span style={{ color: 'var(--coup-text)' }}>challenge</span> or{' '}
+                      On your turn, <span style={{ color: 'var(--coup-text)' }}>claim</span> a character&apos;s power, even if you don&apos;t
+                      hold that card. Opponents can <span style={{ color: 'var(--coup-text)' }}>challenge</span> or{' '}
                       <span style={{ color: 'var(--coup-text)' }}>block</span> you. Lose a challenge, lose an influence.
                     </p>
                     <ul className="list-disc space-y-1 pl-5">
                       <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Duke</span> — collect 3 coins; blocks foreign aid.
+                        <span style={{ color: 'var(--coup-text)' }}>Duke:</span> collect 3 coins; blocks foreign aid.
                       </li>
                       <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Assassin</span> — pay 3 coins to force a discard.
+                        <span style={{ color: 'var(--coup-text)' }}>Assassin:</span> pay 3 coins to force a discard.
                       </li>
                       <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Captain</span> — steal 2 coins; blocks stealing.
+                        <span style={{ color: 'var(--coup-text)' }}>Captain:</span> steal 2 coins; blocks stealing.
                       </li>
                       <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Ambassador</span> — exchange cards; blocks stealing.
+                        <span style={{ color: 'var(--coup-text)' }}>Ambassador:</span> exchange cards; blocks stealing.
                       </li>
                       <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Contessa</span> — blocks assassination.
+                        <span style={{ color: 'var(--coup-text)' }}>Contessa:</span> blocks assassination.
                       </li>
                     </ul>
                     <p>Lose both your influence cards and you&apos;re out. Last player standing wins.</p>

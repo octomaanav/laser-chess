@@ -315,7 +315,7 @@ export class GameController {
 
   // Leaving a game in progress resigns it. The socket dies the moment we
   // navigate, so tell the server first and wait for it to confirm the game is
-  // over — with a short fallback in case the message or the reply is lost.
+  // over - with a short fallback in case the message or the reply is lost.
   leave(then: () => void) {
     const live = !this.winner && this.myColor != null && this.snapshot.bothSeated;
     if (!live || !this.net.isConnected()) return then();
@@ -429,7 +429,7 @@ export class GameController {
         this.turnEndsAt = null;
         this.selected = null;
         this.renderer?.clearSelection();
-        this.pendingLeave?.(); // our own resignation landed — safe to navigate away
+        this.pendingLeave?.(); // our own resignation landed - safe to navigate away
         this.emit();
         break;
       case 'rematch':
@@ -519,7 +519,7 @@ export class GameController {
     if (!this.soundEnabled()) return;
     this.playChime();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification('Your move — Laser Chess', { body: 'It’s your turn.', icon: '/og.png', tag: 'laser-chess-turn' });
+      new Notification('Laser Chess: Your move', { body: 'It is your turn.', icon: '/og.png', tag: 'laser-chess-turn' });
     }
   }
   private playChime() {
@@ -543,7 +543,7 @@ export class GameController {
       });
       setTimeout(() => void ctx.close(), 600);
     } catch {
-      // audio unsupported/blocked — silently skip, the visual game state is still accurate
+      // audio unsupported/blocked - silently skip, the visual game state is still accurate
     }
   }
 

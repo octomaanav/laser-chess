@@ -1,6 +1,6 @@
 // Custom Next.js server. Next handles all HTTP (pages, assets, API routes),
 // while we route `/ws/<game>` WebSocket upgrades to that game's authoritative
-// server — something Next's serverless handlers can't do. Other upgrades (Next's
+// server - something Next's serverless handlers can't do. Other upgrades (Next's
 // dev HMR socket) are forwarded to Next.
 import { createServer } from 'node:http';
 import next from 'next';
@@ -45,7 +45,8 @@ server.on('close', () => clearInterval(mmTick));
 server.listen(port, () => {
   console.log(`\n  🎲 Game Night ${dev ? '(dev)' : ''} running at  http://localhost:${port}`);
   if (!process.env.ADMIN_PASSWORD) {
-    console.log('  🔑 Admin password is the default "laserchess" — set ADMIN_PASSWORD to change it.');
+    if (dev) console.log('  🔑 Admin password is the default "laserchess" - set ADMIN_PASSWORD to change it.');
+    else console.log('  🔒 ADMIN_PASSWORD is not set - admin login is locked out until it is configured.');
   }
   console.log('');
 });

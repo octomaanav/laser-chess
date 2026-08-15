@@ -49,7 +49,7 @@ export class CoupController {
   private view: CoupView = INITIAL_VIEW;
   private listeners = new Set<() => void>();
   private playerId = '';
-  // The last join we intended to make — re-sent from `net.on('open', ...)`
+  // The last join we intended to make - re-sent from `net.on('open', ...)`
   // rather than right after `connect()`, since `Net.send()` silently drops
   // messages while the socket is still CONNECTING. This also covers
   // reconnects: Net auto-reconnects on drop, and this makes sure `join` goes
@@ -102,7 +102,7 @@ export class CoupController {
     const name = opts.name || storedName || 'Player';
     this.joinIntent = { code: opts.code, name };
     if (this.net.isConnected()) {
-      // Already open (e.g. a second join attempt) — send immediately since
+      // Already open (e.g. a second join attempt) - send immediately since
       // no further 'open' event will fire to trigger it.
       this.send({ type: 'join', playerId: this.playerId, name, code: opts.code });
     } else {
@@ -177,7 +177,7 @@ export class CoupController {
         break;
       case 'forfeit':
       case 'rematch':
-        break; // no dedicated view slot yet — state broadcasts cover the resulting game state
+        break; // no dedicated view slot yet - state broadcasts cover the resulting game state
     }
   }
 }

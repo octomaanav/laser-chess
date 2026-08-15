@@ -7,7 +7,7 @@ import { deriveTableEvents, type TableEvent } from './tableEvents';
 const EVENT_LIFETIME_MS = 1200;
 
 // Returns the events derived from the *most recent* state transition, each
-// auto-expiring EVENT_LIFETIME_MS after it appears — long enough for a CSS
+// auto-expiring EVENT_LIFETIME_MS after it appears - long enough for a CSS
 // animation to play once, short enough not to re-trigger on unrelated
 // re-renders (e.g. the countdown tick in CoupGamePlay).
 //
@@ -15,7 +15,7 @@ const EVENT_LIFETIME_MS = 1200;
 // `state` identity change. CoupGamePlay rebuilds its state object on every
 // render (including every 200ms countdown tick), so clearing timers in this
 // effect's own cleanup would cancel a just-registered timer before it ever
-// fires — the event would never expire.
+// fires - the event would never expire.
 export function useTableEvents(state: ClientCoupState): TableEvent[] {
   const prevRef = useRef<ClientCoupState | null>(null);
   const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());

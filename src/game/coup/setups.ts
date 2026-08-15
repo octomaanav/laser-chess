@@ -19,7 +19,7 @@ export function buildDeck(): Character[] {
 
 // 2-player variant per the rulebook: divide the 15 cards into 3 sets of 5
 // (each set has one of each character). Returns the 3 pools in a fixed,
-// unshuffled order — the caller assigns pools[0]/pools[1] to the two
+// unshuffled order - the caller assigns pools[0]/pools[1] to the two
 // players (each secretly keeps 1 card from their pool) and shuffles
 // pools[2] to become the court deck once both have chosen.
 export function buildVariantPools(): [Character[], Character[], Character[]] {

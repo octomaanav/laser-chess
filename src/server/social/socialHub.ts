@@ -1,7 +1,7 @@
 // Global social realtime hub. Unlike the per-game WebSocket servers, this one is
 // account-gated and process-wide: it tracks which signed-in users are online and
 // pushes them notifications (friend requests, accepts, game invites). It carries
-// NO state changes — those go through the REST API, which then calls notify().
+// NO state changes - those go through the REST API, which then calls notify().
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -133,7 +133,7 @@ function send(ws: WebSocket, event: SocialEvent) {
 
 // One hub for the whole process. The custom server (server.mts, run via tsx) and
 // the Next route handlers (bundled separately) load this module in two different
-// module registries, so a plain `new SocialHub()` would give each its OWN hub —
+// module registries, so a plain `new SocialHub()` would give each its OWN hub -
 // sockets would register on one while REST notify()/isOnline() hit the other.
 // Pinning the instance to globalThis makes both share the same in-memory hub.
 declare global {

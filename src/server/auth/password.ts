@@ -1,4 +1,4 @@
-// Password hashing (server-only), zero dependencies — just node:crypto scrypt.
+// Password hashing (server-only), zero dependencies - just node:crypto scrypt.
 // Stored format: `scrypt$<saltB64url>$<hashB64url>`. Verification is constant-time.
 import crypto from 'node:crypto';
 

@@ -15,7 +15,7 @@ const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' });
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Game Night — Play Fun Multiplayer Games Online Free',
+    default: 'Game Night: Play Fun Multiplayer Games Online Free',
     template: '%s · Game Night',
   },
   description: SITE_DESCRIPTION,
@@ -28,13 +28,13 @@ export const metadata: Metadata = {
     type: 'website',
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: 'Game Night — Play Fun Multiplayer Games Online Free',
+    title: 'Game Night: Play Fun Multiplayer Games Online Free',
     description: SITE_DESCRIPTION,
-    images: [{ url: '/og.png', width: 2400, height: 1520, alt: 'Game Night — play fun multiplayer games with friends' }],
+    images: [{ url: '/og.png', width: 2400, height: 1520, alt: 'Game Night: play fun multiplayer games with friends' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Game Night — Play Fun Multiplayer Games Online Free',
+    title: 'Game Night: Play Fun Multiplayer Games Online Free',
     description: SITE_DESCRIPTION,
     images: ['/og.png'],
   },

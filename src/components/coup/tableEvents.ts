@@ -1,7 +1,7 @@
 // src/components/coup/tableEvents.ts
 //
 // src/game/coup/ is off-limits for this redesign, and its LogEntry is plain
-// text — so there's no structured "what happened" event to animate against.
+// text - so there's no structured "what happened" event to animate against.
 // Instead, every incoming ClientCoupState is diffed against the previous one
 // to reconstruct a short list of table-level events (coins moved, a card
 // flipped, a block appeared). This file is pure and DOM-free so it can be
@@ -30,7 +30,7 @@ export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoup
   // Whoever ClientCoupState.pendingRevealPlayerId names right before a
   // reveal lands is the forced-reveal player; pendingAction/pendingBlock at
   // that same moment tell us why (a challenge they lost, or a coup/
-  // assassinate hit) — ClientCoupState never exposes a reveal "reason"
+  // assassinate hit) - ClientCoupState never exposes a reveal "reason"
   // field directly (see src/game/coup/redact.ts), so this is reconstructed
   // from context instead.
   // A pendingBlock takes priority: pendingAction stays set the whole time a
@@ -73,7 +73,7 @@ export function deriveTableEvents(prev: ClientCoupState | null, next: ClientCoup
   }
 
   // Steal moves coins directly between two players and never touches the
-  // treasury — a matched gain/loss pair with treasury unchanged is a steal.
+  // treasury - a matched gain/loss pair with treasury unchanged is a steal.
   if (treasuryDelta === 0 && gains.length > 0 && losses.length > 0) {
     for (const loss of losses) {
       const matchIndex = gains.findIndex((g) => g.amount === loss.amount);

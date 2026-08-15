@@ -89,7 +89,7 @@ export default function FriendsMenu() {
           )}
 
           <Section label={`Friends · ${friends.length}`}>
-            {friends.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No friends yet — add someone by @username.</p>}
+            {friends.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No friends yet - add someone by @username.</p>}
             {friends.map((f) => (
               <Row key={f.id} name={f.displayName} handle={f.username} online={f.online}>
                 {canInvite && f.online && (

@@ -26,7 +26,7 @@ const CARD_ART: Record<Character, (props: { activeAbilityIndex?: number }) => Re
   contessa: ContessaCard,
 };
 
-// Card face is a full standalone SVG (icon + name + ability text baked in) —
+// Card face is a full standalone SVG (icon + name + ability text baked in) -
 // this component just handles face-down/revealed states and sizing.
 // Fluid, viewport-HEIGHT-driven sizing (clamp, not a width breakpoint) so
 // cards actually shrink on a short-but-wide window instead of staying
@@ -36,7 +36,7 @@ const CARD_ART: Record<Character, (props: { activeAbilityIndex?: number }) => Re
 // independent clamps drift out of the art's 300x420 ratio at the ends of
 // their ranges (the old lg max, 170x230, was 0.739 against the art's
 // 0.714). The SVG then letterboxed inside the box, leaving the visible
-// card smaller than the element CardTilt measures — so the tilt and sheen
+// card smaller than the element CardTilt measures - so the tilt and sheen
 // responded to dead space around a face-down card.
 const CARD_ASPECT = '300 / 420';
 
@@ -53,8 +53,8 @@ const SIZE_WIDTHS: Record<'sm' | 'lg', string> = {
   sm: 'clamp(50px, 9vh, 110px)',
 };
 
-// Anything drawing an edge around a card — an outline, a focus ring, the
-// tilt sheen — has to use this rather than a fixed radius, or it drifts off
+// Anything drawing an edge around a card - an outline, a focus ring, the
+// tilt sheen - has to use this rather than a fixed radius, or it drifts off
 // the card's curve as the card scales.
 export function cardRadius(size: 'sm' | 'lg' = 'lg') {
   return `calc(${SIZE_WIDTHS[size]} * ${CARD_RADIUS_RATIO})`;

@@ -1,6 +1,6 @@
 // 16 rank levels stored as an integer index: 0 = Bronze 1, 14 = Diamond 3, 15 = Master.
 // Win → index + 1 (max 15), Loss → index - 1 (min 0).
-// No Elo formula — every game moves you exactly one sub-rank.
+// No Elo formula - every game moves you exactly one sub-rank.
 
 export const DEFAULT_RATING = 3; // Silver 1
 export const MAX_RATING = 15;    // Master

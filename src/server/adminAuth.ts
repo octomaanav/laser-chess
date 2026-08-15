@@ -2,7 +2,7 @@
 //   - admins.json (project root) holds the allowlist of authorized emails.
 //   - The password is ADMIN_PASSWORD env var, or the default below.
 //   - On success we issue a signed, httpOnly session cookie (HMAC-SHA256).
-// No external services or dependencies — just node:crypto.
+// No external services or dependencies - just node:crypto.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,6 +30,10 @@ export function adminPasswordIsDefault(): boolean {
   return !process.env.ADMIN_PASSWORD;
 }
 export function checkPassword(password: string): boolean {
+  // Never allow the well-known default password in production - it's public
+  // (this file is open source) and the admin allowlist (admins.json) is too,
+  // so a missing env var there must lock admin login out, not silently open it.
+  if (process.env.NODE_ENV === 'production' && !process.env.ADMIN_PASSWORD) return false;
   const expected = process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
   const a = Buffer.from(String(password ?? ''));
   const b = Buffer.from(expected);

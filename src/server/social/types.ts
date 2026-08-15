@@ -1,4 +1,4 @@
-// The shape of another player as exposed to friends — deliberately excludes
+// The shape of another player as exposed to friends - deliberately excludes
 // email and anything private. Used across the social hub, service, and API.
 import type { User } from '../store';
 import type { PublicUser } from '../auth/users';

@@ -1,4 +1,4 @@
-// Coup's mark: a gold dagger crossing a crimson mask outline on a dark badge —
+// Coup's mark: a gold dagger crossing a crimson mask outline on a dark badge -
 // echoes the bluff/betrayal theme, self-contained colors so it reads on both themes.
 export default function CoupLogoMark({ size = 28 }: { size?: number }) {
   return (

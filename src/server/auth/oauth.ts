@@ -1,4 +1,4 @@
-// OAuth (server-only), done by hand with the standard authorization-code flow —
+// OAuth (server-only), done by hand with the standard authorization-code flow -
 // no SDK, just `fetch`. Google and GitHub are supported; a provider is only
 // "enabled" when both its CLIENT_ID and CLIENT_SECRET env vars are configured,
 // so local dev without credentials cleanly falls back to email+password only.

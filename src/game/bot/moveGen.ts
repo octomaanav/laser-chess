@@ -2,7 +2,7 @@ import { COLS, ROWS, legalActionsFor } from '../engine';
 import type { Action, Color, GameState } from '../types';
 
 // All legal actions for every piece `color` owns, flattened into one list.
-// Thin wrapper over engine.ts's per-piece legalActionsFor — never duplicates
+// Thin wrapper over engine.ts's per-piece legalActionsFor - never duplicates
 // rule logic.
 export function enumerateActions(state: GameState, color: Color): Action[] {
   const actions: Action[] = [];

@@ -1,5 +1,5 @@
 // src/components/coup/art/CardBack.tsx
-// The face-down side of every card — opponent hands, the deck pile, an
+// The face-down side of every card - opponent hands, the deck pile, an
 // exchange offer before it's dealt. Previously a flat #161b22 rectangle,
 // which read as "blank" rather than "a card, back-side up." Mirrors
 // CardFace's shell language (corner accents, faint sheen) so front and back
@@ -16,7 +16,7 @@ export default function CardBack() {
     { x: 278, y: 398, dx: -1, dy: -1 },
   ];
 
-  // A small diamond lattice tiled across the card — cheap to describe as one
+  // A small diamond lattice tiled across the card - cheap to describe as one
   // repeating <pattern> rather than dozens of individual shapes.
   const tile = 30;
 

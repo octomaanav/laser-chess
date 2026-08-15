@@ -8,7 +8,7 @@ import { getGame } from '@/lib/games';
 export const dynamic = 'force-dynamic';
 
 // Invite an online friend straight into the game room you're currently in.
-// Ephemeral — nothing is stored; the invitee gets a realtime toast to join.
+// Ephemeral - nothing is stored; the invitee gets a realtime toast to join.
 export async function POST(req: Request) {
   const me = await currentUser();
   if (!me) return NextResponse.json({ error: 'not signed in' }, { status: 401 });

@@ -8,7 +8,7 @@ import GamePlay from '@/components/GamePlay';
 
 // Client shell for the app. `initialGameCode` is resolved on the server from the
 // ?game= query param, so the very first paint already knows whether to render the
-// game (skeleton) or the lobby — no homepage flash, no hydration mismatch.
+// game (skeleton) or the lobby - no homepage flash, no hydration mismatch.
 export default function GameApp({ initialGameCode, gameSlug }: { initialGameCode: string | null; gameSlug: string }) {
   const { controller, view } = useController();
 

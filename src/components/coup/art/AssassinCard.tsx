@@ -13,7 +13,7 @@ export default function AssassinCard({ activeAbilityIndex }: { activeAbilityInde
       label="Assassin card"
       activeAbilityIndex={activeAbilityIndex}
     >
-      {/* Skull head — dome top, square body */}
+      {/* Skull head - dome top, square body */}
       <path d="M 113 205 L 113 170 A 37 42 0 0 1 187 170 L 187 205 Z" fill={icon} />
 
       {/* X eye mark */}
@@ -30,7 +30,7 @@ export default function AssassinCard({ activeAbilityIndex }: { activeAbilityInde
       {/* Neck trapezoid */}
       <path d="M 129 205 L 171 205 L 165 229 L 135 229 Z" fill={icon} />
 
-      {/* Hood shading — thin inset arc for a bit of dimensional detail */}
+      {/* Hood shading - thin inset arc for a bit of dimensional detail */}
       <path d="M 121 172 A 29 34 0 0 1 179 172" fill="none" stroke={bg} strokeWidth="3" strokeOpacity="0.4" />
     </CardFace>
   );

@@ -7,7 +7,7 @@ import { SITE_NAME } from '@/lib/site';
 
 // A warm-charcoal, arcade palette scoped to the homepage. Overriding these tokens
 // on the wrapper re-skins shared components (AccountMenu, buttons) to match, while
-// the rest of the app — including /games/laser-chess — keeps the neon-cyan theme.
+// the rest of the app - including /games/laser-chess - keeps the neon-cyan theme.
 const arcadeTheme = {
   '--background': '#16171d',
   '--foreground': '#f2f3f5',
@@ -32,7 +32,7 @@ const arcadeTheme = {
     '#16171d',
 } as React.CSSProperties;
 
-// The Game Night catalogue — the platform's main product. Server-rendered for SEO.
+// The Game Night catalogue - the platform's main product. Server-rendered for SEO.
 export default async function Home({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
   // Backward-compat: old Laser Chess share links were /?game=CODE. Forward them to
   // the game's new home so existing invites keep working.
@@ -82,8 +82,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ g
             <span className="bg-gradient-to-r from-[#c3f53b] to-[#ffb020] bg-clip-text text-transparent">game night</span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-[#9aa0ab]">
-            A growing arcade of fast, real-time multiplayer games. Pick one, grab the link, and play with friends in seconds —
-            no downloads, no accounts required.
+            A growing arcade of fast, real-time multiplayer games. Pick one, grab the link, and play with friends in seconds,
+            with no downloads and no accounts required.
           </p>
         </div>
 

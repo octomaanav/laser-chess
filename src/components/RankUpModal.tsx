@@ -12,7 +12,7 @@ interface Props {
   onClose: () => void;
 }
 
-// Sparks fly out of the medal on a promotion — fixed offsets so the burst is
+// Sparks fly out of the medal on a promotion - fixed offsets so the burst is
 // the same every time rather than jittering between renders.
 const SPARKS = [
   { dx: '-84px', dy: '-58px', delay: 0 },
@@ -51,7 +51,7 @@ export default function RankUpModal({ oldRating, newRating, gameSlug, onClose }:
     };
   }, []);
 
-  // Dismissable before the animation finishes — never trap the player.
+  // Dismissable before the animation finishes - never trap the player.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -71,13 +71,13 @@ export default function RankUpModal({ oldRating, newRating, gameSlug, onClose }:
       // document.body.style.pointerEvents = 'none' while it's open, and only
       // re-enables it inside its own portal. This modal is a plain fixed div
       // rendered from SocialProvider, not that portal, so without an explicit
-      // override here it would inherit `none` and render fully unclickable —
+      // override here it would inherit `none` and render fully unclickable -
       // both dialogs are open at once the moment a ranked game ends.
       className="pointer-events-auto fixed inset-0 z-[100] grid place-items-center bg-black/70 p-4 backdrop-blur-sm animate-in fade-in duration-300"
       onMouseDown={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`${headline} — ${newRank.name}`}
+      aria-label={`${headline}: ${newRank.name}`}
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}
@@ -117,7 +117,7 @@ export default function RankUpModal({ oldRating, newRating, gameSlug, onClose }:
             </>
           )}
 
-          {/* The disc is layered — tinted face, rim light, inner bevel — so it
+          {/* The disc is layered - tinted face, rim light, inner bevel - so it
               reads as a struck medal rather than a circle drawn around an emoji. */}
           <div
             className={cn(

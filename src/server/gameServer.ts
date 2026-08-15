@@ -291,7 +291,7 @@ function clearForfeit(room: Room) {
   room.forfeitColor = null;
   room.forfeitDeadline = null;
 }
-// Arm the OS timer to fire at the (already-decided) forfeit deadline. Idempotent —
+// Arm the OS timer to fire at the (already-decided) forfeit deadline. Idempotent -
 // safe to call on every presence change / after rehydrating from the store.
 function armForfeit(room: Room) {
   if (room.forfeitTimer) clearTimeout(room.forfeitTimer);
@@ -299,7 +299,7 @@ function armForfeit(room: Room) {
   if (room.forfeitColor == null || room.forfeitDeadline == null) return;
   room.forfeitTimer = setTimeout(() => doForfeit(room), Math.max(0, room.forfeitDeadline - Date.now()));
 }
-// Decide whether a forfeit countdown should be running — WITHOUT resetting one that's
+// Decide whether a forfeit countdown should be running - WITHOUT resetting one that's
 // already ticking. The deadline is anchored to when the player first went offline, so
 // the opponent reloading (or the server restarting) never restarts the clock.
 function refreshForfeit(room: Room) {
@@ -317,7 +317,7 @@ function refreshForfeit(room: Room) {
   room.forfeitDeadline = Date.now() + (room.isRanked ? RANKED_FORFEIT_MS : DISCONNECT_FORFEIT_MS);
   armForfeit(room);
 }
-// End the game against `loser` right now — no countdown. Used by the disconnect
+// End the game against `loser` right now - no countdown. Used by the disconnect
 // timer and by an explicit Leave.
 function forfeitNow(room: Room, loser: Color) {
   if (room.game.winner) return;
@@ -392,7 +392,7 @@ export function createGameWss(): WebSocketServer {
       ws.isAlive = true;
     });
 
-    // Resolve the account (if signed in) — anonymous players simply resolve to
+    // Resolve the account (if signed in) - anonymous players simply resolve to
     // null and keep their client-chosen name. onJoin awaits `authReady` rather
     // than racing it: in a ranked room the account decides the seat.
     ws.authReady = resolveAccountFromReq(req)
@@ -429,7 +429,7 @@ export function createGameWss(): WebSocketServer {
         stopTurnClockTimer(room);
         room.rematch = { red: false, silver: false };
       }
-      // Start/keep the forfeit countdown (anchored to the first drop — never reset here),
+      // Start/keep the forfeit countdown (anchored to the first drop - never reset here),
       // then persist so the deadline survives even a server restart.
       refreshForfeit(room);
       persist(room);
@@ -525,7 +525,7 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
   }
 
   // In a ranked room matchmaking already decided who plays which side, so the
-  // account owns the seat — arrival order and the client's colour preference are
+  // account owns the seat - arrival order and the client's colour preference are
   // ignored, and anyone else holding the code joins as a spectator. Without this
   // the seats and `rankedUserIds` can disagree and settlement credits the wrong
   // player. Keyed on userId, not playerId, so a reconnect from another device
@@ -557,7 +557,7 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
 
 // Shared by both human moves (onAction) and bot moves (maybeTriggerBot) so
 // there is exactly one path from "an actor wants to make this move" to
-// "the authoritative engine validated it and everyone was told" — a bot is
+// "the authoritative engine validated it and everyone was told" - a bot is
 // never a special case here, just another caller.
 function applyGameAction(room: Room, color: Color, action: Action): { ok: boolean; error?: string } {
   if (room.game.winner) return { ok: false, error: 'game-over' };
@@ -636,7 +636,7 @@ async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematc
   if (!room.game.winner) return; // rematch only makes sense once the game is over
   room.rematch[ws.color] = true;
   // A bot seat can never send a `rematch` message itself, so treat it as an
-  // automatic yes — otherwise a human-vs-bot rematch would hang forever.
+  // automatic yes - otherwise a human-vs-bot rematch would hang forever.
   const redAgreed = room.rematch.red || !!room.botDifficulty.red;
   const silverAgreed = room.rematch.silver || !!room.botDifficulty.silver;
   if (redAgreed && silverAgreed) {

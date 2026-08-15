@@ -39,7 +39,7 @@ const ROWS: Row[] = [
   { char: 'assassin', action: 'Assassinate', effect: 'Pay 3 coins · choose player to lose influence', counter: 'Blocked by Contessa' },
   { char: 'ambassador', action: 'Exchange', effect: 'Exchange cards with Court Deck', counter: 'Blocks stealing' },
   { char: 'captain', action: 'Steal', effect: 'Take 2 coins from another player', counter: 'Blocks stealing' },
-  { char: 'contessa', action: '—', effect: '—', counter: 'Blocks assassination' },
+  { char: 'contessa', action: 'None', effect: 'None', counter: 'Blocks assassination' },
 ];
 
 const COLUMNS = ['Character', 'Action', 'Effect', 'Counteraction'];
@@ -47,7 +47,7 @@ const COLUMNS = ['Character', 'Action', 'Effect', 'Counteraction'];
 // `sm:` and up gets the real four-column grid; below that each row stacks.
 const GRID = 'sm:grid sm:grid-cols-[136px_1fr_1.5fr_1.2fr] sm:items-center sm:gap-3';
 
-// Opaque alternating stripe — mixing two opaque colors stays opaque, so the
+// Opaque alternating stripe - mixing two opaque colors stays opaque, so the
 // table never lets the board show through.
 const STRIPE = 'color-mix(in oklab, var(--coup-text) 4%, var(--coup-panel-bg))';
 
@@ -113,7 +113,7 @@ export default function ReferenceGuide() {
 
           <div
             className="mt-0.5 text-[13px] leading-snug sm:mt-0"
-            style={{ color: row.effect === '—' ? 'var(--coup-text-muted)' : 'var(--coup-text)' }}
+            style={{ color: row.effect === 'None' ? 'var(--coup-text-muted)' : 'var(--coup-text)' }}
           >
             {row.effect}
           </div>

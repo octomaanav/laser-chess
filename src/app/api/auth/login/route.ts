@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { AuthError, login } from '@/server/auth/users';
 import { SESSION_COOKIE, sessionCookieOptions, signUserSession } from '@/server/auth/session';
+import { clientIp, rateLimit } from '@/server/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const limited = rateLimit(`login:${clientIp(req)}`, 10, 15 * 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429, headers: { 'retry-after': String(limited.retryAfterS) } });
+  }
+
   let body: { emailOrUsername?: string; password?: string };
   try {
     body = await req.json();

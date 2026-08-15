@@ -7,7 +7,7 @@ import type { Character } from '@/game/coup/types';
 
 const HOLD_MS = 600;
 // SVG border perimeter for a 100x100 viewBox rounded rect (approx, close
-// enough for a progress-fill effect — exact perimeter math isn't the point).
+// enough for a progress-fill effect - exact perimeter math isn't the point).
 const PERIMETER = 392;
 
 interface HoldCardProps {
@@ -19,7 +19,7 @@ interface HoldCardProps {
 // Press and hold to reveal, used only by RevealPicker. Choosing which
 // influence to lose is irreversible, so it deliberately costs a held press
 // rather than a tap that could be mis-aimed. Declaring actions is NOT done
-// this way — those go through the ActionRail buttons.
+// this way - those go through the ActionRail buttons.
 //
 // The tilt effect goes flat once a hold is in progress (progress > 0) so
 // the ring-fill and tilt don't compete visually.

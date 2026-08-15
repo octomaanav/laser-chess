@@ -7,7 +7,7 @@ import { GAMES } from '@/lib/games';
 
 export const dynamic = 'force-dynamic';
 
-// POST { gameSlug } — join the ranked queue for a game.
+// POST { gameSlug } - join the ranked queue for a game.
 export async function POST(req: Request) {
   const me = await currentUser();
   if (!me) return NextResponse.json({ error: 'not signed in' }, { status: 401 });
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   return NextResponse.json({ queued: true, rating, rank: rank.name });
 }
 
-// DELETE — leave the queue.
+// DELETE - leave the queue.
 export async function DELETE() {
   const me = await currentUser();
   if (!me) return NextResponse.json({ error: 'not signed in' }, { status: 401 });
@@ -42,7 +42,7 @@ export async function DELETE() {
   return NextResponse.json({ ok: true });
 }
 
-// GET — poll queue status. Doubles as the delivery channel for a made match:
+// GET - poll queue status. Doubles as the delivery channel for a made match:
 // the socket push is best-effort, so a match found while the client's socket
 // was down is claimed here instead.
 export async function GET(req: Request) {

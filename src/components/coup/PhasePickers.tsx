@@ -128,7 +128,7 @@ export function ExchangePicker({ state, controller }: { state: ClientCoupState; 
   // Same class of bug as VariantSetupPicker: key on the offer's *contents*,
   // not the array reference, since state.exchangeOffer is a fresh array on
   // every broadcast (e.g. an unrelated opponent reconnect) even when the
-  // offer itself hasn't changed — keying on the reference wiped in-progress
+  // offer itself hasn't changed - keying on the reference wiped in-progress
   // selections for no reason.
   useEffect(() => {
     setSelected([]);

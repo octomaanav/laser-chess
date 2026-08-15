@@ -4,10 +4,10 @@ import type { ClientCoupState } from '@/game/coup/redact';
 
 // A slim turn-order strip so players 3+ deep in a 4-6 player game can see
 // who's up now AND who's next, instead of only ever knowing "whose turn is
-// it right now" — the seat panels alone don't communicate sequence.
+// it right now" - the seat panels alone don't communicate sequence.
 export default function TurnOrder({ state }: { state: ClientCoupState }) {
   const players = state.players;
-  if (players.length <= 2) return null; // with 2 players "next" is just "the other one" — no queue needed
+  if (players.length <= 2) return null; // with 2 players "next" is just "the other one" - no queue needed
 
   const activeIndex = state.turn;
   const nextIndex = (() => {

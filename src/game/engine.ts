@@ -1,4 +1,4 @@
-// Laser Chess engine — shared by the Node server (authoritative) and the browser.
+// Laser Chess engine - shared by the Node server (authoritative) and the browser.
 // Pure, dependency-free, so the rules can never drift between the two.
 //
 // Coordinate system:  board[y][x]   x = column 0..9 (left→right),  y = row 0..7 (top→bottom)

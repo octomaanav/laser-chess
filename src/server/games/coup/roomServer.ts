@@ -93,7 +93,7 @@ function broadcastState(room: Room) {
 
 function persist(room: Room) {
   if (!room.state) return;
-  // A transient store error here must never become an unhandled rejection —
+  // A transient store error here must never become an unhandled rejection -
   // this runs on every broadcast in every room, and an unhandled rejection
   // crashes the whole Node process (taking down Laser Chess's rooms too).
   getStore()
@@ -152,7 +152,7 @@ export function createCoupWss(): WebSocketServer {
   });
 
   // Half-open connections (laptop sleep, mobile network drop) never fire a
-  // 'close' event on their own — without this, isConnected() stays true
+  // 'close' event on their own - without this, isConnected() stays true
   // forever for a dead socket, so the real player gets rejected on rejoin
   // with "already connected" and no forfeit timer ever arms.
   const heartbeat = setInterval(() => {
@@ -214,7 +214,7 @@ async function handleMessage(ws: Client, msg: ClientMessage) {
 
 async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawCode: string | undefined) {
   // Persisted to Postgres on every broadcast (see persist()), so these must
-  // be bounded — mirrors gameServer.ts's onJoin clamping.
+  // be bounded - mirrors gameServer.ts's onJoin clamping.
   const playerId = String(rawPlayerId || '').slice(0, 64);
   const name = String(rawName || 'Player').slice(0, 24);
   if (!playerId) throw new Error('missing playerId');
@@ -241,7 +241,7 @@ async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawC
   }
 
   // A player id is visible to everyone in the room (lobby/state broadcasts),
-  // so it's not a secret — never trust a `join` claiming an id that's
+  // so it's not a secret - never trust a `join` claiming an id that's
   // already live under a different socket, or that socket's holder would
   // have their hidden hand handed straight to an impostor.
   if (isConnected(room, playerId)) throw new Error('that player is already connected');
@@ -276,7 +276,7 @@ async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawC
 function handleStart(room: Room, playerId: string) {
   if (room.state) throw new Error('already started');
   if (room.seats.length < MIN_SEATS) throw new Error('not enough players');
-  // Only the room creator (first seat) may start — otherwise any seated
+  // Only the room creator (first seat) may start - otherwise any seated
   // client could start the moment MIN_SEATS is reached, potentially cutting
   // off players still in the process of joining a shared link.
   if (room.seats[0] !== playerId) throw new Error('only the room creator can start the game');
@@ -286,7 +286,7 @@ function handleStart(room: Room, playerId: string) {
 }
 
 // Opens (or clears) the response-window timer based on the current phase.
-// Only 'action_declared' and 'block_declared' have a race-to-act clock —
+// Only 'action_declared' and 'block_declared' have a race-to-act clock -
 // every other phase (awaiting_reveal, exchange_choice, variant-setup) waits
 // on a specific player's explicit choice instead, with no clock.
 function openResponseWindowIfNeeded(room: Room) {
@@ -333,7 +333,7 @@ function handleChallenge(room: Room, playerId: string) {
 
 // A pass is advisory only: it's currently not tracked at all. It exists so
 // the client can send the message without an error, but no unanimous-pass
-// fast path is implemented — the response window's timer, driven by
+// fast path is implemented - the response window's timer, driven by
 // openResponseWindowIfNeeded, is the single source of truth for when a
 // window closes, and a client that never sends `pass` resolves identically.
 function handlePass(_room: Room, _playerId: string) {
@@ -368,7 +368,7 @@ function handleRematchVote(room: Room, playerId: string) {
   // Only players who are still actually connected can be re-seated: a
   // player whose forfeit timer already fired has a socket that's long gone,
   // and no `close` event will ever fire again for it to arm a new forfeit
-  // timer — re-seating them would hang the rematch on their turn forever.
+  // timer - re-seating them would hang the rematch on their turn forever.
   const connectedSeats = room.seats.filter((id) => isConnected(room, id));
   if (connectedSeats.length >= MIN_SEATS && room.rematchVotes.size >= connectedSeats.length) {
     room.seats = connectedSeats;
@@ -383,7 +383,7 @@ function handleRematchVote(room: Room, playerId: string) {
 
 // Reclaims a room once nothing is left that still needs it: an abandoned
 // pre-game lobby, or a finished game nobody's still watching. A mid-game
-// room with zero connected clients must stay in the map — it still has a
+// room with zero connected clients must stay in the map - it still has a
 // live forfeit timer and disconnected players need `join` to find it again
 // by code when they reconnect. Called both right after a `close` event and
 // after a forfeit-timeout fires (the latter has no `close` event of its own
@@ -419,14 +419,14 @@ function handleDisconnect(ws: Client) {
         const p = room.state.players.find((x) => x.id === playerId);
         if (!p || p.connected || p.eliminated) return;
         // Route the forfeit through the rules engine rather than mutating
-        // state in place — forfeitPlayer() also runs the win check and
+        // state in place - forfeitPlayer() also runs the win check and
         // advances play past the forfeiting player if they held the turn,
         // the pending action/target, the pending block, or the head of the
         // reveal queue, so nothing is left pointing at a ghost.
         const phaseBefore = room.state.phase;
         room.state = forfeitPlayer(room.state, playerId);
         // Only re-arm/clear the response-window timer if the forfeit
-        // actually touched the phase — a bystander forfeiting mid-window
+        // actually touched the phase - a bystander forfeiting mid-window
         // (not the actor/target/blocker) leaves phase untouched, and
         // re-running this would silently reset an in-progress countdown
         // for everyone else.

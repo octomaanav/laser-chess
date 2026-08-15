@@ -42,11 +42,19 @@ const LEGEND = [
   { type: 'sphinx', name: 'Sphinx', desc: 'your laser; rotate only.' },
 ] as const;
 
-// Small monochrome glyphs mirroring each piece's actual board silhouette —
-// a legend needs to teach shape recognition, not color (color already
-// means "whose piece", shown elsewhere via the player badges).
-function PieceGlyph({ type }: { type: (typeof LEGEND)[number]['type'] }) {
-  const common = { width: 14, height: 14, viewBox: '0 0 14 14', className: 'shrink-0 text-foreground' };
+function PieceGlyph({
+  type,
+  className,
+  color,
+  size = 14,
+}: {
+  type: (typeof LEGEND)[number]['type'];
+  className?: string;
+  color?: Color;
+  size?: number;
+}) {
+  const colorClass = color === 'red' ? 'text-player-red' : color === 'silver' ? 'text-player-teal' : 'text-foreground';
+  const common = { width: size, height: size, viewBox: '0 0 14 14', className: cn('shrink-0', colorClass, className) };
   switch (type) {
     case 'pharaoh':
       return (
@@ -57,7 +65,7 @@ function PieceGlyph({ type }: { type: (typeof LEGEND)[number]['type'] }) {
     case 'pyramid':
       return (
         <svg {...common} fill="currentColor">
-          <path d="M2 12 12 12 2 2Z" />
+          <path d="M2 12 12 2 2Z" />
         </svg>
       );
     case 'scarab':
@@ -100,9 +108,9 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(view.shareLink);
-      controller.toast('Link copied — send it to a friend!');
+      controller.toast('Link copied. Send it to a friend!');
     } catch {
-      controller.toast('Copy failed — select and copy the link');
+      controller.toast('Copy failed. Please select and copy the link');
     }
   };
   // Quitting a live game resigns it, so let the controller notify the server
@@ -127,13 +135,12 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
         </div>
         {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
         <div className="ml-auto flex items-center gap-2">
-          <RankBadge rating={gameRank?.rating ?? null} size="sm" />
           <ThemeToggle />
           <Button
             variant="outline"
             size="icon"
             onClick={() => controller.toggleSound()}
-            title={view.soundNotifyEnabled ? 'Turn notifications on — click to mute' : 'Turn notifications muted — click to unmute'}
+            title={view.soundNotifyEnabled ? 'Turn notifications enabled (click to mute)' : 'Turn notifications muted (click to unmute)'}
             aria-label="Toggle turn notifications"
           >
             {view.soundNotifyEnabled ? <Bell className="size-4" /> : <BellOff className="size-4 text-muted-foreground" />}
@@ -159,7 +166,6 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
           <div className="flex shrink-0 flex-col items-center gap-1">
             <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
-            <CapturedRow pieces={view.captured[topColor]} />
           </div>
 
           {view.waiting && (
@@ -174,7 +180,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             />
           ) : oppOffline ? (
             <Banner tone="warn">
-              <b>Opponent disconnected</b> — waiting to reconnect…
+              <b>Opponent disconnected.</b> Waiting to reconnect…
             </Banner>
           ) : null}
 
@@ -182,7 +188,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             <Board controller={controller} />
           </div>
 
-          {/* Action Panel — positioned below the board for smaller screens with fixed height to prevent layout shifts */}
+          {/* Action Panel - positioned below the board for smaller screens with fixed height to prevent layout shifts */}
           <div className="flex lg:hidden h-10 shrink-0 items-center justify-center">
             {view.rotations.length > 0 && (
               <div className="flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1 shadow-lg backdrop-blur animate-in fade-in slide-in-from-bottom-1">
@@ -202,12 +208,27 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
           </div>
 
           <div className="flex shrink-0 flex-col items-center gap-1">
-            <CapturedRow pieces={view.captured[bottomColor]} />
             <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
           </div>
         </div>
 
         <aside className="flex shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/70 p-3 lg:w-80 lg:border-l lg:border-t-0">
+          {gameRank && (
+            <Card className="relative overflow-hidden gap-3 p-4 border-laser/25 bg-linear-to-br from-laser/12 via-card to-card shadow-lg shadow-laser/5">
+              <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-laser/70 to-transparent" />
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Ranked</div>
+                  <div className="mt-1 text-sm text-muted-foreground">Climb one rank per win.</div>
+                </div>
+                <span className="rounded-full border border-laser/30 bg-laser/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-laser">
+                  Live
+                </span>
+              </div>
+              <RankBadge rating={gameRank.rating} size="md" />
+            </Card>
+          )}
+
           {!spectator && !view.bothSeated && (
             <Card className="gap-3 p-4">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invite a friend</div>
@@ -218,10 +239,12 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
-                Room code: <b className="font-mono tracking-widest text-foreground">{view.roomCode ?? '—'}</b>
+                Room code: <b className="font-mono tracking-widest text-foreground">{view.roomCode ?? 'None'}</b>
               </div>
             </Card>
           )}
+
+          <CasualtiesCard view={view} />
 
           {view.moves > 0 && (
             <Card className="gap-3 p-4">
@@ -250,7 +273,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
                 <li key={p.name} className="flex items-center gap-2.5">
                   <PieceGlyph type={p.type} />
                   <span className="text-muted-foreground">
-                    <b className="text-foreground">{p.name}</b> — {p.desc}
+                    <b className="text-foreground">{p.name}:</b> {p.desc}
                   </span>
                 </li>
               ))}
@@ -336,20 +359,85 @@ function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerVie
 
 const PIECE_ORDER: PieceType[] = ['pharaoh', 'sphinx', 'anubis', 'scarab', 'pyramid'];
 
-// Tally of the pieces this color has lost so far, shown next to their seat.
-function CapturedRow({ pieces }: { pieces: PieceType[] }) {
-  if (pieces.length === 0) return null;
-  const counts = new Map<PieceType, number>();
-  for (const t of pieces) counts.set(t, (counts.get(t) ?? 0) + 1);
+// Card in the right sidebar showing all casualties / destroyed pieces grouped by side with team color accents.
+function CasualtiesCard({ view }: { view: ViewState }) {
+  const total = view.captured.red.length + view.captured.silver.length;
+  if (total === 0) return null;
+
+  // Show top opponent at top, bottom player at bottom to mirror the board orientation
+  const bottomColor: Color = view.myColor ?? 'silver';
+  const topColor = opposite(bottomColor);
+  const displayColors: Color[] = [topColor, bottomColor];
+
   return (
-    <div className="flex items-center gap-2 px-1 text-muted-foreground">
-      {PIECE_ORDER.filter((t) => counts.has(t)).map((t) => (
-        <span key={t} className="flex items-center gap-0.5" title={`${counts.get(t)} ${t} lost`}>
-          <PieceGlyph type={t} />
-          <span className="text-[10px] font-semibold tabular-nums">×{counts.get(t)}</span>
+    <Card className="gap-3 p-4 animate-in fade-in slide-in-from-right-1 duration-200">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Casualties</div>
+        <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] font-medium tabular-nums text-muted-foreground">
+          {total} lost
         </span>
-      ))}
-    </div>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {displayColors.map((color) => {
+          const pieces = view.captured[color];
+          const playerInfo = view.players[color];
+          const isYou = !view.spectator && color === view.myColor;
+          const name = playerInfo.seated ? playerInfo.name || colorName(color) : colorName(color);
+          const counts = new Map<PieceType, number>();
+          for (const t of pieces) counts.set(t, (counts.get(t) ?? 0) + 1);
+
+          return (
+            <div
+              key={color}
+              className={cn(
+                'flex flex-col gap-2 rounded-lg border p-2.5 transition-colors',
+                color === 'red' ? 'border-player-red/20 bg-player-red/5' : 'border-player-teal/20 bg-player-teal/5'
+              )}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={cn('size-2 rounded-full shrink-0', color === 'red' ? 'bg-player-red' : 'bg-player-teal')} />
+                  <span className="truncate text-xs font-medium text-foreground">
+                    {name} {isYou && <span className="text-[11px] text-muted-foreground font-normal">(you)</span>}
+                  </span>
+                </div>
+                <span className="font-mono text-[11px] text-muted-foreground shrink-0 tabular-nums">
+                  {pieces.length} {pieces.length === 1 ? 'lost' : 'lost'}
+                </span>
+              </div>
+
+              {pieces.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {PIECE_ORDER.filter((t) => counts.has(t)).map((t) => {
+                    const count = counts.get(t)!;
+                    const pieceDef = LEGEND.find((l) => l.type === t);
+                    return (
+                      <div
+                        key={t}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium backdrop-blur-xs',
+                          color === 'red'
+                            ? 'border-player-red/30 bg-player-red/10 text-player-red'
+                            : 'border-player-teal/30 bg-player-teal/10 text-player-teal'
+                        )}
+                        title={`${name} lost ${count} ${pieceDef?.name || t}`}
+                      >
+                        <PieceGlyph type={t} color={color} size={15} />
+                        <span className="font-semibold text-foreground text-[11px]">{pieceDef?.name || t}</span>
+                        <span className="font-bold tabular-nums text-xs">×{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className="text-[11px] italic text-muted-foreground">No pieces lost</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 

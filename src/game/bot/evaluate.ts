@@ -5,7 +5,7 @@ import { enumerateActions } from './moveGen';
 // Pharaoh capture is a terminal state handled by search.ts (±Infinity), not
 // scored as material here. Sphinx is never captured. Scarab > anubis >
 // pyramid, reflecting how hard each is to remove from the board. Not part
-// of Weights/tuning — these reflect known game rules, not a guess.
+// of Weights/tuning - these reflect known game rules, not a guess.
 const PIECE_VALUE: Record<PieceType, number> = {
   pharaoh: 0,
   scarab: 30,
@@ -14,7 +14,7 @@ const PIECE_VALUE: Record<PieceType, number> = {
   sphinx: 0,
 };
 
-// The tunable tactical weights — see scripts/tune-bot-weights.ts for the
+// The tunable tactical weights - see scripts/tune-bot-weights.ts for the
 // self-play search that produced DEFAULT_WEIGHTS's values.
 export interface Weights {
   mobility: number;
@@ -44,7 +44,7 @@ const MAX_LASER_DISTANCE = 10 + 8;
 
 // Score of firing `fromColor`'s laser right now, from `perspective`'s point
 // of view. Positive if it would hit an enemy-of-perspective piece, negative
-// if it would hit perspective's own piece (friendly fire) — fireLaser()
+// if it would hit perspective's own piece (friendly fire) - fireLaser()
 // doesn't filter by color, so this check is required.
 function laserScoreFor(
   state: GameState,
@@ -78,7 +78,7 @@ function findPharaoh(state: GameState, color: Color): { x: number; y: number } |
 
 // Rewards `color`'s laser path passing near the enemy pharaoh even when it
 // doesn't hit it this turn, so the search prefers repositioning the laser
-// toward an exposed king over an aimless safe move — without this, only an
+// toward an exposed king over an aimless safe move - without this, only an
 // immediate hit had any value, so the bot never built up pressure. Skipped
 // when the laser already hits the pharaoh (laserExposure's pharaoh weight
 // covers that case).

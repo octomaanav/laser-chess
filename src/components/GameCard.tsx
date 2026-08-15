@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hrefFor, type GameEntry } from '@/lib/games';
 
-// A single catalogue tile for the Game Night homepage — a dark, arcade-style panel.
+// A single catalogue tile for the Game Night homepage - a dark, arcade-style panel.
 // Live games are clickable and light up with the game's neon accent on hover;
 // upcoming games render dimmed with a muted "Coming soon" pill. The per-game accent
 // is applied inline (Tailwind can't see dynamic color values).

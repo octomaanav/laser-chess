@@ -8,11 +8,11 @@ interface CardFaceProps {
   name: string;
   ability: string[]; // 1 or 2 lines, already uppercase
   label: string; // aria-label, e.g. "Duke card"
-  children: React.ReactNode; // icon shapes only — CardFace owns the <svg>, border, and text
+  children: React.ReactNode; // icon shapes only - CardFace owns the <svg>, border, and text
   // Index into `ability` of the line that dragging THIS card would claim (its
   // own turn action, as opposed to a reactive block-only line). Set only when
   // the card is shown as a playable hand card, so the line you're about to
-  // claim stays legible while the other (block-only) line recedes — this is
+  // claim stays legible while the other (block-only) line recedes - this is
   // what a raw drag gesture can't otherwise communicate.
   activeAbilityIndex?: number;
 }

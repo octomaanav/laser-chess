@@ -1,6 +1,6 @@
 // src/components/coup/avatarColor.ts
 // Deterministic color per player id so every seat has a stable visual
-// identity beyond just a name — the same player keeps the same color for
+// identity beyond just a name - the same player keeps the same color for
 // the whole game (and across reconnects, since it's derived from their id).
 const PALETTE = ['#e0b354', '#5db8e8', '#d088c8', '#6aad7c', '#ff6b57', '#9aa0a8', '#e8a848', '#7c9fe8'];
 

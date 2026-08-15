@@ -8,7 +8,7 @@ import type { TableEvent } from './tableEvents';
 import type { StateWithCountdown } from './types';
 
 // A big, hard-to-miss call-out for the moments the bottom log alone made
-// easy to miss — losing a challenge, proving one, taking a hit, or a block
+// easy to miss - losing a challenge, proving one, taking a hit, or a block
 // going up. Sits centered over the table so every player sees the same
 // story beat at the same time, not just whoever happened to be reading the
 // log line at the bottom of the screen.
@@ -27,10 +27,10 @@ function momentFor(state: ClientCoupState, event: TableEvent): Moment | null {
     case 'card-revealed': {
       if (event.cause === 'challenge-lost') {
         const claim = event.claimedCharacter ? CHARACTER_LABEL[event.claimedCharacter] : 'their claim';
-        return { text: `${nameOf(state, event.playerId)} was bluffing about ${claim} — loses an influence!`, tone: 'danger', Icon: VenetianMask };
+        return { text: `${nameOf(state, event.playerId)} was caught bluffing about ${claim} and lost an influence!`, tone: 'danger', Icon: VenetianMask };
       }
       if (event.cause === 'hit') {
-        return { text: `${nameOf(state, event.playerId)} is hit — loses an influence!`, tone: 'danger', Icon: Skull };
+        return { text: `${nameOf(state, event.playerId)} was hit and lost an influence!`, tone: 'danger', Icon: Skull };
       }
       return null;
     }

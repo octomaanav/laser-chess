@@ -27,7 +27,7 @@ function cap(s: string): string {
 }
 
 // Public description of a just-declared action, shown to everyone before
-// it's known to succeed or fail — claims are always public in Coup, so
+// it's known to succeed or fail - claims are always public in Coup, so
 // naming the claimed character here never leaks hidden information.
 function describeActionLog(actor: Player, type: ActionType, target?: Player): string {
   switch (type) {
@@ -118,7 +118,7 @@ function checkWinAfterElimination(state: CoupState): CoupState {
 }
 
 // Queue a player's influence loss. If they only have one unrevealed card
-// left, there's no real choice — auto-reveal it immediately.
+// left, there's no real choice - auto-reveal it immediately.
 function queueReveal(state: CoupState, reveal: PendingReveal): CoupState {
   const p = getPlayer(state, reveal.playerId);
   const remaining = unrevealedCards(p);
@@ -142,7 +142,7 @@ function applyReveal(state: CoupState, playerId: string, cardIndex: 0 | 1): Coup
   });
   let next: CoupState = { ...state, players };
   // The revealed card is now face-up (public), so naming it here doesn't
-  // leak any hidden information — only the player's OTHER (still-hidden)
+  // leak any hidden information - only the player's OTHER (still-hidden)
   // card stays secret.
   next = appendLog(
     next,
@@ -194,7 +194,7 @@ function applyActionEffect(state: CoupState): CoupState {
     case 'exchange': {
       const drawn = next.deck.slice(0, 2);
       next = { ...next, deck: next.deck.slice(2), exchangeOffer: drawn, phase: 'exchange_choice' };
-      return next; // pauses here — chooseExchange finishes the turn
+      return next; // pauses here - chooseExchange finishes the turn
     }
   }
 
@@ -464,8 +464,8 @@ export function chooseReveal(state: CoupState, playerId: string, cardIndex: 0 | 
 
 // Called by the room server when a disconnected player's forfeit clock
 // expires. Unlike a normal challenge/coup loss, a forfeit can happen at any
-// point in the state machine — mid-turn, mid-response-window, or while a
-// reveal/exchange is pending — so it must clean up whatever pending* fields
+// point in the state machine - mid-turn, mid-response-window, or while a
+// reveal/exchange is pending - so it must clean up whatever pending* fields
 // might reference the forfeiting player as a ghost, not just flip their
 // cards face up.
 export function forfeitPlayer(state: CoupState, playerId: string): CoupState {
@@ -493,7 +493,7 @@ export function forfeitPlayer(state: CoupState, playerId: string): CoupState {
 
   // The forfeiting player was involved in whatever's currently in progress
   // (their own turn, the action/block they're party to, or a reveal they
-  // owed) — that in-progress thing is now unresolvable, so move play on.
+  // owed) - that in-progress thing is now unresolvable, so move play on.
   // advanceTurn also re-runs the alive<=1 check and clears pending* fields.
   if (wasCurrentTurn || wasPendingActor || wasPendingTarget || wasPendingBlocker || wasPendingReveal) {
     return advanceTurn(next);
@@ -508,7 +508,7 @@ export function chooseExchange(state: CoupState, playerId: string, keepIndices: 
   if (!state.exchangeOffer) throw new Error('no exchange offer');
 
   const actor = getPlayer(state, playerId);
-  // Only unrevealed slots are in play for the exchange — an already-revealed
+  // Only unrevealed slots are in play for the exchange - an already-revealed
   // (face-up, dead) card must never go back into the court deck, and a live
   // card must never be hidden into a revealed slot.
   const unrevealed = unrevealedCards(actor);

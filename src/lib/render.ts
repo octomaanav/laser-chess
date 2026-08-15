@@ -1,9 +1,9 @@
 // Canvas renderer + animations (browser-only; instantiated inside an effect).
 // Flat "line-art" look: warm board, ink outlines, coral/teal pieces.
 // Three stacked layers keep per-frame work tiny:
-//   bg     — board surface, hatching & grid (redrawn only on resize)
-//   pieces — the pieces (redrawn on state change / during move+rotate anims)
-//   fx     — selection, move hints, laser beam, explosions (per-frame only
+//   bg     - board surface, hatching & grid (redrawn only on resize)
+//   pieces - the pieces (redrawn on state change / during move+rotate anims)
+//   fx     - selection, move hints, laser beam, explosions (per-frame only
 //            while something is animating)
 import { COLS, ROWS } from '@/game/engine';
 import type { Action, Board, Color, LaserPoint, MoveAction, Piece } from '@/game/types';
@@ -126,7 +126,7 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-// Mixes a #rrggbb color toward white by `amt` (0..1) — used to build the
+// Mixes a #rrggbb color toward white by `amt` (0..1) - used to build the
 // piece sheen gradient without hand-picking a second color per palette.
 function lighten(hex: string, amt: number): string {
   const n = parseInt(hex.slice(1), 16);
@@ -300,7 +300,7 @@ export class Renderer {
     roundRect(ctx, ox, oy, w, h, radius);
     ctx.clip();
 
-    // decorative hatching on each sphinx's home column — one continuous
+    // decorative hatching on each sphinx's home column - one continuous
     // diagonal band per column, so the stripe phase never resets at row
     // boundaries (a per-cell reset here would visibly stagger the stripes).
     for (const x of [0, COLS - 1]) {
@@ -390,7 +390,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, cy);
     // Fixed screen-space light (not rotated with the piece) so orientation
-    // changes don't flip the highlight — subtle sheen instead of flat fill.
+    // changes don't flip the highlight - subtle sheen instead of flat fill.
     const fill = this.pieceFill(ctx, s, FILL[p.color]);
     ctx.rotate(p.type === 'pharaoh' ? 0 : angle); // crown always upright
     ctx.lineJoin = 'round';
@@ -666,7 +666,7 @@ export class Renderer {
   }
 
   private _drawHandle(ctx: Ctx, h: Handle) {
-    // button base — a glowing disc so it reads as a tappable control
+    // button base - a glowing disc so it reads as a tappable control
     ctx.save();
     ctx.translate(h.px, h.py);
     ctx.shadowColor = HANDLE_SHADOW;

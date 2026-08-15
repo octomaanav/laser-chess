@@ -1,5 +1,5 @@
 // Correctness smoke test for src/game/bot/. Run with: npx tsx src/game/bot/selftest.ts
-// No test framework in this repo (see CLAUDE.md) — this is a lightweight,
+// No test framework in this repo (see CLAUDE.md) - this is a lightweight,
 // hand-run substitute, not a full suite.
 import assert from 'node:assert';
 import { createGameFromDef } from '../setups';
@@ -36,7 +36,7 @@ function stateWith(board: Board): GS {
 
 function testEvaluateMaterial() {
   const board = emptyBoard();
-  // Silver has an extra scarab; otherwise identical — silver should score higher.
+  // Silver has an extra scarab; otherwise identical - silver should score higher.
   board[3][3] = { id: 's1', type: 'sphinx', color: 'silver', orient: 0 };
   board[4][6] = { id: 'r1', type: 'sphinx', color: 'red', orient: 2 };
   board[2][2] = { id: 's2', type: 'scarab', color: 'silver', orient: 0 };
@@ -51,7 +51,7 @@ function testEvaluateMaterial() {
 function testEvaluateFriendlyFire() {
   // Silver's sphinx at (0,0) fires South (orient 2) directly into its own
   // pyramid at (0,1) with no reflection (orient 0 pyramid reflects S/E faces,
-  // so a laser traveling South hits it flat and is destroyed) — this must be
+  // so a laser traveling South hits it flat and is destroyed) - this must be
   // scored as BAD for silver, not good.
   const board = emptyBoard();
   board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 2 };
@@ -76,13 +76,13 @@ function testSearchFindsMateInOne() {
   // after every move). The search must return a legal, winning action.
   //
   // Note: a corner sphinx's only legal action is rotating between its two
-  // board-facing orientations (see engine.ts sphinxLegalOrients) — it can
+  // board-facing orientations (see engine.ts sphinxLegalOrients) - it can
   // never "pass". If the sphinx were silver's only piece, its one legal
   // action would be rotating away from orient 1, which breaks this exact
   // winning lane every time. So a second silver piece, off row 0, is added
   // here to give silver a legal action that actually leaves the lane clear
   // (matching the "any legal action that leaves the lane clear wins"
-  // comment above) — the search must find and prefer it over the
+  // comment above) - the search must find and prefer it over the
   // lane-breaking sphinx rotation.
   const board = emptyBoard();
   board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 1 };
@@ -116,7 +116,7 @@ function testChooseMoveRespectsBudget() {
 testChooseMoveRespectsBudget();
 
 function testEvaluateCustomWeights() {
-  // Same position as testEvaluateMaterial, but with offenseHit zeroed out —
+  // Same position as testEvaluateMaterial, but with offenseHit zeroed out -
   // if a silver piece can currently hit red's laser-exposed piece for
   // points, zeroing that weight must lower silver's score relative to
   // DEFAULT_WEIGHTS. This is the only way to prove the weights parameter

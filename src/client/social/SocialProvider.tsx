@@ -100,7 +100,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       setIncoming(d.incoming ?? []);
       setOutgoing(d.outgoing ?? []);
     } catch {
-      /* offline — will refresh on the next event */
+      /* offline - will refresh on the next event */
     }
   }, []);
 
@@ -131,7 +131,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           break;
         }
         case 'ranked-matched':
-          // Navigate immediately — the room is already created server-side.
+          // Navigate immediately - the room is already created server-side.
           window.location.href = `/games/${m.gameSlug}?game=${m.code}`;
           break;
         case 'rating-updated': {

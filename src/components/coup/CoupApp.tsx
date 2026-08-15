@@ -16,7 +16,7 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
     if (initialRoomCode && controller.wasInRoom(initialRoomCode)) controller.start({ code: initialRoomCode });
   }, [controller, initialRoomCode]);
 
-  // Don't force the game screen just because a room code is in the URL —
+  // Don't force the game screen just because a room code is in the URL -
   // pre-join/pre-start that leaves `view.state` null forever, which showed a
   // permanent "Loading…" for anyone arriving via a shared link. The lobby
   // (with its Start button once seated) is correct until the server actually
@@ -31,7 +31,7 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
         background: 'var(--coup-table-bg)',
         color: 'var(--coup-text)',
         // Faint radial glow + grid, matching Laser Chess's backdrop treatment
-        // (--app-backdrop) — applied app-wide, subtle enough to sit behind the
+        // (--app-backdrop) - applied app-wide, subtle enough to sit behind the
         // table felt without competing with cards/pieces.
         backgroundImage: 'var(--coup-backdrop)',
         backgroundSize: '100% 100%, 100% 100%, 44px 44px, 44px 44px',

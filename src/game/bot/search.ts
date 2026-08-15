@@ -11,7 +11,7 @@ export interface SearchResult {
 const CAPTURE_ORDER_BONUS = 1000;
 
 // Applies each action to get its resulting state, tagging capture-producing
-// actions so they're searched first — this tightens alpha-beta pruning a lot
+// actions so they're searched first - this tightens alpha-beta pruning a lot
 // given laser-chess's branching factor (every piece has up to 8 moves + 2
 // rotations, plus scarab swaps).
 function orderActions(state: GameState, color: Color, actions: Action[]): { action: Action; next: GameState }[] {
@@ -43,7 +43,7 @@ function jitter(noise: number): number {
 // root action started") is visible back at the root. Without this, a
 // deadline falling mid-recursion on some root action would silently return
 // a static (un-searched) evaluate() for that action while `completed`
-// stayed true, letting a truncated depth get committed — and biased,
+// stayed true, letting a truncated depth get committed - and biased,
 // since the truncated action is always the worst-ordered one.
 interface TimedOut {
   timedOut: boolean;
@@ -51,7 +51,7 @@ interface TimedOut {
 
 function minimax(
   state: GameState,
-  color: Color, // whose perspective evaluate() scores from — fixed for the whole search
+  color: Color, // whose perspective evaluate() scores from - fixed for the whole search
   toMove: Color,
   depth: number,
   alpha: number,
@@ -91,16 +91,16 @@ function minimax(
 }
 
 // Iterative deepening: search depth 1, 2, 3, ... committing each depth's
-// result only if that whole depth finished before `deadline` — a partially
+// result only if that whole depth finished before `deadline` - a partially
 // searched depth's root scores aren't comparable (some branches got a
 // shallower look than others), so a partial depth is discarded, not
 // committed. "Finished" means no deadline truncation happened anywhere in
-// the depth's recursion, tracked via the `timedOut` signal above — not
+// the depth's recursion, tracked via the `timedOut` signal above - not
 // merely that the deadline hadn't yet passed when the next root action
 // started.
 //
 // `maxDepth` optionally caps how deep iterative deepening goes, independent
-// of the time budget — used to give difficulty tiers a real, hardware-
+// of the time budget - used to give difficulty tiers a real, hardware-
 // independent depth ceiling (see bot.ts) since depth cost grows so fast
 // per ply that the time budget alone barely separates the tiers.
 export function search(
@@ -130,7 +130,7 @@ export function search(
       }
       const score = minimax(next, color, opposite(color), depth - 1, -Infinity, Infinity, deadline, timedOut, weights);
       // Noise is applied once per root candidate here, not per leaf inside
-      // minimax — jittering every leaf and taking the max/min over many
+      // minimax - jittering every leaf and taking the max/min over many
       // noisy samples systematically inflates scores (grows with subtree
       // size) instead of just weakening play. Jittering the final root
       // score keeps the internal search fully deterministic and correct
@@ -147,7 +147,7 @@ export function search(
     if (!completed) break;
     best = bestActionThisDepth;
     depthReached = depth;
-    if (bestScoreThisDepth === Infinity) break; // found a forced win — no need to search deeper
+    if (bestScoreThisDepth === Infinity) break; // found a forced win - no need to search deeper
   }
 
   return { action: best, depthReached };

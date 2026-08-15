@@ -1,4 +1,4 @@
-// The Game Night catalogue — the single source of truth for which games exist.
+// The Game Night catalogue - the single source of truth for which games exist.
 // Drives the homepage cards, the sitemap, and per-game routing. Adding a game =
 // add an entry here + a route at src/app/games/<slug>/page.tsx + (if it needs a
 // realtime backend) a WS handler registered under <slug> in src/server/games.
@@ -32,7 +32,7 @@ export const GAMES: GameEntry[] = [
     name: 'Coup',
     tagline: 'Bluff, deduce, betray.',
     description:
-      'A fast-paced game of bluffing and deduction. Claim any character\'s power — tax, steal, assassinate — whether you hold the card or not, and survive your rivals\' challenges. Last influence standing wins.',
+      'A fast-paced game of bluffing and deduction. Claim any character\'s power (tax, steal, assassinate) whether you hold the card or not, and survive your rivals\' challenges. Last influence standing wins.',
     status: 'live',
     players: '2–6 players',
     accent: '#c8155e',
@@ -42,7 +42,7 @@ export const GAMES: GameEntry[] = [
     slug: 'secret-hitler',
     name: 'Secret Hitler',
     tagline: 'Hidden roles. Trust no one.',
-    description: 'A social-deduction thriller of liberals and fascists racing to enact policies — and unmask the leader hiding among you.',
+    description: 'A social-deduction thriller of liberals and fascists racing to enact policies while unmasking the leader hiding among you.',
     status: 'soon',
     players: '5–10 players',
     accent: '#f2766a',
@@ -72,7 +72,7 @@ export const GAMES: GameEntry[] = [
     slug: 'codenames',
     name: 'Codenames',
     tagline: 'One word. Many meanings.',
-    description: 'Two teams race to contact their agents using one-word clues from their spymaster — without hitting the assassin.',
+    description: 'Two teams race to contact their agents using one-word clues from their spymaster without hitting the assassin.',
     status: 'soon',
     players: '4+ players',
     accent: '#ffc95e',

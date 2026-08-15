@@ -65,7 +65,7 @@ export default function WelcomePage() {
           <CardTitle className="flex items-center gap-2 font-display text-2xl">
             <LogoMark size={26} /> Welcome!
           </CardTitle>
-          <CardDescription>Pick a username — this is how other players will find you. You can change it later in Account.</CardDescription>
+          <CardDescription>Pick a username - this is how other players will find you. You can change it later in Account.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={finish} className="grid gap-4">

@@ -23,7 +23,7 @@ export default function MatchmakingModal({ gameSlug = 'laser-chess', onClose }: 
     return () => clearInterval(id);
   }, []);
 
-  // Poll the queue. The `ranked-matched` socket push is best-effort — if the
+  // Poll the queue. The `ranked-matched` socket push is best-effort - if the
   // social socket is down or reconnecting when the pairing happens, this is
   // what actually gets us into the room. It also re-joins the queue if the
   // server no longer has us (process restart, or a match that fell through).
@@ -51,7 +51,7 @@ export default function MatchmakingModal({ gameSlug = 'laser-chess', onClose }: 
           });
         }
       } catch {
-        /* offline — the next tick retries */
+        /* offline - the next tick retries */
       }
     };
 
@@ -76,7 +76,7 @@ export default function MatchmakingModal({ gameSlug = 'laser-chess', onClose }: 
 
   return (
     // pointer-events-auto: guards against the same body-lock a Radix Dialog
-    // (e.g. GamePlay's end-of-game screen) can leave in place — see RankUpModal.
+    // (e.g. GamePlay's end-of-game screen) can leave in place - see RankUpModal.
     <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="relative mx-4 w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
         <button

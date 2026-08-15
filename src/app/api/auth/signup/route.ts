@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { AuthError, signup } from '@/server/auth/users';
 import { SESSION_COOKIE, sessionCookieOptions, signUserSession } from '@/server/auth/session';
+import { clientIp, rateLimit } from '@/server/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  const limited = rateLimit(`signup:${clientIp(req)}`, 8, 60 * 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: 'Too many accounts created from this network. Try again later.' }, { status: 429, headers: { 'retry-after': String(limited.retryAfterS) } });
+  }
+
   let body: { email?: string; username?: string; displayName?: string; password?: string };
   try {
     body = await req.json();

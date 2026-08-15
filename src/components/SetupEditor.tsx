@@ -108,14 +108,14 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
       body: JSON.stringify({ name: name.trim(), pieces }),
     });
     if (res.status === 401) {
-      setMsg({ text: 'Your admin session expired — please sign in again.', kind: 'err' });
+      setMsg({ text: 'Your admin session expired. Please sign in again.', kind: 'err' });
       onLogout?.();
       return;
     }
     const d = await res.json();
     if (!res.ok) setMsg({ text: d.error || 'save failed', kind: 'err' });
     else {
-      setMsg({ text: `Saved "${name.trim()}" — it's now selectable in the lobby.`, kind: 'ok' });
+      setMsg({ text: `Saved "${name.trim()}". It is now selectable in the lobby.`, kind: 'ok' });
       setList(d.setups || []);
     }
   };
@@ -127,7 +127,7 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
   const del = async (n: string) => {
     const res = await fetch('/api/setups?name=' + encodeURIComponent(n), { method: 'DELETE' });
     if (res.status === 401) {
-      setMsg({ text: 'Your admin session expired — please sign in again.', kind: 'err' });
+      setMsg({ text: 'Your admin session expired. Please sign in again.', kind: 'err' });
       onLogout?.();
       return;
     }
@@ -174,11 +174,11 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 flex-1 flex-col items-center gap-2 p-3">
           <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-sm">
-            <span className="size-2.5 rounded-full bg-player-red" /> Red — top player
+            <span className="size-2.5 rounded-full bg-player-red" /> Red (top player)
           </div>
           <div ref={rootRef} className="relative min-h-0 w-full flex-1" />
           <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-sm">
-            <span className="size-2.5 rounded-full bg-player-teal" /> Teal — bottom player
+            <span className="size-2.5 rounded-full bg-player-teal" /> Teal (bottom player)
           </div>
         </div>
 

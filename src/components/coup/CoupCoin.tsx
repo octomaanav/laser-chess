@@ -1,5 +1,5 @@
 // src/components/coup/CoupCoin.tsx
-// Vector coin motif — radial spokes around a stamped center ring, echoing
+// Vector coin motif - radial spokes around a stamped center ring, echoing
 // the look of a real embossed metal coin instead of a flat dot.
 const RAY_COUNT = 8;
 

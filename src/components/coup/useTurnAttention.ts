@@ -46,7 +46,7 @@ export function useTurnAttention(isYourTurn: boolean) {
   useEffect(() => {
     const link = getFaviconLink();
     if (link && originalFavicon == null) originalFavicon = link.href;
-    const baseTitle = document.title.replace(/^▶ Your turn! — /, '');
+    const baseTitle = document.title.replace(/^▶ Your turn! \| /, '');
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
     let pingHref: string | null = null;
@@ -72,7 +72,7 @@ export function useTurnAttention(isYourTurn: boolean) {
       let on = false;
       intervalId = setInterval(() => {
         on = !on;
-        document.title = on ? `▶ Your turn! — ${baseTitle}` : baseTitle;
+        document.title = on ? `▶ Your turn! | ${baseTitle}` : baseTitle;
         if (link && pingHref) link.href = on ? pingHref : originalFavicon!;
       }, FLASH_MS);
     };

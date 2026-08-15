@@ -47,7 +47,7 @@ export function rankTolerance(waitMs: number, queueSize: number): number {
   return 1 + Math.floor((waitMs - strict) / (EXPAND_MS * scale));
 }
 
-// Per-slug factory registry — avoids circular deps (matchmaking → gameServer
+// Per-slug factory registry - avoids circular deps (matchmaking → gameServer
 // → matchmaking). Each game's server registers its own factory via
 // registerCreateRankedRoom(slug, fn) after defining it.
 type CreateRankedRoomFn = (redUserId: string, silverUserId: string, gameSlug: string) => Promise<string>;
@@ -147,7 +147,7 @@ class MatchmakingQueue {
         socialHub.notify(b.userId, { type: 'ranked-matched', code, gameSlug: a.gameSlug, opponent: toSocialUser(a) });
       } catch (err) {
         console.error('[matchmaking] failed to create ranked room:', err);
-        // Room creation failed — put both back so they keep searching.
+        // Room creation failed - put both back so they keep searching.
         this.queue.set(a.userId, a);
         this.queue.set(b.userId, b);
       } finally {
@@ -166,7 +166,7 @@ export function pairEntries(entries: QueueEntry[], now: number): [QueueEntry, Qu
   const used = new Set<string>();
   const queueSize = entries.length;
 
-  // Pass 1 — same rank.
+  // Pass 1 - same rank.
   const byRating = new Map<number, QueueEntry[]>();
   for (const e of entries) {
     const list = byRating.get(e.rating) ?? [];
@@ -182,7 +182,7 @@ export function pairEntries(entries: QueueEntry[], now: number): [QueueEntry, Qu
     }
   }
 
-  // Pass 2 — cross-rank, only once both players have waited long enough.
+  // Pass 2 - cross-rank, only once both players have waited long enough.
   const rest = entries.filter((e) => !used.has(e.userId)).sort((a, b) => a.rating - b.rating);
   for (let i = 0; i + 1 < rest.length; i++) {
     const a = rest[i];

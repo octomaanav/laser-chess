@@ -4,10 +4,10 @@ import { useLayoutEffect, useRef, useState } from 'react';
 
 // Measures the content's natural (unscaled) size against the space actually
 // available and uniformly scales it down (never up) to guarantee it always
-// fits — the real fix for "the table scrolls on a short/unmaximized
+// fits - the real fix for "the table scrolls on a short/unmaximized
 // window": per-element clamp() sizing still overflows once enough players'
 // seat panels wrap to a second row, since padding/gaps don't shrink with
-// it. A scale transform is content-amount-independent — it fits 2 players
+// it. A scale transform is content-amount-independent - it fits 2 players
 // or 6 the same way, at any window size, without per-case tuning.
 export default function FitToScreen({ children }: { children: React.ReactNode }) {
   const outerRef = useRef<HTMLDivElement>(null);

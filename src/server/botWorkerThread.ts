@@ -1,6 +1,6 @@
 // Runs inside a worker_thread spawned by botWorker.ts. Receives one bot-move
 // request via workerData, computes it, posts the result, and exits (one
-// worker per request — simplest correct approach at this scale).
+// worker per request - simplest correct approach at this scale).
 import { parentPort, workerData } from 'node:worker_threads';
 import { chooseMove } from '../game/bot/bot';
 import type { Difficulty } from '../game/bot/types';

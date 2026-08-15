@@ -5,7 +5,7 @@ import { ScrollText } from 'lucide-react';
 import type { LogEntry } from '@/game/coup/types';
 
 // Floats over the table instead of docking in-flow at the bottom of the
-// column — that made it compete for the same limited vertical space as the
+// column - that made it compete for the same limited vertical space as the
 // hand cards, and easy to miss entirely. Collapsed, it's just a small
 // latest-line pill in the corner; expanded, it's a short scrollable panel
 // that overlays the table without pushing anything else around.

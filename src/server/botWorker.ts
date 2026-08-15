@@ -5,7 +5,7 @@ import type { Action, Color, GameState } from '../game/types';
 
 // Resolved relative to this module's own location (not process.cwd()) so
 // worker spawning still works if the server process is ever started from a
-// directory other than the repo root — a cwd-relative path would silently
+// directory other than the repo root - a cwd-relative path would silently
 // resolve to nothing, fail every worker spawn, and permanently fall back to
 // random-move play (see randomFallback below) with only a console.error to
 // notice.
@@ -53,14 +53,14 @@ interface WorkerResult {
 }
 
 // Node worker_threads do not inherit the parent's ESM loader hooks. The
-// "obvious" fix — passing execArgv: ['--import', 'tsx/esm'] to the Worker
-// constructor — does not actually work: Node resolves a worker's own
+// "obvious" fix - passing execArgv: ['--import', 'tsx/esm'] to the Worker
+// constructor - does not actually work: Node resolves a worker's own
 // entry-point module format before the --import hook is registered, so a
 // .ts entry file still fails with ERR_UNKNOWN_FILE_EXTENSION. This is a
 // known, unresolved Node limitation (nodejs/node#47747), not a bug in this
 // code. The workaround is to give the worker a tiny inline bootstrap
 // script (via `eval: true`) that registers tsx's ESM loader for *this
-// thread* first, then dynamically imports the real .ts worker module —
+// thread* first, then dynamically imports the real .ts worker module -
 // the dynamic import goes through the now-registered loader correctly,
 // and because it all happens in the same thread, workerData/parentPort
 // work exactly as if the .ts file had been the entry point directly.

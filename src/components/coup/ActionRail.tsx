@@ -14,8 +14,8 @@ interface ActionRailProps {
 // Desktop-only (rendered hidden below `lg`, see CoupGamePlay.tsx) home for
 // turn-taking actions: the three character-less actions as buttons, the
 // target picker, and a "use a character" popover. This is the ONLY way to
-// declare an action — hand cards are display-only, with no gesture that
-// commits a move — so a character you don't actually hold is declared from
+// declare an action - hand cards are display-only, with no gesture that
+// commits a move - so a character you don't actually hold is declared from
 // here too (that's the bluff).
 export default function ActionRail({ state, controller, selectedTarget, onSelectTarget }: ActionRailProps) {
   const [claimOpen, setClaimOpen] = useState(false);

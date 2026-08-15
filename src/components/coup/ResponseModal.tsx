@@ -13,7 +13,7 @@ import CharacterCard from './CharacterCard';
 import CardTilt from './CardTilt';
 
 // Mirrors RESPONSE_WINDOW_MS in src/server/games/coup/roomServer.ts (off-limits
-// to import from directly — that file isn't part of this UI-only redesign).
+// to import from directly - that file isn't part of this UI-only redesign).
 const RESPONSE_WINDOW_SECONDS = 7;
 
 interface ResponseModalProps {
@@ -72,7 +72,7 @@ export default function ResponseModal({ state, controller }: ResponseModalProps)
       return (
         <PassiveNotice
           character={action.claimedCharacter}
-          text={othersLeft > 0 ? 'You responded — waiting on others…' : 'You responded — resolving…'}
+          text={othersLeft > 0 ? 'You responded. Waiting on others…' : 'You responded. Resolving…'}
           secondsLeft={secondsLeft}
         />
       );
@@ -115,7 +115,7 @@ export default function ResponseModal({ state, controller }: ResponseModalProps)
     return (
       <PassiveNotice
         character={block.claimedCharacter}
-        text={othersLeft > 0 ? 'You responded — waiting on others…' : 'You responded — resolving…'}
+        text={othersLeft > 0 ? 'You responded. Waiting on others…' : 'You responded. Resolving…'}
         secondsLeft={secondsLeft}
       />
     );
@@ -149,7 +149,7 @@ function describeAction(state: ClientCoupState, action: NonNullable<ClientCoupSt
 }
 
 // The moment someone else's claim is on the table is the emotional peak of
-// a turn — it gets center stage with a dimmed scrim and the actual claimed
+// a turn - it gets center stage with a dimmed scrim and the actual claimed
 // card's art, not a squeezed-in bottom toolbar competing with the hand and
 // the log for the same few inches of screen.
 function DecisionCard({
@@ -187,7 +187,7 @@ function DecisionCard({
   );
 }
 
-// Shown to players who can't act on this decision (or already responded) —
+// Shown to players who can't act on this decision (or already responded) -
 // stays out of the way instead of dimming the whole table, since there's
 // nothing for them to decide.
 function PassiveNotice({

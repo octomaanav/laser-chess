@@ -154,7 +154,7 @@ export default function CoupGamePlay({ controller, view }: { controller: CoupCon
       <GameHeader />
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* This inner box is exactly the gameboard's own footprint (viewport
-            minus the docked ActionRail) — every overlay below anchors to
+            minus the docked ActionRail) - every overlay below anchors to
             it, not the outer row, so a countdown/decision card centers over
             the board itself instead of the whole page including the
             sidebar. */}
@@ -170,7 +170,7 @@ export default function CoupGamePlay({ controller, view }: { controller: CoupCon
           <ReferenceCard />
           <ResponseModal state={stateWithCountdown} controller={controller} />
           {/* awaiting_reveal and exchange_choice also have no server-side
-              timeout — these overlays are the only way out of those phases. */}
+              timeout - these overlays are the only way out of those phases. */}
           <RevealPicker state={view.state} controller={controller} />
           <ExchangePicker state={view.state} controller={controller} />
         </div>

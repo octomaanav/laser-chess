@@ -15,7 +15,7 @@ interface FlightSpec {
 }
 
 // Coins moving between seats/treasury read very differently as "a coin
-// visibly crosses the table" versus a number quietly changing in place —
+// visibly crosses the table" versus a number quietly changing in place -
 // this measures the real DOM position of both endpoints (a seat, or the
 // treasury pile) and animates small coin dots along that exact path.
 // Purely additive: CoinChips/Treasury still do their own shake/count-update
@@ -83,7 +83,7 @@ export default function CoinFlights({
     }
 
     setFlights(next);
-    // Only recompute when the actual set of coin events changes — not on
+    // Only recompute when the actual set of coin events changes - not on
     // every unrelated re-render (e.g. the response countdown ticking).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dependencyKey]);

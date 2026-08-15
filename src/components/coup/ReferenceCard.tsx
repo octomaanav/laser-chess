@@ -7,7 +7,7 @@
 //
 // Both the card and the guide are positioned against the gameboard's own
 // footprint (the `relative` box in CoupGamePlay, viewport minus the docked
-// ActionRail) rather than the viewport — same as ResponseModal — so the
+// ActionRail) rather than the viewport - same as ResponseModal - so the
 // guide centers over the board instead of drifting under the sidebar. That
 // also keeps it inside the [data-game='coup'] wrapper, so the --coup-*
 // tokens resolve (a portalled dialog would render outside it and lose them).
@@ -20,7 +20,7 @@ import ReferenceGuide from './ReferenceGuide';
 
 // Grace period after the pointer leaves the card (or the panel) before the
 // guide closes. The card sits in the corner and the panel is centered, so
-// this has to cover the travel between them — too short and the guide
+// this has to cover the travel between them - too short and the guide
 // closes mid-journey.
 const CLOSE_DELAY_MS = 600;
 
@@ -69,7 +69,7 @@ export default function ReferenceCard() {
       </button>
 
       {/* AnimatePresence keeps the panel mounted long enough to play an exit
-          — a bare `open && …` unmounts it instantly, which is why it used to
+          - a bare `open && …` unmounts it instantly, which is why it used to
           vanish abruptly while fading in smoothly. Exit is quicker than
           enter: dismissal should feel immediate, arrival shouldn't. */}
       <AnimatePresence>

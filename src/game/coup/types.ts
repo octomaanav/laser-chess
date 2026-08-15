@@ -56,7 +56,7 @@ export type PendingResolution = 'apply-action' | 'action-failed' | 'refund-actor
 
 export interface CoupState {
   players: Player[]; // seat order = turn order
-  deck: Character[]; // face-down court deck (never sent to clients directly — see redact.ts)
+  deck: Character[]; // face-down court deck (never sent to clients directly - see redact.ts)
   treasury: number;
   turn: number; // index into players[] of whose turn it is
   phase: Phase;
@@ -97,5 +97,5 @@ export const COST_FOR: Record<ActionType, number> = {
 };
 
 export const TARGETED_ACTIONS: ActionType[] = ['coup', 'assassinate', 'steal'];
-// Never open a response window — resolve immediately.
+// Never open a response window - resolve immediately.
 export const UNCONTESTABLE_ACTIONS: ActionType[] = ['income', 'coup'];

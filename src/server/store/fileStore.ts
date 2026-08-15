@@ -1,5 +1,5 @@
 // Local-dev backend: setups + admin secret in ./data/*.json. Rooms are not
-// persisted in dev (kept in memory, as before) — that only matters in prod.
+// persisted in dev (kept in memory, as before) - that only matters in prod.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';

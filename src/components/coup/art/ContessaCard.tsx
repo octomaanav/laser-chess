@@ -13,7 +13,7 @@ export default function ContessaCard({ activeAbilityIndex }: { activeAbilityInde
       label="Contessa card"
       activeAbilityIndex={activeAbilityIndex}
     >
-      {/* Diamond gem — top portion of icon */}
+      {/* Diamond gem - top portion of icon */}
       <polygon points="118,162 132,143 168,143 182,162 150,198" fill={icon} />
 
       {/* Arch / mask body below the gem */}
@@ -22,7 +22,7 @@ export default function ContessaCard({ activeAbilityIndex }: { activeAbilityInde
         fill={icon}
       />
 
-      {/* Inner arch cutout — background shows through */}
+      {/* Inner arch cutout - background shows through */}
       <path d="M 128 162 A 22 22 0 0 0 172 162 L 172 205 L 128 205 Z" fill={bg} />
     </CardFace>
   );

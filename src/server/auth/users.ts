@@ -6,7 +6,7 @@ import { getStore, type OAuthIdentity, type User } from '../store';
 import type { OAuthProfile, Provider } from './oauth';
 import { hashPassword, verifyPassword } from './password';
 
-// What we expose to the client — never the password hash.
+// What we expose to the client - never the password hash.
 export interface PublicUser {
   id: string;
   email: string;
@@ -110,7 +110,7 @@ export async function login(emailOrUsername: string, password: string): Promise<
 // ---- OAuth -----------------------------------------------------------------
 // Resolve a provider profile to an account: match the linked identity, else link
 // by verified email to an existing account, else create a fresh account.
-// `isNew` is true only when a brand-new account was created — the caller uses it
+// `isNew` is true only when a brand-new account was created - the caller uses it
 // to send first-time users to onboarding so they can pick their own username
 // (the auto-generated one from their email/handle is just a suggested default).
 export async function findOrCreateFromOAuth(
