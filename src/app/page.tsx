@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import GameCard from '@/components/GameCard';
 import Navbar from '@/components/Navbar';
 import { GAMES } from '@/lib/games';
-import { AUTHOR_NAME, AUTHOR_URL, SITE_NAME } from '@/lib/site';
+import { AUTHOR_NAME, AUTHOR_URL, CO_AUTHOR_NAME, CO_AUTHOR_URL, SITE_NAME } from '@/lib/site';
 
 // The Game Night catalogue - the platform's main product. Server-rendered for SEO.
 export default async function Home({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
@@ -72,6 +72,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ g
             className="font-semibold text-foreground underline decoration-primary/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
           >
             {AUTHOR_NAME}
+          </a>{' '}
+          &{' '}
+          <a
+            href={CO_AUTHOR_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-foreground underline decoration-primary/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+          >
+            {CO_AUTHOR_NAME}
           </a>
         </footer>
       </div>

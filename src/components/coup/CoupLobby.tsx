@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import type { CoupController, CoupView } from '@/client/coupController';
 import { useSession } from '@/client/useSession';
 import Navbar from '../Navbar';
-import { AUTHOR_NAME, AUTHOR_URL } from '@/lib/site';
+import TutorialModal from '../tutorials/TutorialModal';
+import { COUP_TUTORIAL_STEPS } from '../tutorials/coupTutorial';
+import { AUTHOR_NAME, AUTHOR_URL, CO_AUTHOR_NAME, CO_AUTHOR_URL } from '@/lib/site';
 
 const PERKS = [
   { c: 'var(--coup-gold)', t: 'No account needed. Just share a link or code' },
@@ -44,7 +46,7 @@ export default function CoupLobby({
   const [name, setName] = useState('');
   const [joinCode, setJoinCode] = useState(initialRoomCode ?? '');
   const [copied, setCopied] = useState(false);
-  const [showRules, setShowRules] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const invited = !!initialRoomCode;
   const { user } = useSession();
 
@@ -113,40 +115,17 @@ export default function CoupLobby({
                   variant="link"
                   className="h-auto p-0"
                   style={{ color: 'var(--coup-gold)' }}
-                  onClick={() => setShowRules((s) => !s)}
+                  onClick={() => setTutorialOpen(true)}
                 >
-                  How to play {showRules ? '▴' : '▾'}
+                  How to play →
                 </Button>
-                {showRules && (
-                  <div
-                    className="mt-3 space-y-2 rounded-xl border p-4 text-left text-[13px] leading-relaxed animate-in fade-in slide-in-from-top-1"
-                    style={{ borderColor: 'var(--coup-panel-border)', background: 'color-mix(in oklab, var(--coup-panel-bg) 60%, transparent)', color: 'var(--coup-text-muted)' }}
-                  >
-                    <p>
-                      On your turn, <span style={{ color: 'var(--coup-text)' }}>claim</span> a character&apos;s power, even if you don&apos;t
-                      hold that card. Opponents can <span style={{ color: 'var(--coup-text)' }}>challenge</span> or{' '}
-                      <span style={{ color: 'var(--coup-text)' }}>block</span> you. Lose a challenge, lose an influence.
-                    </p>
-                    <ul className="list-disc space-y-1 pl-5">
-                      <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Duke:</span> collect 3 coins; blocks foreign aid.
-                      </li>
-                      <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Assassin:</span> pay 3 coins to force a discard.
-                      </li>
-                      <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Captain:</span> steal 2 coins; blocks stealing.
-                      </li>
-                      <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Ambassador:</span> exchange cards; blocks stealing.
-                      </li>
-                      <li>
-                        <span style={{ color: 'var(--coup-text)' }}>Contessa:</span> blocks assassination.
-                      </li>
-                    </ul>
-                    <p>Lose both your influence cards and you&apos;re out. Last player standing wins.</p>
-                  </div>
-                )}
+                <TutorialModal
+                  open={tutorialOpen}
+                  onOpenChange={setTutorialOpen}
+                  gameTitle="Coup"
+                  steps={COUP_TUTORIAL_STEPS}
+                  theme="coup"
+                />
               </div>
             </div>
 
@@ -320,6 +299,16 @@ export default function CoupLobby({
           style={{ color: 'var(--coup-text)' }}
         >
           {AUTHOR_NAME}
+        </a>{' '}
+        &{' '}
+        <a
+          href={CO_AUTHOR_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold underline underline-offset-4 transition-opacity hover:opacity-80"
+          style={{ color: 'var(--coup-text)' }}
+        >
+          {CO_AUTHOR_NAME}
         </a>
       </footer>
     </div>
