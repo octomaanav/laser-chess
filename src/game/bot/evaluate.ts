@@ -25,19 +25,17 @@ export interface Weights {
   pharaohProximity: number;
 }
 
-// Offense (color's own laser threatening the enemy) is weighted above
-// defense (enemy's laser threatening color) so the bot is rewarded more for
-// pressing an attack than for merely not being under threat — without this
-// split, sitting still and staying safe scored the same as advancing, so
-// the search had no reason to prefer the latter. Kept modest (not e.g. 2x)
-// so the bot still avoids feeding pieces to the enemy laser.
+// Found by scripts/tune-bot-weights.ts: 30-generation self-play
+// hill-climbing (24 games/generation, real minimax at depth 3, randomized
+// openings), started from an initial hand-guessed set and kept only
+// mutations that beat the running best by a clear margin.
 export const DEFAULT_WEIGHTS: Weights = {
-  mobility: 0.5,
-  offenseHit: 32,
-  offensePharaoh: 32 * 4,
-  defenseHit: 22,
-  defensePharaoh: 22 * 4,
-  pharaohProximity: 8,
+  mobility: 0.32432561407197136,
+  offenseHit: 29.339335407882885,
+  offensePharaoh: 128.3714831533795,
+  defenseHit: 24.169067198840033,
+  defensePharaoh: 84.6165330491138,
+  pharaohProximity: 8.778894268321732,
 };
 
 // Board is 10 wide (x 0..9) x 8 tall (y 0..7); this bounds any Manhattan
