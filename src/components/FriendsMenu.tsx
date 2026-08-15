@@ -7,13 +7,13 @@ import { useSocial } from '@/client/social/SocialProvider';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // The global friends panel shown in every header. Renders only for signed-in
 // users; when you're inside a game, each online friend gets an Invite button.
 export default function FriendsMenu() {
   const { user } = useSession();
   const social = useSocial();
-  const [open, setOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -40,92 +40,88 @@ export default function FriendsMenu() {
   };
 
   return (
-    <div className="relative">
-      <Button variant="outline" size="icon" className="relative" onClick={() => setOpen((o) => !o)} title="Friends" aria-label="Friends">
-        <Users className="size-4" />
-        {pendingCount > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground">
-            {pendingCount}
-          </span>
-        )}
-      </Button>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="icon" className="relative" title="Friends" aria-label="Friends">
+          <Users className="size-4" />
+          {pendingCount > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold leading-4 text-primary-foreground">
+              {pendingCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent>
+        <div className="border-b border-border/70 px-4 py-3">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add a friend</div>
+          <form onSubmit={submitAdd} className="mt-2 flex gap-2">
+            <Input
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setErr('');
+              }}
+              placeholder="@username"
+              maxLength={20}
+              className="h-9"
+            />
+            <Button type="submit" size="sm" className="h-9 shrink-0" disabled={busy || !username.trim()}>
+              <UserPlus className="size-4" /> Add
+            </Button>
+          </form>
+          {err && <p className="mt-1.5 text-xs font-medium text-destructive">{err}</p>}
+        </div>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-80 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-xl">
-            <div className="border-b border-border/70 px-4 py-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add a friend</div>
-              <form onSubmit={submitAdd} className="mt-2 flex gap-2">
-                <Input
-                  value={username}
-                  onChange={(e) => {
-                    setUsername(e.target.value);
-                    setErr('');
-                  }}
-                  placeholder="@username"
-                  maxLength={20}
-                  className="h-9"
-                />
-                <Button type="submit" size="sm" className="h-9 shrink-0" disabled={busy || !username.trim()}>
-                  <UserPlus className="size-4" /> Add
+        <div className="max-h-[22rem] overflow-y-auto">
+          {incoming.length > 0 && (
+            <Section label={`Requests · ${incoming.length}`}>
+              {incoming.map((u) => (
+                <Row key={u.id} name={u.displayName} handle={u.username}>
+                  <Button size="icon" className="size-7" onClick={() => void social.respond(u.id, true)} title="Accept">
+                    <Check className="size-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" className="size-7" onClick={() => void social.respond(u.id, false)} title="Deny">
+                    <X className="size-4" />
+                  </Button>
+                </Row>
+              ))}
+            </Section>
+          )}
+
+          <Section label={`Friends · ${friends.length}`}>
+            {friends.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No friends yet — add someone by @username.</p>}
+            {friends.map((f) => (
+              <Row key={f.id} name={f.displayName} handle={f.username} online={f.online}>
+                {canInvite && f.online && (
+                  <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => void doInvite(f.id, f.displayName)}>
+                    <Gamepad2 className="size-3.5" /> Invite
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-7 text-muted-foreground hover:text-destructive"
+                  onClick={() => void social.unfriend(f.id)}
+                  title="Remove friend"
+                >
+                  <X className="size-4" />
                 </Button>
-              </form>
-              {err && <p className="mt-1.5 text-xs font-medium text-destructive">{err}</p>}
-            </div>
+              </Row>
+            ))}
+          </Section>
 
-            <div className="max-h-[22rem] overflow-y-auto">
-              {incoming.length > 0 && (
-                <Section label={`Requests · ${incoming.length}`}>
-                  {incoming.map((u) => (
-                    <Row key={u.id} name={u.displayName} handle={u.username}>
-                      <Button size="icon" className="size-7" onClick={() => void social.respond(u.id, true)} title="Accept">
-                        <Check className="size-4" />
-                      </Button>
-                      <Button size="icon" variant="outline" className="size-7" onClick={() => void social.respond(u.id, false)} title="Deny">
-                        <X className="size-4" />
-                      </Button>
-                    </Row>
-                  ))}
-                </Section>
-              )}
-
-              <Section label={`Friends · ${friends.length}`}>
-                {friends.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No friends yet — add someone by @username.</p>}
-                {friends.map((f) => (
-                  <Row key={f.id} name={f.displayName} handle={f.username} online={f.online}>
-                    {canInvite && f.online && (
-                      <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => void doInvite(f.id, f.displayName)}>
-                        <Gamepad2 className="size-3.5" /> Invite
-                      </Button>
-                    )}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => void social.unfriend(f.id)}
-                      title="Remove friend"
-                    >
-                      <X className="size-4" />
-                    </Button>
-                  </Row>
-                ))}
-              </Section>
-
-              {outgoing.length > 0 && (
-                <Section label={`Sent · ${outgoing.length}`}>
-                  {outgoing.map((u) => (
-                    <Row key={u.id} name={u.displayName} handle={u.username}>
-                      <span className="text-xs text-muted-foreground">Pending</span>
-                    </Row>
-                  ))}
-                </Section>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+          {outgoing.length > 0 && (
+            <Section label={`Sent · ${outgoing.length}`}>
+              {outgoing.map((u) => (
+                <Row key={u.id} name={u.displayName} handle={u.username}>
+                  <span className="text-xs text-muted-foreground">Pending</span>
+                </Row>
+              ))}
+            </Section>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
