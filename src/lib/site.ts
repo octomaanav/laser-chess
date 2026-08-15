@@ -10,7 +10,7 @@ export const SITE_DESCRIPTION =
   'featuring Laser Chess and more. Pick a game, share a link, and play in seconds with instant free rooms and no download.';
 
 export const AUTHOR_NAME = 'Manav';
-export const AUTHOR_URL = process.env.NEXT_PUBLIC_AUTHOR_URL || 'https://github.com/octomaanav';
+export const AUTHOR_URL = process.env.NEXT_PUBLIC_AUTHOR_URL || 'https://manav-dev.web.app/';
 export const FEEDBACK_EMAIL = process.env.NEXT_PUBLIC_FEEDBACK_EMAIL || 'maanav.vashist@gmail.com';
 
 
