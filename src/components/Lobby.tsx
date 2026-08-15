@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { GameController, ViewState } from '@/client/controller';
 import { useSession } from '@/client/useSession';
+import type { Difficulty } from '@/game/bot/types';
 import { SETUP_NAMES } from '@/game/setups';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
   const [invited, setInvited] = useState(false);
   const [names, setNames] = useState<string[]>(SETUP_NAMES);
   const [perMove, setPerMove] = useState(0); // minutes per move; 0 = no timer
+  const [botDifficulty, setBotDifficulty] = useState<Difficulty | null>(null);
   const [matchmaking, setMatchmaking] = useState(false);
   const { user } = useSession();
   const social = useSocial();
@@ -68,7 +70,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
 
   const create = () => {
     controller.setName(name);
-    controller.start({ setup, color, perMove });
+    controller.start({ setup, color, perMove, vsBot: botDifficulty ?? undefined });
   };
   const join = () => {
     if (!code.trim()) {
@@ -278,8 +280,25 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="grid gap-1.5">
+                      <Label>Opponent</Label>
+                      <Select
+                        value={botDifficulty ?? 'human'}
+                        onValueChange={(v) => setBotDifficulty(v === 'human' ? null : (v as Difficulty))}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="human">Another player</SelectItem>
+                          <SelectItem value="easy">Bot — Easy</SelectItem>
+                          <SelectItem value="medium">Bot — Medium</SelectItem>
+                          <SelectItem value="hard">Bot — Hard</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button size="lg" className="glow-primary mt-1 w-full font-semibold" onClick={create}>
-                      Create game &amp; get share link <ArrowRight className="size-4" />
+                      {botDifficulty ? 'Play vs Bot' : 'Create game & get share link'} <ArrowRight className="size-4" />
                     </Button>
                     <div className="relative my-1 flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="h-px flex-1 bg-border" />

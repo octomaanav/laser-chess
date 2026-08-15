@@ -5,12 +5,15 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 import { createGame, listSetups } from './setupStore';
 import { applyAction, opposite } from '../game/engine';
+import { requestBotMove } from './botWorker';
+import { DIFFICULTIES, type Difficulty } from '../game/bot/types';
+import crypto from 'node:crypto';
 import { resolveAccountFromReq } from './auth/cookies';
 import { getStore, type PersistedRoom } from './store';
 import { applyResult, getRank, normalizeRating } from '../game/ranking';
 import { socialHub } from './social/socialHub';
 import { registerCreateRankedRoom } from './matchmaking';
-import type { Color, GameState } from '../game/types';
+import type { Action, Color, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
 
 interface Client extends WebSocket {
@@ -37,6 +40,8 @@ interface Room {
   forfeitColor: Color | null; // who is about to forfeit (the disconnected player)
   forfeitDeadline: number | null; // epoch ms when the forfeit fires
   rematch: PlayerSlots; // rematch consent votes (both must agree)
+  botDifficulty: Partial<Record<Color, Difficulty>>; // seats occupied by a bot
+  botThinking: boolean; // true while a requestBotMove() call is in flight for this room
   isRanked: boolean;
   rankedGameSlug: string;
   rankedUserIds: { red: string | null; silver: string | null };
@@ -81,6 +86,8 @@ function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
     forfeitColor: null,
     forfeitDeadline: null,
     rematch: { red: false, silver: false },
+    botDifficulty: {},
+    botThinking: false,
     isRanked: false,
     rankedGameSlug: '',
     rankedUserIds: { red: null, silver: null },
@@ -99,6 +106,7 @@ function toPersisted(room: Room): PersistedRoom {
     turnStartedAt: room.turnStartedAt,
     forfeitColor: room.forfeitColor,
     forfeitDeadline: room.forfeitDeadline,
+    botDifficulty: room.botDifficulty,
     isRanked: room.isRanked,
     rankedGameSlug: room.rankedGameSlug,
     rankedUserIds: room.rankedUserIds,
@@ -124,6 +132,8 @@ function hydrateRoom(p: PersistedRoom): Room {
     forfeitColor: p.forfeitColor ?? null,
     forfeitDeadline: p.forfeitDeadline ?? null,
     rematch: { red: false, silver: false },
+    botDifficulty: p.botDifficulty ?? {},
+    botThinking: false,
     isRanked: p.isRanked ?? false,
     rankedGameSlug: p.rankedGameSlug ?? '',
     rankedUserIds: p.rankedUserIds ?? { red: null, silver: null },
@@ -339,6 +349,8 @@ function onLeave(ws: Client) {
 function presence(room: Room): PlayerSlots {
   const online: PlayerSlots = { red: false, silver: false };
   for (const ws of room.clients) if (ws.readyState === ws.OPEN && ws.color) online[ws.color] = true;
+  if (room.botDifficulty.red) online.red = true;
+  if (room.botDifficulty.silver) online.silver = true;
   return online;
 }
 
@@ -501,6 +513,15 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
     const minutes = Math.min(60, Math.max(0, Number(msg.perMove) || 0));
     room = makeRoom(code, await createGame(setup), Math.round(minutes * 60000));
     rooms.set(code, room);
+
+    const botDifficulty = DIFFICULTIES.includes(msg.vsBot as Difficulty) ? (msg.vsBot as Difficulty) : null;
+    if (botDifficulty) {
+      const humanWant: Color = msg.color === 'red' || msg.color === 'silver' ? msg.color : Math.random() < 0.5 ? 'red' : 'silver';
+      const botColor = opposite(humanWant);
+      room.seats[botColor] = `bot:${botDifficulty}:${crypto.randomUUID()}`;
+      room.names[botColor] = `Bot (${botDifficulty[0].toUpperCase()}${botDifficulty.slice(1)})`;
+      room.botDifficulty[botColor] = botDifficulty;
+    }
   }
 
   // In a ranked room matchmaking already decided who plays which side, so the
@@ -531,16 +552,18 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
   send(ws, { type: 'joined', code: room.code, you: color, spectator: !color });
   broadcast(room, snapshot(room));
   if (color) persist(room); // seat/name changes are durable
+  maybeTriggerBot(room);
 }
 
-function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
-  const room = ws.room;
-  if (!room) return;
-  if (!ws.color) return send(ws, { type: 'error', message: 'spectators cannot move' });
-  if (room.game.winner) return send(ws, { type: 'error', message: 'game over' });
+// Shared by both human moves (onAction) and bot moves (maybeTriggerBot) so
+// there is exactly one path from "an actor wants to make this move" to
+// "the authoritative engine validated it and everyone was told" — a bot is
+// never a special case here, just another caller.
+function applyGameAction(room: Room, color: Color, action: Action): { ok: boolean; error?: string } {
+  if (room.game.winner) return { ok: false, error: 'game-over' };
 
-  const result = applyAction(room.game, ws.color, msg.action);
-  if (!result.ok) return send(ws, { type: 'error', message: result.error! });
+  const result = applyAction(room.game, color, action);
+  if (!result.ok) return { ok: false, error: result.error };
 
   room.game.board = result.board;
   room.game.turn = result.turn;
@@ -558,8 +581,8 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
 
   broadcast(room, {
     type: 'move',
-    by: ws.color,
-    action: msg.action,
+    by: color,
+    action,
     laser: result.laser,
     removed: result.removed,
     board: result.board,
@@ -568,6 +591,40 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
     perMoveMs: room.perMoveMs,
     turnEndsIn: turnEndsIn(room),
   });
+
+  maybeTriggerBot(room);
+  return { ok: true };
+}
+
+function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
+  const room = ws.room;
+  if (!room) return;
+  if (!ws.color) return send(ws, { type: 'error', message: 'spectators cannot move' });
+  const result = applyGameAction(room, ws.color, msg.action);
+  if (!result.ok) send(ws, { type: 'error', message: result.error! });
+}
+
+// If it's now a bot seat's turn, kick off a search in the worker thread and
+// apply whatever it returns through the exact same applyGameAction() path
+// used for human moves. botThinking guards against dispatching twice if this
+// is called again (e.g. from onJoin) before the first request resolves.
+function maybeTriggerBot(room: Room) {
+  if (room.game.winner || room.botThinking) return;
+  const color = room.game.turn;
+  const difficulty = room.botDifficulty[color];
+  if (!difficulty) return;
+
+  room.botThinking = true;
+  void requestBotMove(room.game, color, difficulty)
+    .then((action) => {
+      room.botThinking = false;
+      const result = applyGameAction(room, color, action);
+      if (!result.ok) console.error('bot move rejected by engine:', result.error);
+    })
+    .catch((e) => {
+      room.botThinking = false;
+      console.error('bot move failed entirely (no fallback available):', e);
+    });
 }
 
 // A rematch needs BOTH players to agree. The first click records that player's
@@ -578,7 +635,11 @@ async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematc
   if (!room || !ws.color) return;
   if (!room.game.winner) return; // rematch only makes sense once the game is over
   room.rematch[ws.color] = true;
-  if (room.rematch.red && room.rematch.silver) {
+  // A bot seat can never send a `rematch` message itself, so treat it as an
+  // automatic yes — otherwise a human-vs-bot rematch would hang forever.
+  const redAgreed = room.rematch.red || !!room.botDifficulty.red;
+  const silverAgreed = room.rematch.silver || !!room.botDifficulty.silver;
+  if (redAgreed && silverAgreed) {
     await performRematch(room, msg.setup);
   } else {
     broadcast(room, snapshot(room)); // tells the opponent someone wants a rematch
@@ -598,9 +659,11 @@ async function performRematch(room: Room, requestedSetup?: string) {
   const known = (await listSetups()).some((s) => s.name === requestedSetup);
   const setup = requestedSetup && known ? requestedSetup : room.game.setup;
   const oldSeats = { ...room.seats },
-    oldNames = { ...room.names };
+    oldNames = { ...room.names },
+    oldBotDifficulty = { ...room.botDifficulty };
   room.seats = { red: oldSeats.silver, silver: oldSeats.red };
   room.names = { red: oldNames.silver, silver: oldNames.red };
+  room.botDifficulty = { red: oldBotDifficulty.silver, silver: oldBotDifficulty.red };
   // Sides swap, so the ranked account→seat map has to swap with them, otherwise
   // settlement would credit the rematch to the wrong player. Re-arm settlement
   // so the rematch counts for rank like any other ranked game.
@@ -620,4 +683,5 @@ async function performRematch(room: Room, requestedSetup?: string) {
   broadcast(room, { type: 'rematch' });
   for (const c of room.clients) send(c, { type: 'reseat', you: c.color ?? null });
   broadcast(room, snapshot(room));
+  maybeTriggerBot(room);
 }

@@ -57,6 +57,11 @@ The interesting engineering lives in three places:
   ([`src/lib/render.ts`](src/lib/render.ts)) owns three stacked layers (board / pieces /
   effects) and runs its own `requestAnimationFrame` loop, so 60 fps laser animations never
   fight React's render cycle. React just subscribes to a small immutable view snapshot.
+- **A search-based bot opponent.** Minimax with alpha-beta pruning and iterative deepening,
+  with an evaluation function tuned by self-play hill-climbing rather than hand-guessing.
+  See [`docs/bot-ai.md`](docs/bot-ai.md).
+
+More on the realtime server, persistence, and auth design: [`docs/architecture.md`](docs/architecture.md).
 
 ```
 src/

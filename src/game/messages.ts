@@ -1,5 +1,6 @@
 // Wire protocol shared between client and server.
 import type { Action, Board, Color, Hit, LaserPoint } from './types';
+import type { Difficulty } from './bot/types';
 
 export interface PlayerSlots {
   red: boolean;
@@ -12,7 +13,7 @@ export interface Names {
 
 // ---- client → server -------------------------------------------------------
 export type ClientMessage =
-  | { type: 'join'; playerId: string; name: string; code?: string; setup?: string; color?: Color | 'random'; perMove?: number }
+  | { type: 'join'; playerId: string; name: string; code?: string; setup?: string; color?: Color | 'random'; perMove?: number; vsBot?: Difficulty }
   | { type: 'action'; action: Action }
   | { type: 'rematch'; setup?: string } // request or accept a rematch
   | { type: 'rematch-decline' } // decline / cancel a pending rematch

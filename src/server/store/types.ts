@@ -1,6 +1,7 @@
 // Storage abstraction. Two backends implement this: a file backend (local dev,
 // zero setup) and a Postgres backend (production, via DATABASE_URL).
 import type { Color, GameState, SetupDef } from '../../game/types';
+import type { Difficulty } from '../../game/bot/types';
 import type { CoupState } from '../../game/coup/types';
 
 export interface PersistedRoom {
@@ -12,6 +13,7 @@ export interface PersistedRoom {
   turnStartedAt?: number | null; // epoch ms the current turn started
   forfeitColor?: Color | null; // a disconnected player with a running forfeit clock
   forfeitDeadline?: number | null; // epoch ms the forfeit fires (survives restart)
+  botDifficulty?: Partial<Record<Color, Difficulty>>; // which seat(s), if any, are bots
   isRanked?: boolean;
   rankedGameSlug?: string;
   rankedUserIds?: { red: string | null; silver: string | null };
