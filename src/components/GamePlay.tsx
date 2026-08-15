@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Copy, Loader2, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
-import type { Color } from '@/game/types';
+import type { Color, PieceType } from '@/game/types';
 import { opposite } from '@/game/engine';
 import { colorName } from '@/lib/labels';
 import { cn } from '@/lib/utils';
@@ -148,7 +148,10 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
-          <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
+            <CapturedRow pieces={view.captured[topColor]} />
+          </div>
 
           {view.waiting && (
             <Banner tone="info">
@@ -189,7 +192,10 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             )}
           </div>
 
-          <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <CapturedRow pieces={view.captured[bottomColor]} />
+            <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
+          </div>
         </div>
 
         <aside className="flex shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/70 p-3 lg:w-80 lg:border-l lg:border-t-0">
@@ -315,6 +321,25 @@ function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerVie
       <span className="font-medium text-foreground">{name}</span>
       {you && <span className="text-xs text-muted-foreground">(you)</span>}
       {info.seated && <span className={cn('size-2 rounded-full', info.online ? 'bg-emerald-400' : 'bg-muted-foreground/50')} />}
+    </div>
+  );
+}
+
+const PIECE_ORDER: PieceType[] = ['pharaoh', 'sphinx', 'anubis', 'scarab', 'pyramid'];
+
+// Tally of the pieces this color has lost so far, shown next to their seat.
+function CapturedRow({ pieces }: { pieces: PieceType[] }) {
+  if (pieces.length === 0) return null;
+  const counts = new Map<PieceType, number>();
+  for (const t of pieces) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return (
+    <div className="flex items-center gap-2 px-1 text-muted-foreground">
+      {PIECE_ORDER.filter((t) => counts.has(t)).map((t) => (
+        <span key={t} className="flex items-center gap-0.5" title={`${counts.get(t)} ${t} lost`}>
+          <PieceGlyph type={t} />
+          <span className="text-[10px] font-semibold tabular-nums">×{counts.get(t)}</span>
+        </span>
+      ))}
     </div>
   );
 }

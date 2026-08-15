@@ -2,7 +2,7 @@
 // and the move-animation queue. Exposes an immutable view snapshot so React can
 // subscribe with useSyncExternalStore while the imperative renderer stays smooth.
 import { applyMoveOnly, legalActionsFor, opposite } from '@/game/engine';
-import type { Action, Board, Color, Hit, LaserPoint, RotateAction } from '@/game/types';
+import type { Action, Board, Color, Hit, LaserPoint, PieceType, RotateAction } from '@/game/types';
 import type { ClientMessage, ServerMessage } from '@/game/messages';
 import type { Difficulty } from '@/game/bot/types';
 import { colorName } from '@/lib/labels';
@@ -40,6 +40,7 @@ export interface ViewState {
   selection: { x: number; y: number } | null; // the piece the player has selected
   rotations: { spin: 1 | -1 }[]; // rotation options for the selected piece (Action Panel)
   toast: { id: number; text: string } | null;
+  captured: { red: PieceType[]; silver: PieceType[] }; // pieces each color has lost, in capture order
 }
 
 // Laser Chess lives under its own route + WebSocket namespace within Game Night.
@@ -72,6 +73,7 @@ const INITIAL: ViewState = {
   selection: null,
   rotations: [],
   toast: null,
+  captured: { red: [], silver: [] },
 };
 function blank(): PlayerView {
   return { name: null, seated: false, online: false };
@@ -186,8 +188,17 @@ export class GameController {
       selection: this.selected,
       rotations: this.selected ? this.selectedRotations.map((r) => ({ spin: r.spin })) : [],
       toast: this.snapshot.toast,
+      captured: this.capturedFor(),
     };
     for (const cb of this.listeners) cb();
+  }
+
+  private capturedFor(): { red: PieceType[]; silver: PieceType[] } {
+    const captured: { red: PieceType[]; silver: PieceType[] } = { red: [], silver: [] };
+    for (const h of this.history) {
+      if (h.removed) captured[h.removed.piece.color].push(h.removed.piece.type);
+    }
+    return captured;
   }
 
   private reviewLabelFor(): string | null {
