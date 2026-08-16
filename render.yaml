@@ -1,8 +1,3 @@
-# Render Blueprint — deploy with:  Render dashboard → New → Blueprint → pick this repo.
-# (Or configure a Web Service manually with the same build/start commands.)
-#
-# This app must run as a persistent process (WebSockets + in-memory game rooms),
-# so it's a single-instance Node "web" service — do NOT scale it horizontally.
 services:
   - type: web
     name: game-night
@@ -16,10 +11,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # A stable random secret for signing admin session cookies (Render generates it once).
       - key: AUTH_SECRET
         generateValue: true
-      # Your admin password — Render will prompt you to enter this (kept secret, not committed).
       - key: ADMIN_PASSWORD
         sync: false
       - key: DATABASE_URL

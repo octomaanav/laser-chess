@@ -22,10 +22,10 @@ function GameHeader() {
   return (
     <Navbar
       game="coup"
-      className="px-3 py-2 lg:px-4 lg:py-2.5"
+      className="px-2.5 py-2 lg:px-4 lg:py-2.5"
       rightContent={
-        <Button variant="outline" size="sm" onClick={leave} className="shrink-0">
-          <LogOut className="size-4" /> Leave
+        <Button variant="outline" size="sm" onClick={leave} className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0">
+          <LogOut className="size-3.5 sm:size-4" /> <span className="hidden sm:inline">Leave</span>
         </Button>
       }
     />

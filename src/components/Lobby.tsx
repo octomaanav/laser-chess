@@ -12,12 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Footer from './Footer';
 import MatchmakingModal from './MatchmakingModal';
 import Navbar from './Navbar';
 import RankBadge from './RankBadge';
 import TutorialModal from './tutorials/TutorialModal';
 import { LASER_CHESS_TUTORIAL_STEPS } from './tutorials/laserChessTutorial';
-import { AUTHOR_NAME, AUTHOR_URL, CO_AUTHOR_NAME, CO_AUTHOR_URL } from '@/lib/site';
 import { useSocial } from '@/client/social/SocialProvider';
 
 const PERKS = [
@@ -82,10 +82,10 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
   };
 
   return (
-    <section className="relative flex min-h-dvh flex-col">
+    <section className="relative flex min-h-dvh flex-col w-full max-w-full overflow-x-hidden">
       <Navbar game="laser-chess" showBackToGames className="border-b-0" />
 
-      <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8">
+      <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8">
         <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-16">
           {/* hero */}
           <div className="mx-auto max-w-lg text-center md:mx-0 md:text-left">
@@ -336,34 +336,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
         </div>
       </main>
 
-      <footer className="flex flex-col sm:flex-row items-center justify-between gap-2 px-5 py-5 text-center text-xs text-muted-foreground sm:px-8">
-        <div>
-          Teal moves first ·{' '}
-          <a href="/admin" className="font-semibold text-laser hover:underline">
-            Edit starting configurations →
-          </a>
-        </div>
-        <span>
-          Made by{' '}
-          <a
-            href={AUTHOR_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-foreground underline decoration-laser/50 underline-offset-4 transition-colors hover:text-laser"
-          >
-            {AUTHOR_NAME}
-          </a>{' '}
-          &{' '}
-          <a
-            href={CO_AUTHOR_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-foreground underline decoration-laser/50 underline-offset-4 transition-colors hover:text-laser"
-          >
-            {CO_AUTHOR_NAME}
-          </a>
-        </span>
-      </footer>
+      <Footer theme="laser" />
 
       {matchmaking && <MatchmakingModal gameSlug={gameSlug} onClose={() => setMatchmaking(false)} />}
     </section>

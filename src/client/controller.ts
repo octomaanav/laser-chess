@@ -42,6 +42,7 @@ export interface ViewState {
   toast: { id: number; text: string } | null;
   captured: { red: PieceType[]; silver: PieceType[] }; // pieces each color has lost, in capture order
   soundNotifyEnabled: boolean; // turn-notification chime/Notification when tab is hidden
+  isRanked: boolean;
 }
 
 // Laser Chess lives under its own route + WebSocket namespace within Game Night.
@@ -76,6 +77,7 @@ const INITIAL: ViewState = {
   toast: null,
   captured: { red: [], silver: [] },
   soundNotifyEnabled: true,
+  isRanked: false,
 };
 function blank(): PlayerView {
   return { name: null, seated: false, online: false };
@@ -192,6 +194,7 @@ export class GameController {
       toast: this.snapshot.toast,
       captured: this.capturedFor(),
       soundNotifyEnabled: this.soundEnabled(),
+      isRanked: !!this.lastState?.isRanked,
     };
     for (const cb of this.listeners) cb();
   }

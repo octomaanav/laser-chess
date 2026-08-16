@@ -370,6 +370,7 @@ function snapshot(room: Room): ServerMessage {
     forfeitOf: room.forfeitColor,
     forfeitEndsIn: room.forfeitColor && room.forfeitDeadline ? Math.max(0, room.forfeitDeadline - Date.now()) : null,
     rematch: room.rematch,
+    isRanked: room.isRanked,
   };
 }
 

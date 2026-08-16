@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Eraser, LogOut, Trash2 } from 'lucide-react';
+import { ArrowLeft, Eraser, LogOut, Trash2 } from 'lucide-react';
 import { Renderer } from '@/lib/render';
 import { buildBoardFromDef, mirrorColor, validateSetup } from '@/game/setups';
 import type { Color, EditablePiece, PieceType, SetupDef } from '@/game/types';
@@ -148,36 +148,46 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
       : 'border-amber-500/40 bg-amber-500/5';
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
-      <header className="flex items-center gap-3 border-b border-border/70 px-4 py-2.5">
-        <a href="/" className="flex items-center gap-2 text-foreground">
-          <LogoMark size={22} />
-          <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline">Laser Chess</span>
-        </a>
-        <span className="rounded-full border border-laser/40 bg-laser/10 px-3 py-1 text-sm font-semibold text-laser">
-          Configuration editor
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          {email && <span className="hidden text-xs text-muted-foreground md:inline">{email}</span>}
+    <div className="flex h-dvh flex-col overflow-hidden w-full max-w-full">
+      <header className="flex w-full max-w-full shrink-0 items-center justify-between gap-1.5 sm:gap-3 border-b border-border/70 px-3 py-2 sm:px-4 sm:py-2.5 overflow-hidden">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
+          <a href="/" className="flex items-center gap-1.5 sm:gap-2 text-foreground shrink-0">
+            <LogoMark size={22} />
+            <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline whitespace-nowrap">Laser Chess</span>
+          </a>
+          <span className="rounded-full border border-laser/40 bg-laser/10 px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-semibold text-laser whitespace-nowrap">
+            <span className="xs:hidden">Editor</span>
+            <span className="hidden xs:inline">Configuration editor</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {email && <span className="hidden text-xs text-muted-foreground lg:inline truncate max-w-32">{email}</span>}
           <ThemeToggle />
-          <Button asChild variant="outline" size="sm">
-            <a href="/">← Back to game</a>
+          <Button asChild variant="outline" size="sm" className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0">
+            <a href="/">
+              <ArrowLeft className="size-3.5 sm:size-4" />
+              <span className="hidden sm:inline sm:ml-1">Back to game</span>
+            </a>
           </Button>
           {onLogout && (
-            <Button variant="outline" size="sm" onClick={onLogout}>
-              <LogOut className="size-4" /> Log out
+            <Button variant="outline" size="sm" onClick={onLogout} className="size-8 p-0 sm:size-auto sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0" title="Log out" aria-label="Log out">
+              <LogOut className="size-3.5 sm:size-4" />
+              <span className="hidden sm:inline sm:ml-1">Log out</span>
             </Button>
           )}
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 flex-1 flex-col items-center gap-2 p-3">
-          <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-sm">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:overflow-hidden lg:flex-row w-full max-w-full">
+        <div className="relative flex flex-col items-center justify-center p-3 gap-2 min-h-[380px] xs:min-h-[440px] sm:min-h-[520px] lg:min-h-0 w-full shrink-0 lg:shrink lg:flex-1">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs sm:text-sm shrink-0">
             <span className="size-2.5 rounded-full bg-player-red" /> Red (top player)
           </div>
-          <div ref={rootRef} className="relative min-h-0 w-full flex-1" />
-          <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-sm">
+          <div className="relative aspect-[10/8] max-h-full max-w-3xl w-full min-h-0 flex-1 my-auto overflow-hidden rounded-xl border border-border/50 bg-card/60 shadow-md">
+            <div ref={rootRef} className="relative w-full h-full min-h-0" />
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs sm:text-sm shrink-0">
             <span className="size-2.5 rounded-full bg-player-teal" /> Teal (bottom player)
           </div>
         </div>

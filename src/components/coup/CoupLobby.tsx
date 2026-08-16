@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label';
 import type { CoupController, CoupView } from '@/client/coupController';
 import { useSession } from '@/client/useSession';
 import Navbar from '../Navbar';
+import Footer from '../Footer';
 import TutorialModal from '../tutorials/TutorialModal';
 import { COUP_TUTORIAL_STEPS } from '../tutorials/coupTutorial';
-import { AUTHOR_NAME, AUTHOR_URL, CO_AUTHOR_NAME, CO_AUTHOR_URL } from '@/lib/site';
 
 const PERKS = [
   { c: 'var(--coup-gold)', t: 'No account needed. Just share a link or code' },
@@ -70,9 +70,9 @@ export default function CoupLobby({
 
   if (view.screen === 'lobby') {
     return (
-      <div className="flex min-h-dvh flex-col">
+      <div className="flex min-h-dvh flex-col w-full max-w-full overflow-x-hidden">
         {navbar}
-        <main className="flex flex-1 items-center justify-center px-5 py-8 sm:px-8">
+        <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8">
           <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-16">
             {/* hero */}
             <div className="mx-auto max-w-lg text-center md:mx-0 md:text-left">
@@ -289,28 +289,7 @@ export default function CoupLobby({
         </Panel>
       </main>
 
-      <footer className="px-5 py-6 text-center text-xs" style={{ color: 'var(--coup-text-muted)' }}>
-        Made by{' '}
-        <a
-          href={AUTHOR_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-semibold underline underline-offset-4 transition-opacity hover:opacity-80"
-          style={{ color: 'var(--coup-text)' }}
-        >
-          {AUTHOR_NAME}
-        </a>{' '}
-        &{' '}
-        <a
-          href={CO_AUTHOR_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-semibold underline underline-offset-4 transition-opacity hover:opacity-80"
-          style={{ color: 'var(--coup-text)' }}
-        >
-          {CO_AUTHOR_NAME}
-        </a>
-      </footer>
+      <Footer theme="coup" />
     </div>
   );
 }

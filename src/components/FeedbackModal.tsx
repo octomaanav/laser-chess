@@ -109,13 +109,13 @@ export default function FeedbackModal({
           variant={variant}
           size={size}
           className={cn(
-            'gap-1.5 font-medium transition-colors text-muted-foreground hover:text-foreground',
+            'size-8 p-0 md:size-auto md:h-9 md:px-3 text-xs md:text-sm gap-1.5 font-medium transition-colors text-muted-foreground hover:text-foreground shrink-0',
             triggerClassName
           )}
           title="Send feedback or report a bug"
         >
           <MessageSquarePlus className="size-4 text-primary" />
-          {showLabel && <span>Feedback</span>}
+          {showLabel && <span className="hidden md:inline whitespace-nowrap">Feedback</span>}
         </Button>
       </DialogTrigger>
 

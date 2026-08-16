@@ -74,8 +74,8 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
         </p>
         <p>
           Every turn ends with your laser firing automatically from your <span className="font-semibold text-foreground">Sphinx</span>.
-          It bounces off angled pieces on the board — above, it deflects off a Pyramid, then a Scarab, before landing on
-          the enemy <span className="font-semibold text-foreground">Pharaoh</span>. That&apos;s an instant win.
+          As shown in the demo above, it bounces off angled pieces on the board by deflecting off a Pyramid, then a Scarab, before landing on
+          the enemy <span className="font-semibold text-foreground">Pharaoh</span> for an instant win.
         </p>
       </>
     ),
@@ -94,23 +94,23 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          <span className="font-semibold text-foreground">Pharaoh</span> — your king. Hit by the laser, and you lose.
+          <span className="font-semibold text-foreground">Pharaoh</span>: Your king. You lose immediately if it is hit by the laser.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Pyramid</span> — a single mirror face. Deflects the beam 90°.
-          Hit on its flat (non-mirrored) side, it&apos;s destroyed.
+          <span className="font-semibold text-foreground">Pyramid</span>: Features a single mirror face that deflects the beam 90°.
+          It is destroyed if hit on its flat non-mirrored side.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Scarab</span> — a double mirror. Reflects from either side and can
+          <span className="font-semibold text-foreground">Scarab</span>: Features a double mirror that reflects from either side and can
           never be destroyed.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Anubis</span> — shielded on its front face (the beam just stops),
+          <span className="font-semibold text-foreground">Anubis</span>: Shielded on its front face to stop incoming beams,
           but destroyed if hit from the side or back.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Sphinx</span> — sits in your corner, holds your laser cannon.
-          It can only rotate, never move, and can&apos;t be destroyed.
+          <span className="font-semibold text-foreground">Sphinx</span>: Sits in your corner and holds your laser cannon.
+          It can rotate but cannot move, and it cannot be destroyed.
         </li>
       </ul>
     ),
@@ -120,7 +120,7 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
     visual: <BoardDemo steps={moveRotateSteps()} />,
     body: (
       <>
-        <p>On your turn, do exactly one of:</p>
+        <p>On your turn, choose exactly one of the following actions:</p>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
             <span className="font-semibold text-foreground">Move</span> one of your pieces one square, in any direction
@@ -130,7 +130,7 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
             <span className="font-semibold text-foreground">Rotate</span> one piece a quarter turn (90°), in place.
           </li>
         </ul>
-        <p>Not both — pick one. Then your laser fires and the turn passes.</p>
+        <p>Choose one action per turn. Your laser will then fire automatically and the turn will pass to your opponent.</p>
       </>
     ),
   },
@@ -141,13 +141,13 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
           A <span className="font-semibold text-foreground">Scarab</span> can swap places with an adjacent Pyramid or
-          Anubis (either color) instead of moving normally — neither piece rotates during the swap, shown above.
+          Anubis of either color instead of moving normally. As demonstrated above, neither piece rotates during the swap.
         </li>
         <li>
-          The tinted columns on the board&apos;s left and right edges are reserved for one color only — you can&apos;t
-          move any piece, including a Scarab, into a square reserved for the opponent.
+          The tinted columns on the board&apos;s left and right edges are reserved for one color only. You cannot
+          move any piece, including a Scarab, into a square reserved for your opponent.
         </li>
-        <li>Rotating the Sphinx to fire down a different row/column counts as your whole turn, just like moving a piece.</li>
+        <li>Rotating the Sphinx to fire down a different row or column counts as your whole turn, just like moving a piece.</li>
       </ul>
     ),
   },
@@ -157,8 +157,8 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
     body: (
       <>
         <p>
-          The instant a laser beam illuminates a Pharaoh, the game ends — the player whose Pharaoh got hit loses (even
-          if you hit your own by mistake).
+          The game ends the instant a laser beam illuminates a Pharaoh. The player whose Pharaoh was hit loses, even
+          if you hit your own by mistake.
         </p>
         <p>
           If the exact same board position repeats a third time, the player about to move can call it a draw.

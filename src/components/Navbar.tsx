@@ -51,7 +51,7 @@ export default function Navbar({
   return (
     <header
       className={cn(
-        'flex shrink-0 items-center justify-between px-4 py-3 sm:px-8 sm:py-4 transition-colors duration-200',
+        'flex w-full max-w-full shrink-0 items-center justify-between px-2.5 py-2 sm:px-5 lg:px-8 sm:py-3 transition-colors duration-200 gap-1.5 sm:gap-2 overflow-hidden',
         isCoup
           ? 'border-b border-[var(--coup-panel-border)] text-[var(--coup-text)]'
           : 'border-b border-border/70 text-foreground',
@@ -59,39 +59,39 @@ export default function Navbar({
       )}
     >
       {/* Brand logo & title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
         <a
           href={resolvedBrandHref}
           className={cn(
-            'flex items-center gap-2.5 transition-opacity hover:opacity-90',
+            'flex items-center gap-1.5 sm:gap-2.5 transition-opacity hover:opacity-90 shrink-0',
             isCoup ? 'text-[var(--coup-text)]' : 'text-foreground'
           )}
         >
           {isCoup ? (
-            <CoupLogoMark size={26} />
+            <CoupLogoMark size={24} />
           ) : isLaser ? (
-            <LogoMark size={26} />
+            <LogoMark size={24} />
           ) : (
-            <span className="grid size-9 place-items-center rounded-xl bg-lime-500 dark:bg-[#c3f53b] font-display text-sm font-extrabold text-black shadow-sm dark:shadow-[0_0_22px_rgba(195,245,59,0.45)]">
+            <span className="grid size-8 sm:size-9 place-items-center rounded-xl bg-lime-500 dark:bg-[#c3f53b] font-display text-xs sm:text-sm font-extrabold text-black shadow-sm dark:shadow-[0_0_22px_rgba(195,245,59,0.45)]">
               GN
             </span>
           )}
-          <span className="font-display text-lg font-bold tracking-tight">
+          <span className="font-display text-sm sm:text-base lg:text-lg font-bold tracking-tight whitespace-nowrap hidden xs:inline sm:inline">
             {resolvedTitle}
           </span>
         </a>
 
         {/* Center / middle content (e.g. status pill, timer, breadcrumb) */}
-        {centerContent && <div className="flex items-center gap-2.5 pl-2">{centerContent}</div>}
+        {centerContent && <div className="flex items-center gap-1 sm:gap-2 pl-0.5 sm:pl-1 min-w-0 shrink">{centerContent}</div>}
       </div>
 
       {/* Right side shared controls */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0">
         {showBackToGames && (
           <a
             href="/"
             className={cn(
-              'mr-1 hidden text-sm font-medium transition-colors sm:inline',
+              'mr-1 hidden md:inline text-xs sm:text-sm font-medium transition-colors whitespace-nowrap',
               isCoup
                 ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]'
                 : 'text-muted-foreground hover:text-foreground'
@@ -105,14 +105,17 @@ export default function Navbar({
           <>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => setTutorialOpen(true)}
               className={cn(
+                'size-8 sm:size-8 lg:size-auto lg:h-9 lg:px-2.5 shrink-0',
                 isCoup ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]' : undefined
               )}
+              title="How to play"
+              aria-label="How to play"
             >
               <HelpCircle className="size-4" />
-              <span className="hidden sm:inline">How to play</span>
+              <span className="hidden lg:inline lg:ml-1.5 text-xs sm:text-sm font-medium whitespace-nowrap">How to play</span>
             </Button>
             <TutorialModal
               open={tutorialOpen}

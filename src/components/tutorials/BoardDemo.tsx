@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Renderer } from '@/lib/render';
 import { COLS, ROWS, fireLaser } from '@/game/engine';
 import type { Action, Board, Color, Piece } from '@/game/types';
+import { cn } from '@/lib/utils';
 
 export function emptyBoard(): Board {
   return Array.from({ length: ROWS }, () => Array<Piece | null>(COLS).fill(null));
@@ -38,10 +39,9 @@ interface BoardDemoProps {
 }
 
 // A small looping demo scripted from real game state, animated with the same
-// Renderer class and fireLaser physics the live game uses - so what a player
-// sees here is guaranteed to match how a real board actually behaves, not a
-// hand-drawn approximation of it.
-export default function BoardDemo({ steps, width = 340, height = 240, className }: BoardDemoProps) {
+// Renderer class and fireLaser physics the live game uses so what a player
+// sees here is guaranteed to match how a real board actually behaves.
+export default function BoardDemo({ steps, width = 360, height = 240, className }: BoardDemoProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +51,11 @@ export default function BoardDemo({ steps, width = 340, height = 240, className 
     const renderer = new Renderer(host);
     let cancelled = false;
     const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+    const ro = new ResizeObserver(() => {
+      renderer.resize();
+    });
+    ro.observe(host);
 
     renderer.resize();
     renderer.setBoard(steps[0].board);
@@ -82,10 +87,17 @@ export default function BoardDemo({ steps, width = 340, height = 240, className 
 
     return () => {
       cancelled = true;
+      ro.disconnect();
       renderer.cancelAnimations();
       renderer.destroy();
     };
   }, [steps]);
 
-  return <div ref={hostRef} style={{ width, height }} className={className} />;
+  return (
+    <div
+      ref={hostRef}
+      style={{ width: '100%', maxWidth: width, height }}
+      className={cn('relative mx-auto overflow-hidden rounded-xl border border-border/50 bg-card/60 shadow-md', className)}
+    />
+  );
 }

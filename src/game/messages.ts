@@ -38,6 +38,7 @@ export type ServerMessage =
       forfeitOf: Color | null; // a disconnected player who will forfeit, or null
       forfeitEndsIn: number | null; // ms until that forfeit, or null
       rematch: PlayerSlots; // which players have requested a rematch
+      isRanked?: boolean;
     }
   | {
       type: 'move';

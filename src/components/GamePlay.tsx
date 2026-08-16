@@ -126,10 +126,10 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
     <section className="flex h-dvh flex-col overflow-hidden">
       <Navbar
         game="laser-chess"
-        className="px-4 py-2.5 sm:px-4 sm:py-2.5"
+        className="px-2.5 py-2 sm:px-4 sm:py-2.5"
         centerContent={
           <>
-            <div className={cn('rounded-full border px-2.5 py-1 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0', turnPill)}>
+            <div className={cn('rounded-full border px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0', turnPill)}>
               {view.connected ? turnText : 'Connecting…'}
             </div>
             {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
@@ -143,28 +143,29 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
               onClick={() => controller.toggleSound()}
               title={view.soundNotifyEnabled ? 'Turn notifications enabled (click to mute)' : 'Turn notifications muted (click to unmute)'}
               aria-label="Toggle turn notifications"
+              className="size-8 sm:size-9 shrink-0"
             >
-              {view.soundNotifyEnabled ? <Bell className="size-4" /> : <BellOff className="size-4 text-muted-foreground" />}
+              {view.soundNotifyEnabled ? <Bell className="size-3.5 sm:size-4" /> : <BellOff className="size-3.5 sm:size-4 text-muted-foreground" />}
             </Button>
             <Badge
               variant="outline"
-              className={cn('font-medium whitespace-nowrap shrink-0', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
+              className={cn('font-medium whitespace-nowrap shrink-0 hidden md:inline-flex', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
             >
               {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
             </Badge>
             <span
-              className={cn('size-2.5 shrink-0 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
+              className={cn('size-2 sm:size-2.5 shrink-0 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
               title={view.connected ? 'connected' : 'disconnected'}
             />
-            <Button variant="outline" size="sm" onClick={leave} className="shrink-0">
-              <LogOut className="size-4" /> Leave
+            <Button variant="outline" size="sm" onClick={leave} className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0">
+              <LogOut className="size-3.5 sm:size-4" /> <span className="hidden sm:inline">Leave</span>
             </Button>
           </>
         }
       />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-1.5 p-2 sm:p-3">
+        <div className="flex min-h-[calc(100dvh-54px)] sm:min-h-[calc(100dvh-60px)] lg:min-h-0 w-full shrink-0 lg:shrink lg:flex-1 flex-col items-center justify-between gap-1 p-2 sm:p-3">
           <div className="flex shrink-0 flex-col items-center gap-1">
             <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
           </div>
@@ -185,8 +186,10 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             </Banner>
           ) : null}
 
-          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-1">
-            <Board controller={controller} />
+          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-1 max-w-4xl">
+            <div className="relative w-full aspect-[10/8] max-h-[calc(100dvh-170px)] sm:max-h-[calc(100dvh-200px)] lg:max-h-full flex items-center justify-center">
+              <Board controller={controller} />
+            </div>
           </div>
 
           {/* Action Panel - positioned below the board for smaller screens with fixed height to prevent layout shifts */}
@@ -214,7 +217,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
         </div>
 
         <aside className="flex shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/70 p-3 lg:w-80 lg:border-l lg:border-t-0">
-          {gameRank && (
+          {view.isRanked && gameRank && (
             <Card className="relative overflow-hidden gap-3 p-4 border-laser/25 bg-linear-to-br from-laser/12 via-card to-card shadow-lg shadow-laser/5">
               <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-laser/70 to-transparent" />
               <div className="flex items-center justify-between gap-3">
@@ -515,7 +518,7 @@ function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => vo
     <section className="flex h-dvh flex-col overflow-hidden">
       <Navbar
         game="laser-chess"
-        className="px-4 py-2.5 sm:px-4 sm:py-2.5"
+        className="px-2.5 py-2 sm:px-4 sm:py-2.5"
         centerContent={
           <div className="flex items-center gap-2 rounded-full border border-laser/40 bg-laser/10 px-3 py-1 text-xs font-semibold text-laser animate-pulse">
             <Loader2 className="size-3.5 animate-spin" />
@@ -523,8 +526,8 @@ function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => vo
           </div>
         }
         rightContent={
-          <Button variant="outline" size="sm" onClick={leave}>
-            <LogOut className="size-4" /> Leave
+          <Button variant="outline" size="sm" onClick={leave} className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0">
+            <LogOut className="size-3.5 sm:size-4" /> <span className="hidden sm:inline">Leave</span>
           </Button>
         }
       />
