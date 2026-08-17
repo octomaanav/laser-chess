@@ -1,4 +1,4 @@
-// Laser Chess engine - shared by the Node server (authoritative) and the browser.
+// Photon engine - shared by the Node server (authoritative) and the browser.
 // Pure, dependency-free, so the rules can never drift between the two.
 //
 // Coordinate system:  board[y][x]   x = column 0..9 (left→right),  y = row 0..7 (top→bottom)
@@ -19,20 +19,20 @@ export const DIRS = [
 export const opposite = (c: Color): Color => (c === 'red' ? 'silver' : 'red');
 
 // ---- Reflection tables (keyed by the laser's *travel* direction) -----------
-// Pyramid: single mirror. Maps travel-dir → new travel-dir, or undefined = destroyed.
-const PYRAMID: Record<number, number>[] = [
+// Mirror: single mirror. Maps travel-dir → new travel-dir, or undefined = destroyed.
+const MIRROR: Record<number, number>[] = [
   { 2: 1, 3: 0 }, // orient 0 : mirror "\" , reflective on N & E faces
   { 3: 2, 0: 1 }, // orient 1
   { 0: 3, 1: 2 }, // orient 2
   { 1: 0, 2: 3 }, // orient 3
 ];
 
-// Scarab (Djed): double mirror, reflects from every side, never destroyed.
-const SCARAB_BACK: Record<number, number> = { 0: 3, 1: 2, 2: 1, 3: 0 }; // "\"  (orient even)
-const SCARAB_FWD: Record<number, number> = { 0: 1, 1: 0, 2: 3, 3: 2 }; //  "/"  (orient odd)
+// Prism (Djed): double mirror, reflects from every side, never destroyed.
+const PRISM_BACK: Record<number, number> = { 0: 3, 1: 2, 2: 1, 3: 0 }; // "\"  (orient even)
+const PRISM_FWD: Record<number, number> = { 0: 1, 1: 0, 2: 3, 3: 2 }; //  "/"  (orient odd)
 
-// Legal sphinx firing directions per corner (which two point into the board).
-function sphinxLegalOrients(x: number, y: number): number[] {
+// Legal source firing directions per corner (which two point into the board).
+function sourceLegalOrients(x: number, y: number): number[] {
   const top = y === 0,
     bottom = y === ROWS - 1,
     left = x === 0,
@@ -54,18 +54,18 @@ export function inBounds(x: number, y: number): boolean {
   return x >= 0 && x < COLS && y >= 0 && y < ROWS;
 }
 
-export function findSphinx(board: Board, color: Color): { x: number; y: number; piece: Piece } | null {
+export function findSource(board: Board, color: Color): { x: number; y: number; piece: Piece } | null {
   for (let y = 0; y < ROWS; y++)
     for (let x = 0; x < COLS; x++) {
       const p = board[y][x];
-      if (p && p.type === 'sphinx' && p.color === color) return { x, y, piece: p };
+      if (p && p.type === 'source' && p.color === color) return { x, y, piece: p };
     }
   return null;
 }
 
 // ---- Laser tracing ---------------------------------------------------------
 export function fireLaser(board: Board, color: Color): { path: LaserPoint[]; hit: Hit | null } {
-  const s = findSphinx(board, color);
+  const s = findSource(board, color);
   const path: LaserPoint[] = [];
   if (!s) return { path, hit: null };
   let { x, y } = s;
@@ -88,33 +88,33 @@ export function fireLaser(board: Board, color: Color): { path: LaserPoint[]; hit
 
     path.push({ x: nx + 0.5, y: ny + 0.5 });
 
-    if (p.type === 'pyramid') {
-      const out = PYRAMID[p.orient][dir];
+    if (p.type === 'mirror') {
+      const out = MIRROR[p.orient][dir];
       if (out === undefined) return { path, hit: { x: nx, y: ny, piece: p } };
       dir = out;
       x = nx;
       y = ny;
       continue;
     }
-    if (p.type === 'scarab') {
-      dir = (p.orient % 2 === 0 ? SCARAB_BACK : SCARAB_FWD)[dir];
+    if (p.type === 'prism') {
+      dir = (p.orient % 2 === 0 ? PRISM_BACK : PRISM_FWD)[dir];
       x = nx;
       y = ny;
       continue;
     }
-    if (p.type === 'anubis') {
+    if (p.type === 'shield') {
       if (dir === (p.orient + 2) % 4) return { path, hit: null }; // struck on the shielded front
       return { path, hit: { x: nx, y: ny, piece: p } };
     }
-    if (p.type === 'pharaoh') return { path, hit: { x: nx, y: ny, piece: p } };
-    // sphinx: blocks harmlessly
+    if (p.type === 'keystone') return { path, hit: { x: nx, y: ny, piece: p } };
+    // source: blocks harmlessly
     return { path, hit: null };
   }
   return { path, hit: null };
 }
 
 // ---- Move generation -------------------------------------------------------
-const canSwap = (t: string) => t === 'pyramid' || t === 'anubis';
+const canSwap = (t: string) => t === 'mirror' || t === 'shield';
 
 // All legal actions for the piece at (x,y). Empty list if it isn't `color`'s piece.
 export function legalActionsFor(board: Board, color: Color, x: number, y: number): Action[] {
@@ -122,13 +122,13 @@ export function legalActionsFor(board: Board, color: Color, x: number, y: number
   const actions: Action[] = [];
   if (!p || p.color !== color) return actions;
 
-  if (p.type === 'sphinx') {
-    const orients = sphinxLegalOrients(x, y).filter((o) => o !== p.orient);
+  if (p.type === 'source') {
+    const orients = sourceLegalOrients(x, y).filter((o) => o !== p.orient);
     for (const o of orients) actions.push({ type: 'rotate', x, y, orient: o });
     return actions;
   }
 
-  // 8-directional single-step moves (and scarab swaps).
+  // 8-directional single-step moves (and prism swaps).
   for (let dy = -1; dy <= 1; dy++)
     for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue;
@@ -140,11 +140,11 @@ export function legalActionsFor(board: Board, color: Color, x: number, y: number
       if (tx === COLS - 1 && color !== 'silver') continue;
       const target = board[ty][tx];
       if (!target) actions.push({ type: 'move', x, y, tx, ty });
-      else if (p.type === 'scarab' && canSwap(target.type)) actions.push({ type: 'move', x, y, tx, ty, swap: true });
+      else if (p.type === 'prism' && canSwap(target.type)) actions.push({ type: 'move', x, y, tx, ty, swap: true });
     }
 
-  // Rotations (both directions). Pharaoh has no orientation, so skip it.
-  if (p.type !== 'pharaoh') {
+  // Rotations (both directions). Keystone has no orientation, so skip it.
+  if (p.type !== 'keystone') {
     actions.push({ type: 'rotate', x, y, orient: (p.orient + 1) % 4, spin: 1 });
     actions.push({ type: 'rotate', x, y, orient: (p.orient + 3) % 4, spin: -1 });
   }
@@ -193,7 +193,7 @@ export function applyAction(state: GameState, color: Color, action: Action) {
   }
 
   let winner: Color | null = null;
-  if (hit && hit.piece.type === 'pharaoh') winner = opposite(hit.piece.color);
+  if (hit && hit.piece.type === 'keystone') winner = opposite(hit.piece.color);
 
   return {
     ok: true as const,

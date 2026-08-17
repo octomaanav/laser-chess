@@ -36,10 +36,10 @@ function stateWith(board: Board): GS {
 
 function testEvaluateMaterial() {
   const board = emptyBoard();
-  // Silver has an extra scarab; otherwise identical - silver should score higher.
-  board[3][3] = { id: 's1', type: 'sphinx', color: 'silver', orient: 0 };
-  board[4][6] = { id: 'r1', type: 'sphinx', color: 'red', orient: 2 };
-  board[2][2] = { id: 's2', type: 'scarab', color: 'silver', orient: 0 };
+  // Silver has an extra prism; otherwise identical - silver should score higher.
+  board[3][3] = { id: 's1', type: 'source', color: 'silver', orient: 0 };
+  board[4][6] = { id: 'r1', type: 'source', color: 'red', orient: 2 };
+  board[2][2] = { id: 's2', type: 'prism', color: 'silver', orient: 0 };
   const state = stateWith(board);
   const scoreSilver = evaluate(state, 'silver');
   const scoreRed = evaluate(state, 'red');
@@ -49,14 +49,14 @@ function testEvaluateMaterial() {
 }
 
 function testEvaluateFriendlyFire() {
-  // Silver's sphinx at (0,0) fires South (orient 2) directly into its own
-  // pyramid at (0,1) with no reflection (orient 0 pyramid reflects S/E faces,
+  // Silver's source at (0,0) fires South (orient 2) directly into its own
+  // mirror at (0,1) with no reflection (orient 0 mirror reflects S/E faces,
   // so a laser traveling South hits it flat and is destroyed) - this must be
   // scored as BAD for silver, not good.
   const board = emptyBoard();
-  board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 2 };
-  board[1][0] = { id: 'p1', type: 'pyramid', color: 'silver', orient: 2 };
-  board[7][9] = { id: 's2', type: 'sphinx', color: 'red', orient: 0 };
+  board[0][0] = { id: 's1', type: 'source', color: 'silver', orient: 2 };
+  board[1][0] = { id: 'p1', type: 'mirror', color: 'silver', orient: 2 };
+  board[7][9] = { id: 's2', type: 'source', color: 'red', orient: 0 };
   const state = stateWith(board);
   const score = evaluate(state, 'silver');
   assert.ok(score < 0, `shooting your own piece must score negative, got ${score}`);
@@ -70,25 +70,25 @@ import { search } from './search';
 import { applyAction } from '../engine';
 
 function testSearchFindsMateInOne() {
-  // Silver's sphinx at (0,0) already fires East straight into red's pharaoh
+  // Silver's source at (0,0) already fires East straight into red's keystone
   // at (9,0) with nothing in between. Any legal silver action that leaves
   // that lane clear still wins immediately (applyAction fires the laser
   // after every move). The search must return a legal, winning action.
   //
-  // Note: a corner sphinx's only legal action is rotating between its two
-  // board-facing orientations (see engine.ts sphinxLegalOrients) - it can
-  // never "pass". If the sphinx were silver's only piece, its one legal
+  // Note: a corner source's only legal action is rotating between its two
+  // board-facing orientations (see engine.ts sourceLegalOrients) - it can
+  // never "pass". If the source were silver's only piece, its one legal
   // action would be rotating away from orient 1, which breaks this exact
   // winning lane every time. So a second silver piece, off row 0, is added
   // here to give silver a legal action that actually leaves the lane clear
   // (matching the "any legal action that leaves the lane clear wins"
   // comment above) - the search must find and prefer it over the
-  // lane-breaking sphinx rotation.
+  // lane-breaking source rotation.
   const board = emptyBoard();
-  board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 1 };
-  board[0][9] = { id: 'p1', type: 'pharaoh', color: 'red', orient: 0 };
-  board[7][0] = { id: 's2', type: 'sphinx', color: 'red', orient: 0 };
-  board[5][5] = { id: 'y1', type: 'pyramid', color: 'silver', orient: 0 };
+  board[0][0] = { id: 's1', type: 'source', color: 'silver', orient: 1 };
+  board[0][9] = { id: 'p1', type: 'keystone', color: 'red', orient: 0 };
+  board[7][0] = { id: 's2', type: 'source', color: 'red', orient: 0 };
+  board[5][5] = { id: 'y1', type: 'mirror', color: 'silver', orient: 0 };
   const state = stateWith(board);
 
   const deadline = Date.now() + 300;
@@ -122,9 +122,9 @@ function testEvaluateCustomWeights() {
   // DEFAULT_WEIGHTS. This is the only way to prove the weights parameter
   // actually flows into the score instead of being ignored.
   const board = emptyBoard();
-  board[0][0] = { id: 's1', type: 'sphinx', color: 'silver', orient: 1 };
-  board[0][5] = { id: 'r1', type: 'pyramid', color: 'red', orient: 0 };
-  board[7][9] = { id: 's2', type: 'sphinx', color: 'red', orient: 0 };
+  board[0][0] = { id: 's1', type: 'source', color: 'silver', orient: 1 };
+  board[0][5] = { id: 'r1', type: 'mirror', color: 'red', orient: 0 };
+  board[7][9] = { id: 's2', type: 'source', color: 'red', orient: 0 };
   const state = stateWith(board);
 
   const zeroOffense: Weights = { ...DEFAULT_WEIGHTS, offenseHit: 0 };
@@ -138,4 +138,35 @@ function testEvaluateCustomWeights() {
 }
 
 testEvaluateCustomWeights();
+
+function testEvaluateDangerProximity() {
+  // Silver's keystone sits at (5,0). Red's source at (5,7) fires orient 0
+  // (North) straight up column 5 — its path runs directly toward silver's
+  // king (never reflected, nothing in between) without hitting it this
+  // turn. A second red source variant fires away (orient 2, South) instead.
+  // The near-miss-toward-king position must score worse for silver than the
+  // laser-pointed-away position — proving the defensive proximity term
+  // actually penalizes a looming threat, not just an exact hit.
+  const threatBoard = emptyBoard();
+  threatBoard[0][5] = { id: 'p1', type: 'keystone', color: 'silver', orient: 0 };
+  threatBoard[7][5] = { id: 'r1', type: 'source', color: 'red', orient: 0 };
+  threatBoard[7][0] = { id: 's1', type: 'source', color: 'silver', orient: 1 };
+  const threatState = stateWith(threatBoard);
+
+  const safeBoard = emptyBoard();
+  safeBoard[0][5] = { id: 'p1', type: 'keystone', color: 'silver', orient: 0 };
+  safeBoard[7][5] = { id: 'r1', type: 'source', color: 'red', orient: 2 };
+  safeBoard[7][0] = { id: 's1', type: 'source', color: 'silver', orient: 1 };
+  const safeState = stateWith(safeBoard);
+
+  const threatScore = evaluate(threatState, 'silver');
+  const safeScore = evaluate(safeState, 'silver');
+  assert.ok(
+    threatScore < safeScore,
+    `enemy laser aimed at own king must score worse than aimed away, got threat=${threatScore} safe=${safeScore}`,
+  );
+  console.log(`ok: evaluate danger proximity (threat=${threatScore}, safe=${safeScore})`);
+}
+
+testEvaluateDangerProximity();
 console.log('all bot selftests passed');

@@ -13,7 +13,7 @@ import {
 import AuthPanel from './AuthPanel';
 
 // The signed-in account dropdown (or a "Sign in" button when logged out), shared
-// by the Game Night catalogue header and the Laser Chess lobby. Owns its own
+// by the Game Night catalogue header and the Photon lobby. Owns its own
 // sign-in dialog via useSession.
 export default function AccountMenu() {
   const { user, providers, setUser, logout } = useSession();

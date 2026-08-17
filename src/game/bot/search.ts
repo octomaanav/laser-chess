@@ -13,7 +13,7 @@ const CAPTURE_ORDER_BONUS = 1000;
 // Applies each action to get its resulting state, tagging capture-producing
 // actions so they're searched first - this tightens alpha-beta pruning a lot
 // given laser-chess's branching factor (every piece has up to 8 moves + 2
-// rotations, plus scarab swaps).
+// rotations, plus prism swaps).
 function orderActions(state: GameState, color: Color, actions: Action[]): { action: Action; next: GameState }[] {
   const scored = actions.map((action) => {
     const result = applyAction(state, color, action);

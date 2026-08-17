@@ -15,43 +15,43 @@ interface RP {
 }
 const p = (x: number, y: number, type: PieceType, orient = 0): RP => ({ x, y, type, orient });
 
-// Orientation reference (pyramid): 0 reflects S→E & W→N (faces NE), 1 faces SE,
-// 2 faces SW, 3 faces NW. The red Sphinx sits at (0,0) firing South. Each setup
+// Orientation reference (mirror): 0 reflects S→E & W→N (faces NE), 1 faces SE,
+// 2 faces SW, 3 faces NW. The red Source sits at (0,0) firing South. Each setup
 // is designed so the opening laser destroys nothing (verified by validateSetup).
 const RED_TEMPLATES: Record<string, RP[]> = {
   Classic: [
-    p(0, 0, 'sphinx', 2),
-    p(4, 0, 'anubis', 2), p(5, 0, 'pharaoh'), p(6, 0, 'anubis', 2),
-    p(0, 3, 'pyramid', 3),
-    p(2, 1, 'pyramid', 1), p(7, 1, 'pyramid', 3),
-    p(3, 2, 'pyramid', 0), p(6, 2, 'pyramid', 2),
-    p(2, 3, 'pyramid', 1), p(7, 3, 'pyramid', 2),
-    p(4, 3, 'scarab', 0), p(5, 3, 'scarab', 1),
+    p(0, 0, 'source', 2),
+    p(4, 0, 'shield', 2), p(5, 0, 'keystone'), p(6, 0, 'shield', 2),
+    p(0, 3, 'mirror', 3),
+    p(2, 1, 'mirror', 1), p(7, 1, 'mirror', 3),
+    p(3, 2, 'mirror', 0), p(6, 2, 'mirror', 2),
+    p(2, 3, 'mirror', 1), p(7, 3, 'mirror', 2),
+    p(4, 3, 'prism', 0), p(5, 3, 'prism', 1),
   ],
   Imhotep: [
-    p(0, 0, 'sphinx', 2),
-    p(1, 0, 'anubis', 2), p(2, 0, 'pharaoh'), p(3, 0, 'anubis', 2),
-    p(5, 0, 'pyramid', 2),
-    p(6, 1, 'pyramid', 3), p(8, 1, 'pyramid', 1),
-    p(4, 2, 'pyramid', 0), p(7, 2, 'pyramid', 3),
-    p(1, 3, 'pyramid', 1), p(8, 3, 'pyramid', 2),
-    p(5, 3, 'scarab', 0), p(6, 3, 'scarab', 1),
+    p(0, 0, 'source', 2),
+    p(1, 0, 'shield', 2), p(2, 0, 'keystone'), p(3, 0, 'shield', 2),
+    p(5, 0, 'mirror', 2),
+    p(6, 1, 'mirror', 3), p(8, 1, 'mirror', 1),
+    p(4, 2, 'mirror', 0), p(7, 2, 'mirror', 3),
+    p(1, 3, 'mirror', 1), p(8, 3, 'mirror', 2),
+    p(5, 3, 'prism', 0), p(6, 3, 'prism', 1),
   ],
   Dynasty: [
-    p(0, 0, 'sphinx', 2),
-    p(6, 0, 'anubis', 2), p(7, 0, 'pharaoh'), p(8, 0, 'anubis', 2),
-    p(0, 2, 'pyramid', 3),
-    p(2, 0, 'pyramid', 2),
-    p(4, 1, 'pyramid', 1), p(5, 1, 'pyramid', 0),
-    p(1, 3, 'pyramid', 0), p(3, 3, 'pyramid', 1), p(8, 2, 'pyramid', 3),
-    p(4, 3, 'scarab', 0), p(5, 3, 'scarab', 1),
+    p(0, 0, 'source', 2),
+    p(6, 0, 'shield', 2), p(7, 0, 'keystone'), p(8, 0, 'shield', 2),
+    p(0, 2, 'mirror', 3),
+    p(2, 0, 'mirror', 2),
+    p(4, 1, 'mirror', 1), p(5, 1, 'mirror', 0),
+    p(1, 3, 'mirror', 0), p(3, 3, 'mirror', 1), p(8, 2, 'mirror', 3),
+    p(4, 3, 'prism', 0), p(5, 3, 'prism', 1),
   ],
   Ambush: [
-    p(0, 0, 'sphinx', 2),
-    p(4, 0, 'anubis', 2), p(5, 0, 'pharaoh'), p(6, 0, 'anubis', 2),
-    p(1, 1, 'pyramid', 0), p(3, 1, 'pyramid', 2), p(7, 1, 'pyramid', 2), p(8, 1, 'pyramid', 3),
-    p(2, 3, 'pyramid', 0), p(6, 3, 'pyramid', 1), p(8, 3, 'pyramid', 3),
-    p(4, 2, 'scarab', 1), p(5, 2, 'scarab', 0),
+    p(0, 0, 'source', 2),
+    p(4, 0, 'shield', 2), p(5, 0, 'keystone'), p(6, 0, 'shield', 2),
+    p(1, 1, 'mirror', 0), p(3, 1, 'mirror', 2), p(7, 1, 'mirror', 2), p(8, 1, 'mirror', 3),
+    p(2, 3, 'mirror', 0), p(6, 3, 'mirror', 1), p(8, 3, 'mirror', 3),
+    p(4, 2, 'prism', 1), p(5, 2, 'prism', 0),
   ],
 };
 
@@ -119,8 +119,8 @@ export function validateSetup(def: SetupDef): SetupValidation {
   }
   for (const color of ['red', 'silver'] as Color[]) {
     const disp = color === 'silver' ? 'Teal' : 'Red';
-    if ((counts[color].pharaoh || 0) !== 1) warnings.push(`${disp} should have exactly 1 Pharaoh`);
-    if ((counts[color].sphinx || 0) !== 1) warnings.push(`${disp} should have exactly 1 Sphinx`);
+    if ((counts[color].keystone || 0) !== 1) warnings.push(`${disp} should have exactly 1 Keystone`);
+    if ((counts[color].source || 0) !== 1) warnings.push(`${disp} should have exactly 1 Source`);
   }
   const board = buildBoardFromDef(def);
   const rl = fireLaser(board, 'red');

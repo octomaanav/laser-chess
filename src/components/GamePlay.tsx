@@ -34,11 +34,11 @@ const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
 const YOURS_TINT = 'border-laser/40 bg-laser/10 text-laser';
 
 const LEGEND = [
-  { type: 'pharaoh', name: 'Pharaoh', desc: 'protect it at all costs.' },
-  { type: 'pyramid', name: 'Pyramid', desc: 'single mirror, deflects 90°.' },
-  { type: 'scarab', name: 'Scarab', desc: 'double mirror, indestructible; can swap.' },
-  { type: 'anubis', name: 'Anubis', desc: 'shielded front, vulnerable behind.' },
-  { type: 'sphinx', name: 'Sphinx', desc: 'your laser; rotate only.' },
+  { type: 'keystone', name: 'Keystone', desc: 'protect it at all costs.' },
+  { type: 'mirror', name: 'Mirror', desc: 'single mirror, deflects 90°.' },
+  { type: 'prism', name: 'Prism', desc: 'double mirror, indestructible; can swap.' },
+  { type: 'shield', name: 'Shield', desc: 'shielded front, vulnerable behind.' },
+  { type: 'source', name: 'Source', desc: 'your laser; rotate only.' },
 ] as const;
 
 function PieceGlyph({
@@ -55,32 +55,32 @@ function PieceGlyph({
   const colorClass = color === 'red' ? 'text-player-red' : color === 'silver' ? 'text-player-teal' : 'text-foreground';
   const common = { width: size, height: size, viewBox: '0 0 14 14', className: cn('shrink-0', colorClass, className) };
   switch (type) {
-    case 'pharaoh':
+    case 'keystone':
       return (
         <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
           <path d="M2 11.5V6l2.5 2.2L7 2.5l2.5 5.7L12 6v5.5z" />
         </svg>
       );
-    case 'pyramid':
+    case 'mirror':
       return (
         <svg {...common} fill="currentColor">
           <path d="M2 12 12 2 2Z" />
         </svg>
       );
-    case 'scarab':
+    case 'prism':
       return (
         <svg {...common} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
           <path d="M2.5 2.5 11.5 11.5" />
         </svg>
       );
-    case 'anubis':
+    case 'shield':
       return (
         <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4">
           <rect x="2.5" y="1.5" width="9" height="11" rx="2.4" />
           <path d="M2.5 6h9" />
         </svg>
       );
-    case 'sphinx':
+    case 'source':
       return (
         <svg {...common} fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
           <rect x="2.5" y="3.5" width="9" height="9" rx="2.4" />
@@ -361,7 +361,7 @@ function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerVie
   );
 }
 
-const PIECE_ORDER: PieceType[] = ['pharaoh', 'sphinx', 'anubis', 'scarab', 'pyramid'];
+const PIECE_ORDER: PieceType[] = ['keystone', 'source', 'shield', 'prism', 'mirror'];
 
 // Card in the right sidebar showing all casualties / destroyed pieces grouped by side with team color accents.
 function CasualtiesCard({ view }: { view: ViewState }) {
@@ -464,12 +464,12 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
         ? 'Your opponent ran out of time.'
         : byForfeit
           ? 'Your opponent left the game.'
-          : 'You struck the enemy Pharaoh.'
+          : 'You struck the enemy Keystone.'
       : byTimeout
         ? 'You ran out of time.'
         : byForfeit
           ? 'You were disconnected too long.'
-          : 'Your Pharaoh was hit.';
+          : 'Your Keystone was hit.';
   const { rematchMine, rematchOpp } = view;
   const oppColor = myColor ? opposite(myColor) : 'silver';
   const oppName = view.players[oppColor].name || colorName(oppColor);
@@ -548,7 +548,7 @@ function GameLoadingSkeleton({ view, leave }: { view: ViewState; leave: () => vo
                   <Loader2 className="size-6 text-laser animate-spin" />
                 </div>
                 <div className="font-display text-base font-semibold tracking-wide text-foreground">
-                  Connecting to Laser Chess
+                  Connecting to Photon
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {view.roomCode ? (

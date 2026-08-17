@@ -102,7 +102,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
             <h1 className="font-display text-5xl font-bold leading-[1.02] tracking-tight sm:text-6xl">
               Deflect the beam.
               <br />
-              Burn the <span className="text-laser text-glow">Pharaoh.</span>
+              Burn the <span className="text-laser text-glow">Keystone.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground md:mx-0">
               A fast head-to-head duel of mirrors and lasers. Spin up a board, share the link, and play a friend in
@@ -123,7 +123,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
               <TutorialModal
                 open={tutorialOpen}
                 onOpenChange={setTutorialOpen}
-                gameTitle="Laser Chess"
+                gameTitle="Photon"
                 steps={LASER_CHESS_TUTORIAL_STEPS}
                 theme="laser"
               />

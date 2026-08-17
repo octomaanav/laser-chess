@@ -18,10 +18,10 @@ export interface GameEntry {
 export const GAMES: GameEntry[] = [
   {
     slug: 'laser-chess',
-    name: 'Laser Chess',
-    tagline: 'Deflect the beam. Burn the Pharaoh.',
+    name: 'Photon',
+    tagline: 'Deflect the beam. Burn the Keystone.',
     description:
-      'A fast head-to-head duel of mirrors and lasers. Rotate your pieces to bend the beam and strike the enemy Pharaoh. Share a link and play a friend in seconds.',
+      'A fast head-to-head duel of mirrors and lasers. Rotate your pieces to bend the beam and strike the enemy Keystone. Share a link and play a friend in seconds.',
     status: 'live',
     players: '2 players',
     accent: '#4fc9dd',

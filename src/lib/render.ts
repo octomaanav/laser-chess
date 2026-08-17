@@ -300,7 +300,7 @@ export class Renderer {
     roundRect(ctx, ox, oy, w, h, radius);
     ctx.clip();
 
-    // decorative hatching on each sphinx's home column - one continuous
+    // decorative hatching on each source's home column - one continuous
     // diagonal band per column, so the stripe phase never resets at row
     // boundaries (a per-cell reset here would visibly stagger the stripes).
     for (const x of [0, COLS - 1]) {
@@ -392,14 +392,14 @@ export class Renderer {
     // Fixed screen-space light (not rotated with the piece) so orientation
     // changes don't flip the highlight - subtle sheen instead of flat fill.
     const fill = this.pieceFill(ctx, s, FILL[p.color]);
-    ctx.rotate(p.type === 'pharaoh' ? 0 : angle); // crown always upright
+    ctx.rotate(p.type === 'keystone' ? 0 : angle); // crown always upright
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    if (p.type === 'pharaoh') this._pharaoh(ctx, s, fill);
-    else if (p.type === 'pyramid') this._pyramid(ctx, s, fill);
-    else if (p.type === 'scarab') this._scarab(ctx, s, fill);
-    else if (p.type === 'anubis') this._anubis(ctx, s, fill);
-    else if (p.type === 'sphinx') this._sphinx(ctx, s, fill);
+    if (p.type === 'keystone') this._keystone(ctx, s, fill);
+    else if (p.type === 'mirror') this._mirror(ctx, s, fill);
+    else if (p.type === 'prism') this._prism(ctx, s, fill);
+    else if (p.type === 'shield') this._shield(ctx, s, fill);
+    else if (p.type === 'source') this._source(ctx, s, fill);
     ctx.restore();
   }
 
@@ -423,7 +423,7 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private _pyramid(ctx: Ctx, s: number, fill: CanvasGradient) {
+  private _mirror(ctx: Ctx, s: number, fill: CanvasGradient) {
     const h = s * 0.38;
     ctx.beginPath();
     ctx.moveTo(-h, -h);
@@ -442,7 +442,7 @@ export class Renderer {
     this.line(ctx, -h * 0.7 - o, -h * 0.7 + o, h * 0.7 - o, h * 0.7 + o);
   }
 
-  private _scarab(ctx: Ctx, s: number, fill: CanvasGradient) {
+  private _prism(ctx: Ctx, s: number, fill: CanvasGradient) {
     const a = s * 0.32,
       t = s * 0.26;
     ctx.lineCap = 'round';
@@ -458,7 +458,7 @@ export class Renderer {
     this.line(ctx, -a * 0.66 + o / SQ2, -a * 0.66 - o / SQ2, a * 0.66 + o / SQ2, a * 0.66 - o / SQ2);
   }
 
-  private _anubis(ctx: Ctx, s: number, fill: CanvasGradient) {
+  private _shield(ctx: Ctx, s: number, fill: CanvasGradient) {
     const w = s * 0.32,
       top = -s * 0.34,
       bot = s * 0.34,
@@ -483,7 +483,7 @@ export class Renderer {
     ctx.stroke();
   }
 
-  private _pharaoh(ctx: Ctx, s: number, fill: CanvasGradient) {
+  private _keystone(ctx: Ctx, s: number, fill: CanvasGradient) {
     const W = s * 0.34,
       base = s * 0.16,
       midTop = -s * 0.3,
@@ -514,7 +514,7 @@ export class Renderer {
     this.line(ctx, -W * 0.85, base + s * 0.11, W * 0.85, base + s * 0.11);
   }
 
-  private _sphinx(ctx: Ctx, s: number, fill: CanvasGradient) {
+  private _source(ctx: Ctx, s: number, fill: CanvasGradient) {
     const R = s * 0.3;
     roundRect(ctx, -R, -R, R * 2, R * 2, R * 0.55);
     ctx.fillStyle = fill;

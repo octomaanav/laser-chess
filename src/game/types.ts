@@ -2,7 +2,7 @@
 
 export type Color = 'red' | 'silver';
 
-export type PieceType = 'pharaoh' | 'pyramid' | 'scarab' | 'anubis' | 'sphinx';
+export type PieceType = 'keystone' | 'mirror' | 'prism' | 'shield' | 'source';
 
 export interface Piece {
   id: string;

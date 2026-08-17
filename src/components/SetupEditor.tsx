@@ -16,11 +16,11 @@ const PanelTitle = ({ children }: { children: React.ReactNode }) => (
 );
 
 const TYPES: { type: PieceType; label: string }[] = [
-  { type: 'pyramid', label: 'Pyramid' },
-  { type: 'scarab', label: 'Scarab' },
-  { type: 'anubis', label: 'Anubis' },
-  { type: 'pharaoh', label: 'Pharaoh' },
-  { type: 'sphinx', label: 'Sphinx' },
+  { type: 'mirror', label: 'Mirror' },
+  { type: 'prism', label: 'Prism' },
+  { type: 'shield', label: 'Shield' },
+  { type: 'keystone', label: 'Keystone' },
+  { type: 'source', label: 'Source' },
 ];
 
 export default function SetupEditor({ email, onLogout }: { email?: string; onLogout?: () => void } = {}) {
@@ -30,7 +30,7 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
 
   const [pieces, setPieces] = useState<EditablePiece[]>([]);
   const [name, setName] = useState('MySetup');
-  const [type, setType] = useState<PieceType>('pyramid');
+  const [type, setType] = useState<PieceType>('mirror');
   const [color, setColor] = useState<Color>('red');
   const [erase, setErase] = useState(false);
   const [list, setList] = useState<SetupDef[]>([]);
@@ -153,7 +153,7 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
           <a href="/" className="flex items-center gap-1.5 sm:gap-2 text-foreground shrink-0">
             <LogoMark size={22} />
-            <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline whitespace-nowrap">Laser Chess</span>
+            <span className="hidden font-display text-sm font-semibold tracking-tight sm:inline whitespace-nowrap">Photon</span>
           </a>
           <span className="rounded-full border border-laser/40 bg-laser/10 px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-semibold text-laser whitespace-nowrap">
             <span className="xs:hidden">Editor</span>
@@ -250,12 +250,12 @@ export default function SetupEditor({ email, onLogout }: { email?: string; onLog
           <Card className={cn('gap-1.5 p-4', checkTone)}>
             <PanelTitle>Validation</PanelTitle>
             <div className="text-sm">
-              <span className="text-muted-foreground">Red:</span> P{cnt('red', 'pharaoh')} · X{cnt('red', 'sphinx')} · A
-              {cnt('red', 'anubis')} · S{cnt('red', 'scarab')} · Y{cnt('red', 'pyramid')}
+              <span className="text-muted-foreground">Red:</span> P{cnt('red', 'keystone')} · X{cnt('red', 'source')} · A
+              {cnt('red', 'shield')} · S{cnt('red', 'prism')} · Y{cnt('red', 'mirror')}
             </div>
             <div className="text-sm">
-              <span className="text-muted-foreground">Teal:</span> P{cnt('silver', 'pharaoh')} · X{cnt('silver', 'sphinx')} · A
-              {cnt('silver', 'anubis')} · S{cnt('silver', 'scarab')} · Y{cnt('silver', 'pyramid')}
+              <span className="text-muted-foreground">Teal:</span> P{cnt('silver', 'keystone')} · X{cnt('silver', 'source')} · A
+              {cnt('silver', 'shield')} · S{cnt('silver', 'prism')} · Y{cnt('silver', 'mirror')}
             </div>
             <div className="text-sm">Opening laser: {val.safe ? '✅ safe (destroys nothing)' : '❌ hits a piece'}</div>
             {val.redHit && <div className="text-sm text-destructive">Red beam → {val.redHit}</div>}

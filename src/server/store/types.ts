@@ -21,7 +21,7 @@ export interface PersistedRoom {
 }
 
 // Skill rating for one player in one game. `gameSlug` scopes ratings per game
-// so the same account can hold a separate rank in Laser Chess, Poker, etc.
+// so the same account can hold a separate rank in Photon, Poker, etc.
 // `rating` is a rank index (see game/ranking.ts), not an Elo score.
 export interface PlayerRating {
   userId: string;
@@ -53,7 +53,7 @@ export interface OAuthIdentity {
   userId: string;
 }
 
-// A persisted Coup room (separate table/namespace from Laser Chess's rooms - see roomServer.ts).
+// A persisted Coup room (separate table/namespace from Photon's rooms - see roomServer.ts).
 export interface PersistedCoupRoom {
   code: string;
   state: CoupState;
@@ -87,7 +87,7 @@ export interface Store {
   deleteRoom(code: string): Promise<void>;
   sweepRooms(maxAgeMs: number): Promise<void>;
 
-  // Coup rooms (separate table/namespace from Laser Chess's rooms - see roomServer.ts)
+  // Coup rooms (separate table/namespace from Photon's rooms - see roomServer.ts)
   loadCoupRoom(code: string): Promise<PersistedCoupRoom | null>;
   saveCoupRoom(room: PersistedCoupRoom): Promise<void>;
   deleteCoupRoom(code: string): Promise<void>;

@@ -7,7 +7,7 @@ import { SITE_NAME } from '@/lib/site';
 
 // The Game Night catalogue - the platform's main product. Server-rendered for SEO.
 export default async function Home({ searchParams }: { searchParams: Promise<{ game?: string | string[] }> }) {
-  // Backward-compat: old Laser Chess share links were /?game=CODE. Forward them to
+  // Backward-compat: old Photon share links were /?game=CODE. Forward them to
   // the game's new home so existing invites keep working.
   const { game } = await searchParams;
   const raw = Array.isArray(game) ? game[0] : game;

@@ -24,7 +24,7 @@ export interface ViewState {
   spectator: boolean;
   turn: Color;
   winner: Color | null;
-  overReason: 'pharaoh' | 'timeout' | 'forfeit' | null;
+  overReason: 'keystone' | 'timeout' | 'forfeit' | null;
   waiting: boolean;
   bothSeated: boolean;
   rematchMine: boolean; // I've requested a rematch
@@ -45,7 +45,7 @@ export interface ViewState {
   isRanked: boolean;
 }
 
-// Laser Chess lives under its own route + WebSocket namespace within Game Night.
+// Photon lives under its own route + WebSocket namespace within Game Night.
 const LASER_CHESS_PATH = '/games/laser-chess';
 const LASER_CHESS_WS_PATH = '/ws/laser-chess';
 
@@ -113,7 +113,7 @@ export class GameController {
   private spectator = false;
   private turn: Color = 'silver';
   private winner: Color | null = null;
-  private overReason: 'pharaoh' | 'timeout' | 'forfeit' | null = null;
+  private overReason: 'keystone' | 'timeout' | 'forfeit' | null = null;
   private pendingLeave: (() => void) | null = null; // resolves once the server ends the game we quit
   private roomCode: string | null = null;
   private setup = 'Classic';
@@ -396,7 +396,7 @@ export class GameController {
         if (!this.busy) {
           this.turn = msg.turn;
           this.winner = msg.winner;
-          if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
+          if (msg.winner && !this.overReason) this.overReason = 'keystone';
           this.board = msg.board;
           if (this.reviewIndex == null) this.renderDisplayed();
         }
@@ -406,7 +406,7 @@ export class GameController {
         this.history.push({ board: msg.board, action: msg.action, by: msg.by, removed: msg.removed, laser: msg.laser });
         this.perMoveMs = msg.perMoveMs;
         this.turnEndsAt = msg.winner ? null : msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
-        if (msg.winner) this.overReason = 'pharaoh';
+        if (msg.winner) this.overReason = 'keystone';
         if (this.reviewIndex != null) {
           // reviewing history: apply silently, keep the reviewed board on screen
           this.board = msg.board;
@@ -522,7 +522,7 @@ export class GameController {
     if (!this.soundEnabled()) return;
     this.playChime();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification('Laser Chess: Your move', { body: 'It is your turn.', icon: '/og.png', tag: 'laser-chess-turn' });
+      new Notification('Photon: Your move', { body: 'It is your turn.', icon: '/og.png', tag: 'laser-chess-turn' });
     }
   }
   private playChime() {
@@ -664,7 +664,7 @@ export class GameController {
       const actions = legalActionsFor(this.board, this.myColor, pick.x, pick.y);
       r.select(this.selected, actions);
       // Rotation moves off the board into the Action Panel: normalize each rotate
-      // action to a spin direction (sphinx rotates carry `orient` instead of `spin`).
+      // action to a spin direction (source rotates carry `orient` instead of `spin`).
       this.selectedRotations = actions
         .filter((a): a is RotateAction => a.type === 'rotate')
         .map((a) => ({ spin: (a.spin ?? ((a.orient - cell.orient + 4) % 4 === 1 ? 1 : -1)) as 1 | -1, action: a }));

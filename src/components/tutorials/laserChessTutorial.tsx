@@ -11,22 +11,22 @@ function Tile({ children, label }: { children: React.ReactNode; label?: string }
   );
 }
 
-// ---- Intro: the silver Sphinx fires east, bounces off a Pyramid (turns
-// south), bounces off a Scarab (turns east again), and burns the red
-// Pharaoh - a single real fireLaser() trace showing both deflection types
+// ---- Intro: the silver Source fires east, bounces off a Mirror (turns
+// south), bounces off a Prism (turns east again), and burns the red
+// Keystone - a single real fireLaser() trace showing both deflection types
 // and the win condition in one shot. ----------------------------------------
 function introSteps(): DemoStep[] {
-  let b0 = place(emptyBoard(), 1, 1, piece('sphinx', 'silver', 1));
-  b0 = place(b0, 5, 1, piece('pyramid', 'silver', 2));
-  b0 = place(b0, 5, 4, piece('scarab', 'silver', 0));
-  b0 = place(b0, 8, 4, piece('pharaoh', 'red', 0));
+  let b0 = place(emptyBoard(), 1, 1, piece('source', 'silver', 1));
+  b0 = place(b0, 5, 1, piece('mirror', 'silver', 2));
+  b0 = place(b0, 5, 4, piece('prism', 'silver', 0));
+  b0 = place(b0, 8, 4, piece('keystone', 'red', 0));
   return [{ board: b0, fireColor: 'silver', holdMs: 1800 }];
 }
 
-// ---- Move & rotate: a pyramid slides one square, then rotates in place,
+// ---- Move & rotate: a mirror slides one square, then rotates in place,
 // then reverses both so the loop reads cleanly. -----------------------------
 function moveRotateSteps(): DemoStep[] {
-  const p = piece('pyramid', 'silver', 0);
+  const p = piece('mirror', 'silver', 0);
   const b0 = place(emptyBoard(), 2, 2, p);
   const b1 = place(emptyBoard(), 3, 2, { ...p, orient: 0 });
   const b2 = place(emptyBoard(), 3, 2, { ...p, orient: 1 });
@@ -41,13 +41,13 @@ function moveRotateSteps(): DemoStep[] {
   ];
 }
 
-// ---- Scarab swap: a Scarab and a Pyramid trade places without rotating,
+// ---- Prism swap: a Prism and a Mirror trade places without rotating,
 // then swap back. --------------------------------------------------------
-function scarabSwapSteps(): DemoStep[] {
-  const scarab = piece('scarab', 'silver', 0);
-  const pyramid = piece('pyramid', 'silver', 2);
-  const b0 = place(place(emptyBoard(), 3, 3, scarab), 4, 3, pyramid);
-  const b1 = place(place(emptyBoard(), 4, 3, scarab), 3, 3, pyramid);
+function prismSwapSteps(): DemoStep[] {
+  const prism = piece('prism', 'silver', 0);
+  const mirror = piece('mirror', 'silver', 2);
+  const b0 = place(place(emptyBoard(), 3, 3, prism), 4, 3, mirror);
+  const b1 = place(place(emptyBoard(), 4, 3, prism), 3, 3, mirror);
   return [
     { board: b0, holdMs: 700 },
     { board: b1, action: { type: 'move', x: 3, y: 3, tx: 4, ty: 3, swap: true }, holdMs: 900 },
@@ -55,27 +55,26 @@ function scarabSwapSteps(): DemoStep[] {
   ];
 }
 
-// ---- Winning: the silver Sphinx fires straight down an open row and
-// illuminates the red Pharaoh - the real fireLaser() traces this path. -----
+// ---- Winning: the silver Source fires straight down an open row and
+// illuminates the red Keystone - the real fireLaser() traces this path. -----
 function winningSteps(): DemoStep[] {
-  const b0 = place(place(emptyBoard(), 9, 4, piece('sphinx', 'silver', 3)), 1, 4, piece('pharaoh', 'red', 0));
+  const b0 = place(place(emptyBoard(), 9, 4, piece('source', 'silver', 3)), 1, 4, piece('keystone', 'red', 0));
   return [{ board: b0, fireColor: 'silver', holdMs: 1700 }];
 }
 
 export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
   {
-    title: 'Burn the enemy Pharaoh',
+    title: 'Burn the enemy Keystone',
     visual: <BoardDemo steps={introSteps()} />,
     body: (
       <>
         <p>
-          Laser Chess (based on <span className="font-semibold text-foreground">Khet</span>) is a head-to-head duel
-          fought with mirrors and a laser instead of captures.
+          Photon is a head-to-head duel fought with mirrors and a laser instead of captures.
         </p>
         <p>
-          Every turn ends with your laser firing automatically from your <span className="font-semibold text-foreground">Sphinx</span>.
-          As shown in the demo above, it bounces off angled pieces on the board by deflecting off a Pyramid, then a Scarab, before landing on
-          the enemy <span className="font-semibold text-foreground">Pharaoh</span> for an instant win.
+          Every turn ends with your laser firing automatically from your <span className="font-semibold text-foreground">Source</span>.
+          As shown in the demo above, it bounces off angled pieces on the board by deflecting off a Mirror, then a Prism, before landing on
+          the enemy <span className="font-semibold text-foreground">Keystone</span> for an instant win.
         </p>
       </>
     ),
@@ -84,32 +83,32 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
     title: 'The pieces',
     visual: (
       <div className="grid grid-cols-3 gap-4 sm:grid-cols-5">
-        <Tile label="Pharaoh"><GamePieceIcon type="pharaoh" color="silver" /></Tile>
-        <Tile label="Pyramid"><GamePieceIcon type="pyramid" color="silver" /></Tile>
-        <Tile label="Scarab"><GamePieceIcon type="scarab" color="silver" /></Tile>
-        <Tile label="Anubis"><GamePieceIcon type="anubis" color="silver" orient={1} /></Tile>
-        <Tile label="Sphinx"><GamePieceIcon type="sphinx" color="silver" /></Tile>
+        <Tile label="Keystone"><GamePieceIcon type="keystone" color="silver" /></Tile>
+        <Tile label="Mirror"><GamePieceIcon type="mirror" color="silver" /></Tile>
+        <Tile label="Prism"><GamePieceIcon type="prism" color="silver" /></Tile>
+        <Tile label="Shield"><GamePieceIcon type="shield" color="silver" orient={1} /></Tile>
+        <Tile label="Source"><GamePieceIcon type="source" color="silver" /></Tile>
       </div>
     ),
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          <span className="font-semibold text-foreground">Pharaoh</span>: Your king. You lose immediately if it is hit by the laser.
+          <span className="font-semibold text-foreground">Keystone</span>: Your king. You lose immediately if it is hit by the laser.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Pyramid</span>: Features a single mirror face that deflects the beam 90°.
+          <span className="font-semibold text-foreground">Mirror</span>: Features a single mirror face that deflects the beam 90°.
           It is destroyed if hit on its flat non-mirrored side.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Scarab</span>: Features a double mirror that reflects from either side and can
+          <span className="font-semibold text-foreground">Prism</span>: Features a double mirror that reflects from either side and can
           never be destroyed.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Anubis</span>: Shielded on its front face to stop incoming beams,
+          <span className="font-semibold text-foreground">Shield</span>: Shielded on its front face to stop incoming beams,
           but destroyed if hit from the side or back.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Sphinx</span>: Sits in your corner and holds your laser cannon.
+          <span className="font-semibold text-foreground">Source</span>: Sits in your corner and holds your laser cannon.
           It can rotate but cannot move, and it cannot be destroyed.
         </li>
       </ul>
@@ -136,18 +135,18 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: 'Special rules',
-    visual: <BoardDemo steps={scarabSwapSteps()} />,
+    visual: <BoardDemo steps={prismSwapSteps()} />,
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          A <span className="font-semibold text-foreground">Scarab</span> can swap places with an adjacent Pyramid or
-          Anubis of either color instead of moving normally. As demonstrated above, neither piece rotates during the swap.
+          A <span className="font-semibold text-foreground">Prism</span> can swap places with an adjacent Mirror or
+          Shield of either color instead of moving normally. As demonstrated above, neither piece rotates during the swap.
         </li>
         <li>
           The tinted columns on the board&apos;s left and right edges are reserved for one color only. You cannot
-          move any piece, including a Scarab, into a square reserved for your opponent.
+          move any piece, including a Prism, into a square reserved for your opponent.
         </li>
-        <li>Rotating the Sphinx to fire down a different row or column counts as your whole turn, just like moving a piece.</li>
+        <li>Rotating the Source to fire down a different row or column counts as your whole turn, just like moving a piece.</li>
       </ul>
     ),
   },
@@ -157,7 +156,7 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
     body: (
       <>
         <p>
-          The game ends the instant a laser beam illuminates a Pharaoh. The player whose Pharaoh was hit loses, even
+          The game ends the instant a laser beam illuminates a Keystone. The player whose Keystone was hit loses, even
           if you hit your own by mistake.
         </p>
         <p>

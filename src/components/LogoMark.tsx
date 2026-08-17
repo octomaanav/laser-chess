@@ -1,4 +1,4 @@
-// The Laser Chess mark: a teal sphinx emitter firing a red laser across a dark
+// The Photon mark: a teal source emitter firing a red laser across a dark
 // rounded badge (matches src/app/icon.svg, the favicon). Self-contained colors so
 // it reads as a logo on both the light and dark themes.
 export default function LogoMark({ size = 28 }: { size?: number }) {
