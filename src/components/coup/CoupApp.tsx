@@ -30,7 +30,7 @@ export default function CoupApp({ initialRoomCode }: { initialRoomCode: string |
       style={{
         background: 'var(--coup-table-bg)',
         color: 'var(--coup-text)',
-        // Faint radial glow + grid, matching Laser Chess's backdrop treatment
+        // Faint radial glow + grid, matching Photon's backdrop treatment
         // (--app-backdrop) - applied app-wide, subtle enough to sit behind the
         // table felt without competing with cards/pieces.
         backgroundImage: 'var(--coup-backdrop)',

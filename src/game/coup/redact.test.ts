@@ -26,7 +26,7 @@ describe('redactStateFor', () => {
 
   it('only includes the exchange offer for the exchanging player', () => {
     let state = createGame([{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }]);
-    state = { ...state, phase: 'exchange_choice', pendingAction: { type: 'exchange', actorId: 'a', targetId: null, claimedCharacter: 'ambassador', costPaid: 0 }, exchangeOffer: [state.deck[0], state.deck[1]] };
+    state = { ...state, phase: 'exchange_choice', pendingAction: { type: 'exchange', actorId: 'a', targetId: null, claimedCharacter: 'broker', costPaid: 0 }, exchangeOffer: [state.deck[0], state.deck[1]] };
     expect(redactStateFor(state, 'a').exchangeOffer).toHaveLength(2);
     expect(redactStateFor(state, 'b').exchangeOffer).toBeNull();
   });

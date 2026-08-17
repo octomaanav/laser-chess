@@ -122,7 +122,7 @@ export default function CoupLobby({
                 <TutorialModal
                   open={tutorialOpen}
                   onOpenChange={setTutorialOpen}
-                  gameTitle="Coup"
+                  gameTitle="Boardroom"
                   steps={COUP_TUTORIAL_STEPS}
                   theme="coup"
                 />

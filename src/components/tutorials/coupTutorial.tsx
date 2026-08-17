@@ -52,7 +52,7 @@ export const COUP_TUTORIAL_STEPS: TutorialStep[] = [
           <span className="font-semibold text-foreground">Income</span>: Take 1 coin from the treasury. This action cannot be blocked or challenged.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Foreign Aid</span>: Take 2 coins from the treasury. Any player can block this by claiming the Duke.
+          <span className="font-semibold text-foreground">Foreign Aid</span>: Take 2 coins from the treasury. Any player can block this by claiming the Chair.
         </li>
         <li>
           <span className="font-semibold text-foreground">Coup</span>: Pay 7 coins to force an opponent to lose an influence. This action is guaranteed to succeed and cannot be blocked or challenged.
@@ -62,37 +62,37 @@ export const COUP_TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     title: 'Character actions: claim a card to use it',
-    visual: <CardRow characters={['duke', 'assassin', 'captain', 'ambassador']} />,
+    visual: <CardRow characters={['chair', 'fixer', 'auditor', 'broker']} />,
     body: (
       <ul className="list-disc space-y-2 pl-5">
         <li>
-          <span className="font-semibold text-foreground">Duke</span>: Take 3 coins from the treasury (Tax).
+          <span className="font-semibold text-foreground">Chair</span>: Take 3 coins from the treasury (Tax).
         </li>
         <li>
-          <span className="font-semibold text-foreground">Assassin</span>: Pay 3 coins to assassinate a chosen player, causing them to lose an influence.
+          <span className="font-semibold text-foreground">Fixer</span>: Pay 3 coins to assassinate a chosen player, causing them to lose an influence.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Captain</span>: Steal 2 coins from another player (Extort).
+          <span className="font-semibold text-foreground">Auditor</span>: Steal 2 coins from another player (Extort).
         </li>
         <li>
-          <span className="font-semibold text-foreground">Ambassador</span>: Draw 2 cards from the deck, exchange them with any in your hand, and return 2 cards to the deck.
+          <span className="font-semibold text-foreground">Broker</span>: Draw 2 cards from the deck, exchange them with any in your hand, and return 2 cards to the deck.
         </li>
       </ul>
     ),
   },
   {
     title: 'Blocking: claim a card to stop an action',
-    visual: <CardRow characters={['contessa']} />,
+    visual: <CardRow characters={['counsel']} />,
     body: (
       <ul className="list-disc space-y-2 pl-5">
         <li>
-          <span className="font-semibold text-foreground">Duke</span> blocks Foreign Aid.
+          <span className="font-semibold text-foreground">Chair</span> blocks Foreign Aid.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Contessa</span> blocks an Assassination.
+          <span className="font-semibold text-foreground">Counsel</span> blocks an Assassination.
         </li>
         <li>
-          <span className="font-semibold text-foreground">Ambassador</span> or <span className="font-semibold text-foreground">Captain</span> blocks a Steal.
+          <span className="font-semibold text-foreground">Broker</span> or <span className="font-semibold text-foreground">Auditor</span> blocks a Steal.
         </li>
       </ul>
     ),

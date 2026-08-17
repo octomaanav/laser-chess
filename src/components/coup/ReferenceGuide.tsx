@@ -8,7 +8,7 @@
 //   - below `sm` the four columns stack into labelled rows, since the grid
 //     can't hold four columns on a phone.
 //
-// Contrast note: the shared character colors (--coup-duke etc.) are a single
+// Contrast note: the shared character colors (--coup-chair etc.) are a single
 // dark saturated set used by BOTH themes. They're legible as a pill fill
 // with white text and illegible as text on a light panel, so they're only
 // ever used as fills here.
@@ -16,11 +16,11 @@ import type { Character } from '@/game/coup/types';
 import { CHARACTER_LABEL } from './characterAccent';
 
 const CHARACTER_VAR: Record<Character, string> = {
-  duke: 'var(--coup-duke)',
-  assassin: 'var(--coup-assassin)',
-  captain: 'var(--coup-captain)',
-  ambassador: 'var(--coup-ambassador)',
-  contessa: 'var(--coup-contessa)',
+  chair: 'var(--coup-chair)',
+  fixer: 'var(--coup-fixer)',
+  auditor: 'var(--coup-auditor)',
+  broker: 'var(--coup-broker)',
+  counsel: 'var(--coup-counsel)',
 };
 
 interface Row {
@@ -33,13 +33,13 @@ interface Row {
 
 const ROWS: Row[] = [
   { char: null, action: 'Income', effect: 'Take 1 coin', counter: null },
-  { char: null, action: 'Foreign Aid', effect: 'Take 2 coins', counter: 'Blocked by Duke' },
+  { char: null, action: 'Foreign Aid', effect: 'Take 2 coins', counter: 'Blocked by Chair' },
   { char: null, action: 'Coup', effect: 'Pay 7 coins · choose player to lose influence', counter: null, forced: true },
-  { char: 'duke', action: 'Tax', effect: 'Take 3 coins', counter: 'Blocks Foreign Aid' },
-  { char: 'assassin', action: 'Assassinate', effect: 'Pay 3 coins · choose player to lose influence', counter: 'Blocked by Contessa' },
-  { char: 'ambassador', action: 'Exchange', effect: 'Exchange cards with Court Deck', counter: 'Blocks stealing' },
-  { char: 'captain', action: 'Steal', effect: 'Take 2 coins from another player', counter: 'Blocks stealing' },
-  { char: 'contessa', action: 'None', effect: 'None', counter: 'Blocks assassination' },
+  { char: 'chair', action: 'Tax', effect: 'Take 3 coins', counter: 'Blocks Foreign Aid' },
+  { char: 'fixer', action: 'Assassinate', effect: 'Pay 3 coins · choose player to lose influence', counter: 'Blocked by Counsel' },
+  { char: 'broker', action: 'Exchange', effect: 'Exchange cards with Court Deck', counter: 'Blocks stealing' },
+  { char: 'auditor', action: 'Steal', effect: 'Take 2 coins from another player', counter: 'Blocks stealing' },
+  { char: 'counsel', action: 'None', effect: 'None', counter: 'Blocks assassination' },
 ];
 
 const COLUMNS = ['Character', 'Action', 'Effect', 'Counteraction'];

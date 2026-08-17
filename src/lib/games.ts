@@ -29,7 +29,7 @@ export const GAMES: GameEntry[] = [
   },
   {
     slug: 'coup',
-    name: 'Coup',
+    name: 'Boardroom',
     tagline: 'Bluff, deduce, betray.',
     description:
       'A fast-paced game of bluffing and deduction. Claim any character\'s power (tax, steal, assassinate) whether you hold the card or not, and survive your rivals\' challenges. Last influence standing wins.',

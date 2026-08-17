@@ -38,13 +38,13 @@ function describeActionLog(actor: Player, type: ActionType, target?: Player): st
     case 'coup':
       return `${actor.name} launched a Coup against ${target!.name}.`;
     case 'tax':
-      return `${actor.name} claimed Duke and attempted to collect Tax.`;
+      return `${actor.name} claimed Chair and attempted to collect Tax.`;
     case 'assassinate':
-      return `${actor.name} claimed Assassin and attempted to assassinate ${target!.name}.`;
+      return `${actor.name} claimed Fixer and attempted to assassinate ${target!.name}.`;
     case 'exchange':
-      return `${actor.name} claimed Ambassador and attempted an Exchange.`;
+      return `${actor.name} claimed Broker and attempted an Exchange.`;
     case 'steal':
-      return `${actor.name} claimed Captain and attempted to steal from ${target!.name}.`;
+      return `${actor.name} claimed Auditor and attempted to steal from ${target!.name}.`;
   }
 }
 
@@ -227,7 +227,7 @@ function drainOrResolve(state: CoupState): CoupState {
 
 export function createGame(players: { id: string; name: string }[]): CoupState {
   if (players.length < 2 || players.length > 6) {
-    throw new Error('Coup supports 2-6 players');
+    throw new Error('Boardroom supports 2-6 players');
   }
   const base: CoupState = {
     players: [],
@@ -255,8 +255,8 @@ export function createGame(players: { id: string; name: string }[]): CoupState {
         name: p.name,
         coins: i === 0 ? 1 : 2, // rulebook 2p variant: starting player gets 1, the other gets 2 (compensation for going second)
         influence: [
-          { character: 'duke', revealed: false }, // placeholder, replaced in chooseStartingCharacter
-          { character: 'duke', revealed: false },
+          { character: 'chair', revealed: false }, // placeholder, replaced in chooseStartingCharacter
+          { character: 'chair', revealed: false },
         ],
         eliminated: false,
         connected: true,

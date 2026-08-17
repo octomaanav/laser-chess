@@ -1,7 +1,7 @@
 // Pure Coup domain types. No imports from server/ or components/.
 
-export type Character = 'duke' | 'assassin' | 'captain' | 'ambassador' | 'contessa';
-export type BlockCharacter = 'duke' | 'contessa' | 'ambassador' | 'captain';
+export type Character = 'chair' | 'fixer' | 'auditor' | 'broker' | 'counsel';
+export type BlockCharacter = 'chair' | 'counsel' | 'broker' | 'auditor';
 export type ActionType = 'income' | 'foreign-aid' | 'coup' | 'tax' | 'assassinate' | 'exchange' | 'steal';
 
 export interface Card {
@@ -42,7 +42,7 @@ export type Phase =
   | 'action_declared' // response window #1: challenge the action, or block it
   | 'block_declared' // response window #2: challenge the block
   | 'awaiting_reveal' // one or more players must choose which influence card to flip
-  | 'exchange_choice' // the acting player is choosing which cards to keep (Ambassador)
+  | 'exchange_choice' // the acting player is choosing which cards to keep (Broker)
   | 'game_over';
 
 export interface LogEntry {
@@ -64,26 +64,26 @@ export interface CoupState {
   pendingBlock: PendingBlock | null;
   pendingReveals: PendingReveal[];
   pendingResolution: PendingResolution;
-  exchangeOffer: Character[] | null; // the 2 cards drawn for an Ambassador exchange
+  exchangeOffer: Character[] | null; // the 2 cards drawn for a Broker exchange
   variantPools: Record<string, Character[]> | null; // 2p variant: each player's private 5-card draft pool
   variantChoices: Record<string, Character> | null; // 2p variant: each player's chosen starting character
   log: LogEntry[];
   winner: string | null; // player id, set once phase === 'game_over'
 }
 
-export const ALL_CHARACTERS: Character[] = ['duke', 'assassin', 'captain', 'ambassador', 'contessa'];
+export const ALL_CHARACTERS: Character[] = ['chair', 'fixer', 'auditor', 'broker', 'counsel'];
 
 export const BLOCKERS_FOR: Partial<Record<ActionType, BlockCharacter[]>> = {
-  'foreign-aid': ['duke'],
-  assassinate: ['contessa'],
-  steal: ['captain', 'ambassador'],
+  'foreign-aid': ['chair'],
+  assassinate: ['counsel'],
+  steal: ['auditor', 'broker'],
 };
 
 export const CLAIM_FOR: Partial<Record<ActionType, Character>> = {
-  tax: 'duke',
-  assassinate: 'assassin',
-  exchange: 'ambassador',
-  steal: 'captain',
+  tax: 'chair',
+  assassinate: 'fixer',
+  exchange: 'broker',
+  steal: 'auditor',
 };
 
 export const COST_FOR: Record<ActionType, number> = {

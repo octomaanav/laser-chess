@@ -100,11 +100,11 @@
   --coup-gold-dark: #9c7527;
   --coup-danger: #b3392a;
   --coup-success: #3f7d4f;
-  --coup-duke: #6e3578;
-  --coup-assassin: #4b4d54;
-  --coup-captain: #2d4178;
-  --coup-contessa: #a84c35;
-  --coup-ambassador: #4b8c5c;
+  --coup-chair: #6e3578;
+  --coup-fixer: #4b4d54;
+  --coup-auditor: #2d4178;
+  --coup-counsel: #a84c35;
+  --coup-broker: #4b8c5c;
   --coup-glow-ring: 0 0 0 3px rgba(201, 154, 61, 0.45);
   --coup-text-glow: none;
   --coup-backdrop:
