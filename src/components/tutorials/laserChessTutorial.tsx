@@ -122,11 +122,11 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
         <p>On your turn, choose exactly one of the following actions:</p>
         <ul className="list-disc space-y-1.5 pl-5">
           <li>
-            <span className="font-semibold text-foreground">Move</span> one of your pieces one square, in any direction
-            (including diagonally).
+            <span className="font-semibold text-foreground">Move</span> one piece to any adjacent square, straight or
+            diagonal.
           </li>
           <li>
-            <span className="font-semibold text-foreground">Rotate</span> one piece a quarter turn (90°), in place.
+            <span className="font-semibold text-foreground">Rotate</span> one piece 90° left or right without moving it.
           </li>
         </ul>
         <p>Choose one action per turn. Your laser will then fire automatically and the turn will pass to your opponent.</p>
@@ -140,7 +140,7 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
           A <span className="font-semibold text-foreground">Prism</span> can swap places with an adjacent Mirror or
-          Shield of either color instead of moving normally. As demonstrated above, neither piece rotates during the swap.
+          Shield of either color instead of moving normally, trading positions in place — as shown above, orientation stays untouched for both pieces.
         </li>
         <li>
           The tinted columns on the board&apos;s left and right edges are reserved for one color only. You cannot
@@ -156,11 +156,11 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
     body: (
       <>
         <p>
-          The game ends the instant a laser beam illuminates a Keystone. The player whose Keystone was hit loses, even
-          if you hit your own by mistake.
+          A hit on either Keystone ends the game immediately — whoever's Keystone took the beam loses, even if it was
+          your own laser that did it.
         </p>
         <p>
-          If the exact same board position repeats a third time, the player about to move can call it a draw.
+          Reach the identical board state a third time and whoever's turn it is can claim a draw instead of playing on.
         </p>
       </>
     ),
