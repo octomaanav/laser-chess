@@ -34,13 +34,13 @@ export const COUP_TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Your turn: one action, no passing',
     body: (
       <>
-        <p>Turns proceed clockwise. You must take exactly one action on each turn because passing is not allowed.</p>
+        <p>Play goes around the table clockwise, and skipping your turn isn't an option — pick exactly one action every time it's your go.</p>
         <p>
           After you declare your action, other players can <span className="font-semibold text-foreground">challenge</span>{' '}
           (call your bluff) or <span className="font-semibold text-foreground">block</span> it before it resolves. If there are no
           objections, your action succeeds automatically.
         </p>
-        <p>If you start your turn with 10 or more coins, you must launch a Coup because no other action is permitted.</p>
+        <p>Sitting on 10+ coins at the start of your turn locks you into a Coup — it's the only move left on the table.</p>
       </>
     ),
   },
