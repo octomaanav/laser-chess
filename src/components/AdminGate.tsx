@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import SetupEditor from './SetupEditor';
+import AdminDashboard from './AdminDashboard';
 import LogoMark from './LogoMark';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +55,7 @@ export default function AdminGate() {
   };
 
   if (status === 'loading') return <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Checking access…</div>;
-  if (status === 'in') return <SetupEditor email={email} onLogout={logout} />;
+  if (status === 'in') return <AdminDashboard email={email} onLogout={logout} />;
 
   return (
     <div className="flex min-h-dvh items-center justify-center p-5">

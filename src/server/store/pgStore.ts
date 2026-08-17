@@ -1,11 +1,19 @@
-// Production backend: Postgres (Neon / Supabase / any DATABASE_URL). Setups and
-// the admin secret are durable; rooms are written through on each move with an
-// updated_at used for TTL cleanup, so in-progress games survive a restart.
 import crypto from 'node:crypto';
 import { Pool } from 'pg';
 import type { SetupDef } from '../../game/types';
 import { DEFAULT_RATING, MAX_RATING } from '../../game/ranking';
-import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, PlayerRating, Store, User } from './types';
+import { runMigrations } from './migrations';
+import type {
+  ActiveRoomSummary,
+  FriendEdge,
+  GameMatch,
+  OAuthIdentity,
+  PersistedCoupRoom,
+  PersistedRoom,
+  PlayerRating,
+  Store,
+  User,
+} from './types';
 
 export class PgStore implements Store {
   private pool: Pool;
@@ -22,71 +30,13 @@ export class PgStore implements Store {
   }
 
   private async init(): Promise<void> {
-    await this.pool.query(`
-      create table if not exists setups (
-        name text primary key,
-        pieces jsonb not null,
-        updated_at timestamptz not null default now()
-      );
-      create table if not exists kv (
-        key text primary key,
-        value text not null
-      );
-      create table if not exists rooms (
-        code text primary key,
-        state jsonb not null,
-        updated_at timestamptz not null default now()
-      );
-      create table if not exists coup_rooms (
-        code text primary key,
-        state jsonb not null,
-        updated_at timestamptz not null default now()
-      );
-      create table if not exists users (
-        id text primary key,
-        email text unique not null,
-        username text unique not null,
-        display_name text not null,
-        password_hash text,
-        created_at timestamptz not null default now()
-      );
-      create table if not exists identities (
-        provider text not null,
-        provider_id text not null,
-        user_id text not null references users(id) on delete cascade,
-        primary key (provider, provider_id)
-      );
-      create table if not exists friendships (
-        requester_id text not null references users(id) on delete cascade,
-        addressee_id text not null references users(id) on delete cascade,
-        status text not null,
-        created_at timestamptz not null default now(),
-        updated_at timestamptz not null default now(),
-        primary key (requester_id, addressee_id)
-      );
-      create unique index if not exists friendships_pair
-        on friendships (least(requester_id, addressee_id), greatest(requester_id, addressee_id));
-      create table if not exists player_ratings (
-        user_id text not null references users(id) on delete cascade,
-        game_slug text not null,
-        rating int not null default ${DEFAULT_RATING},
-        peak_rating int not null default ${DEFAULT_RATING},
-        wins int not null default 0,
-        losses int not null default 0,
-        updated_at timestamptz not null default now(),
-        primary key (user_id, game_slug)
-      );
-      -- "create table if not exists" is a no-op on a database that predates the
-      -- switch from Elo scores to rank indices, so bring both the column
-      -- defaults and any surviving Elo rows onto the 0-${MAX_RATING} scale.
-      alter table player_ratings alter column rating set default ${DEFAULT_RATING};
-      alter table player_ratings alter column peak_rating set default ${DEFAULT_RATING};
-      update player_ratings set rating = ${DEFAULT_RATING}
-        where rating < 0 or rating > ${MAX_RATING};
-      update player_ratings set peak_rating = greatest(rating, ${DEFAULT_RATING})
-        where peak_rating < 0 or peak_rating > ${MAX_RATING};
-    `);
+    try {
+      await runMigrations(this.pool);
+    } catch (e) {
+      console.error('[PgStore] Migration failed during startup:', e);
+    }
   }
+
   private async q(text: string, params?: unknown[]) {
     await this.ready;
     return this.pool.query(text, params as never);
@@ -122,9 +72,50 @@ export class PgStore implements Store {
     return (r.rows[0]?.state as PersistedRoom) ?? null;
   }
   async saveRoom(room: PersistedRoom): Promise<void> {
+    const isBot = !!(room.botDifficulty?.red || room.botDifficulty?.silver);
+    const botDifficulty = room.botDifficulty?.red || room.botDifficulty?.silver || null;
+    const isRanked = !!room.isRanked;
+    const hostName = room.names.red || room.names.silver || 'Host';
+    const hostUserId = (room.seats.red && room.rankedUserIds?.red) || (room.seats.silver && room.rankedUserIds?.silver) || null;
+    const playerCount = (room.seats.red ? 1 : 0) + (room.seats.silver ? 1 : 0);
+
+    let status = 'waiting';
+    if (room.game?.winner) status = 'finished';
+    else if (room.seats.red && room.seats.silver) status = 'in_progress';
+
+    const winnerName = room.game?.winner ? room.names[room.game.winner] ?? room.game.winner : null;
+
     await this.q(
-      'insert into rooms(code, state, updated_at) values($1, $2, now()) on conflict(code) do update set state = excluded.state, updated_at = now()',
-      [room.code, JSON.stringify(room)],
+      `insert into rooms(
+        code, game_slug, host_name, host_user_id, player_names, player_count,
+        is_ranked, is_bot, bot_difficulty, status, winner_name, state, updated_at
+      ) values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
+      on conflict(code) do update set
+        host_name = excluded.host_name,
+        host_user_id = excluded.host_user_id,
+        player_names = excluded.player_names,
+        player_count = excluded.player_count,
+        is_ranked = excluded.is_ranked,
+        is_bot = excluded.is_bot,
+        bot_difficulty = excluded.bot_difficulty,
+        status = excluded.status,
+        winner_name = excluded.winner_name,
+        state = excluded.state,
+        updated_at = now()`,
+      [
+        room.code,
+        room.rankedGameSlug || 'laser-chess',
+        hostName,
+        hostUserId,
+        JSON.stringify(room.names),
+        playerCount,
+        isRanked,
+        isBot,
+        botDifficulty,
+        status,
+        winnerName,
+        JSON.stringify(room),
+      ],
     );
   }
   async deleteRoom(code: string): Promise<void> {
@@ -139,9 +130,40 @@ export class PgStore implements Store {
     return (r.rows[0]?.state as PersistedCoupRoom) ?? null;
   }
   async saveCoupRoom(room: PersistedCoupRoom): Promise<void> {
+    const playerNamesArray = Object.values(room.names);
+    const hostName = playerNamesArray[0] || 'Host';
+    const playerCount = room.seats.length;
+    let status = 'waiting';
+    let winnerName: string | null = null;
+    if (room.state) {
+      status = room.state.winner ? 'finished' : 'in_progress';
+      if (room.state.winner) {
+        winnerName = room.names[room.state.winner] || room.state.winner;
+      }
+    }
+
     await this.q(
-      'insert into coup_rooms(code, state, updated_at) values($1, $2, now()) on conflict(code) do update set state = excluded.state, updated_at = now()',
-      [room.code, JSON.stringify(room)],
+      `insert into coup_rooms(
+        code, game_slug, host_name, player_names, player_count, status, winner_name, state, updated_at
+      ) values($1, $2, $3, $4, $5, $6, $7, $8, now())
+      on conflict(code) do update set
+        host_name = excluded.host_name,
+        player_names = excluded.player_names,
+        player_count = excluded.player_count,
+        status = excluded.status,
+        winner_name = excluded.winner_name,
+        state = excluded.state,
+        updated_at = now()`,
+      [
+        room.code,
+        'coup',
+        hostName,
+        JSON.stringify(playerNamesArray),
+        playerCount,
+        status,
+        winnerName,
+        JSON.stringify(room),
+      ],
     );
   }
   async deleteCoupRoom(code: string): Promise<void> {
@@ -208,7 +230,6 @@ export class PgStore implements Store {
   }
 
   async createFriendRequest(requesterId: string, addresseeId: string): Promise<void> {
-    // The pair unique index makes this a no-op if any edge (either direction) exists.
     await this.q(
       'insert into friendships(requester_id, addressee_id, status) values($1, $2, $3) on conflict do nothing',
       [requesterId, addresseeId, 'pending'],
@@ -265,5 +286,110 @@ export class PgStore implements Store {
          updated_at = excluded.updated_at`,
       [rt.userId, rt.gameSlug, rt.rating, rt.peakRating, rt.wins, rt.losses, rt.updatedAt],
     );
+  }
+
+  // ---- Game Matches / Match History -----------------------------------------
+  async recordMatch(match: GameMatch): Promise<void> {
+    await this.q(
+      `insert into game_matches(
+        id, game_slug, room_code, player1_name, player1_user_id,
+        player2_name, player2_user_id, all_players, is_bot, bot_difficulty,
+        is_ranked, status, winner_name, winner_color, winner_user_id,
+        moves_count, duration_seconds, started_at, ended_at, created_at
+      ) values(
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17,
+        to_timestamp($18 / 1000.0), to_timestamp($19 / 1000.0), now()
+      ) on conflict(id) do update set
+        status = excluded.status,
+        winner_name = excluded.winner_name,
+        winner_color = excluded.winner_color,
+        moves_count = excluded.moves_count,
+        duration_seconds = excluded.duration_seconds,
+        ended_at = excluded.ended_at`,
+      [
+        match.id,
+        match.gameSlug,
+        match.roomCode,
+        match.player1Name ?? null,
+        match.player1UserId ?? null,
+        match.player2Name ?? null,
+        match.player2UserId ?? null,
+        JSON.stringify(match.allPlayers ?? []),
+        !!match.isBot,
+        match.botDifficulty ?? null,
+        !!match.isRanked,
+        match.status,
+        match.winnerName ?? null,
+        match.winnerColor ?? null,
+        match.winnerUserId ?? null,
+        match.movesCount || 0,
+        match.durationSeconds || 0,
+        match.startedAt || Date.now(),
+        match.endedAt || Date.now(),
+      ],
+    );
+  }
+
+  async getRecentMatches(limit = 50): Promise<GameMatch[]> {
+    const r = await this.q(
+      `select id, game_slug, room_code, player1_name, player1_user_id,
+              player2_name, player2_user_id, all_players, is_bot, bot_difficulty,
+              is_ranked, status, winner_name, winner_color, winner_user_id,
+              moves_count, duration_seconds, started_at, ended_at, created_at
+       from game_matches
+       order by created_at desc
+       limit $1`,
+      [limit],
+    );
+
+    return r.rows.map((row) => ({
+      id: row.id,
+      gameSlug: row.game_slug,
+      roomCode: row.room_code,
+      player1Name: row.player1_name,
+      player1UserId: row.player1_user_id,
+      player2Name: row.player2_name,
+      player2UserId: row.player2_user_id,
+      allPlayers: row.all_players,
+      isBot: row.is_bot,
+      botDifficulty: row.bot_difficulty,
+      isRanked: row.is_ranked,
+      status: row.status,
+      winnerName: row.winner_name,
+      winnerColor: row.winner_color,
+      winnerUserId: row.winner_user_id,
+      movesCount: row.moves_count,
+      durationSeconds: row.duration_seconds,
+      startedAt: new Date(row.started_at).getTime(),
+      endedAt: new Date(row.ended_at).getTime(),
+      createdAt: new Date(row.created_at).getTime(),
+    }));
+  }
+
+  async getActiveRooms(): Promise<ActiveRoomSummary[]> {
+    const r = await this.q(`
+      select code, game_slug, host_name, player_names, player_count, is_bot, bot_difficulty, is_ranked, status, updated_at
+      from rooms
+      where updated_at > now() - interval '2 hours'
+      union all
+      select code, game_slug, host_name, player_names, player_count, false as is_bot, null as bot_difficulty, false as is_ranked, status, updated_at
+      from coup_rooms
+      where updated_at > now() - interval '2 hours'
+      order by updated_at desc
+    `);
+
+    return r.rows.map((row) => ({
+      code: row.code,
+      gameSlug: row.game_slug,
+      hostName: row.host_name,
+      playerNames: row.player_names,
+      playerCount: Number(row.player_count) || 0,
+      isBot: !!row.is_bot,
+      botDifficulty: row.bot_difficulty,
+      isRanked: !!row.is_ranked,
+      status: row.status,
+      updatedAt: new Date(row.updated_at).getTime(),
+    }));
   }
 }

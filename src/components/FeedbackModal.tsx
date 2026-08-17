@@ -24,6 +24,9 @@ interface FeedbackModalProps {
   variant?: 'default' | 'outline' | 'ghost' | 'secondary';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   showLabel?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  renderTrigger?: boolean;
 }
 
 export default function FeedbackModal({
@@ -31,8 +34,17 @@ export default function FeedbackModal({
   variant = 'ghost',
   size = 'sm',
   showLabel = true,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  renderTrigger = true,
 }: FeedbackModalProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (val: boolean) => {
+    if (!isControlled) setInternalOpen(val);
+    controlledOnOpenChange?.(val);
+  };
   const [type, setType] = useState<FeedbackType>('bug');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -104,20 +116,22 @@ export default function FeedbackModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant={variant}
-          size={size}
-          className={cn(
-            'size-8 p-0 md:size-auto md:h-9 md:px-3 text-xs md:text-sm gap-1.5 font-medium transition-colors text-muted-foreground hover:text-foreground shrink-0',
-            triggerClassName
-          )}
-          title="Send feedback or report a bug"
-        >
-          <MessageSquarePlus className="size-4 text-primary" />
-          {showLabel && <span className="hidden md:inline whitespace-nowrap">Feedback</span>}
-        </Button>
-      </DialogTrigger>
+      {renderTrigger && (
+        <DialogTrigger asChild>
+          <Button
+            variant={variant}
+            size={size}
+            className={cn(
+              'size-8 p-0 md:size-auto md:h-9 md:px-3 text-xs md:text-sm gap-1.5 font-medium transition-colors text-muted-foreground hover:text-foreground shrink-0',
+              triggerClassName
+            )}
+            title="Send feedback or report a bug"
+          >
+            <MessageSquarePlus className="size-4 text-primary" />
+            {showLabel && <span className="hidden md:inline whitespace-nowrap">Feedback</span>}
+          </Button>
+        </DialogTrigger>
+      )}
 
       <DialogContent className="sm:max-w-md border-border bg-card text-card-foreground shadow-2xl backdrop-blur-xl">
         <DialogHeader className="gap-1.5">

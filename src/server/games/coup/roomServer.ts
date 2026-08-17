@@ -34,6 +34,8 @@ interface Room {
   responseDeadline: number | null;
   forfeitTimers: Map<string, ReturnType<typeof setTimeout>>;
   rematchVotes: Set<string>;
+  startedAt?: number;
+  matchLogged?: boolean;
 }
 
 const MIN_SEATS = 2;
@@ -63,6 +65,8 @@ function makeRoom(code: string): Room {
     responseDeadline: null,
     forfeitTimers: new Map(),
     rematchVotes: new Set(),
+    startedAt: Date.now(),
+    matchLogged: false,
   };
 }
 
@@ -85,6 +89,38 @@ function isConnected(room: Room, playerId: string): boolean {
 function broadcastState(room: Room) {
   if (!room.state) return;
   persist(room);
+
+  if (room.state.winner && !room.matchLogged) {
+    room.matchLogged = true;
+    const winnerName = room.names.get(room.state.winner) || room.state.winner;
+    const durationSec = Math.max(1, Math.round((Date.now() - (room.startedAt || Date.now())) / 1000));
+    const allPlayers = room.seats.map((id) => ({
+      name: room.names.get(id) || 'Player',
+      userId: null,
+      seat: id,
+    }));
+
+    void getStore()
+      .recordMatch({
+        id: `${room.code}-${Date.now()}`,
+        gameSlug: 'coup',
+        roomCode: room.code,
+        player1Name: allPlayers[0]?.name,
+        player2Name: allPlayers[1]?.name,
+        allPlayers,
+        isBot: false,
+        isRanked: false,
+        status: 'completed',
+        winnerName,
+        winnerColor: room.state.winner,
+        movesCount: room.state.log.length,
+        durationSeconds: durationSec,
+        startedAt: room.startedAt || Date.now() - durationSec * 1000,
+        endedAt: Date.now(),
+      })
+      .catch((e) => console.error('[coup] recordMatch failed:', e));
+  }
+
   for (const c of room.clients) {
     if (!c.playerId) continue;
     send(c, { type: 'state', state: redactStateFor(room.state, c.playerId), responseDeadline: room.responseDeadline });
@@ -280,6 +316,8 @@ function handleStart(room: Room, playerId: string) {
   // client could start the moment MIN_SEATS is reached, potentially cutting
   // off players still in the process of joining a shared link.
   if (room.seats[0] !== playerId) throw new Error('only the room creator can start the game');
+  room.startedAt = Date.now();
+  room.matchLogged = false;
   room.state = createGame(room.seats.map((id) => ({ id, name: room.names.get(id) ?? '?' })));
   openResponseWindowIfNeeded(room);
   broadcastState(room);

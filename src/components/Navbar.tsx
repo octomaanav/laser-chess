@@ -4,9 +4,6 @@ import React from 'react';
 import { HelpCircle } from 'lucide-react';
 import AccountMenu from './AccountMenu';
 import { Button } from './ui/button';
-import FeedbackModal from './FeedbackModal';
-import FriendsMenu from './FriendsMenu';
-import ThemeToggle from './ThemeToggle';
 import LogoMark from './LogoMark';
 import CoupLogoMark from './coup/CoupLogoMark';
 import TutorialModal from './tutorials/TutorialModal';
@@ -126,18 +123,6 @@ export default function Navbar({
             />
           </>
         )}
-
-        <FeedbackModal
-          triggerClassName={
-            isCoup
-              ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]'
-              : undefined
-          }
-        />
-
-        <ThemeToggle />
-
-        <FriendsMenu />
 
         <AccountMenu />
 

@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { SocialProvider } from '@/client/social/SocialProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+import PostHogProvider from '@/components/providers/PostHogProvider';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { GAMES, hrefFor } from '@/lib/games';
 import './globals.css';
@@ -85,12 +86,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          <SocialProvider>
-            <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
-          </SocialProvider>
-          <Toaster position="top-center" />
-        </ThemeProvider>
+        <PostHogProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+            <SocialProvider>
+              <TooltipProvider delayDuration={200}>{children}</TooltipProvider>
+            </SocialProvider>
+            <Toaster position="top-center" />
+          </ThemeProvider>
+        </PostHogProvider>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </body>
     </html>

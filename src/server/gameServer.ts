@@ -46,9 +46,44 @@ interface Room {
   rankedGameSlug: string;
   rankedUserIds: { red: string | null; silver: string | null };
   rankedSettled: boolean; // prevents double rating settlement if multiple end-events fire
+  startedAt: number;
 }
 
 const rooms = new Map<string, Room>();
+
+function recordGameEnd(room: Room, winner: Color | null, status: 'completed' | 'forfeit' | 'timeout' | 'resigned') {
+  const winnerName = winner ? room.names[winner] ?? winner : null;
+  const isBot = !!(room.botDifficulty.red || room.botDifficulty.silver);
+  const botDiff = room.botDifficulty.red || room.botDifficulty.silver || null;
+  const durationSec = Math.max(1, Math.round((Date.now() - (room.startedAt || Date.now())) / 1000));
+
+  const match = {
+    id: `${room.code}-${Date.now()}`,
+    gameSlug: room.rankedGameSlug || 'laser-chess',
+    roomCode: room.code,
+    player1Name: room.names.red,
+    player1UserId: room.rankedUserIds.red,
+    player2Name: room.names.silver,
+    player2UserId: room.rankedUserIds.silver,
+    allPlayers: [
+      { name: room.names.red || 'Red', userId: room.rankedUserIds.red, seat: 'red' },
+      { name: room.names.silver || 'Silver', userId: room.rankedUserIds.silver, seat: 'silver' },
+    ],
+    isBot,
+    botDifficulty: botDiff,
+    isRanked: room.isRanked,
+    status,
+    winnerName,
+    winnerColor: winner,
+    winnerUserId: winner ? (winner === 'red' ? room.rankedUserIds.red : room.rankedUserIds.silver) : null,
+    movesCount: room.game.moveCount || 0,
+    durationSeconds: durationSec,
+    startedAt: room.startedAt || Date.now() - durationSec * 1000,
+    endedAt: Date.now(),
+  };
+
+  void getStore().recordMatch(match).catch((e) => console.error('recordMatch failed:', e));
+}
 
 // ---- account identity (from the session cookie on the WS upgrade) ----------
 // Anonymous quick-play never sets this; ranked rooms rely on it to seat players
@@ -92,6 +127,7 @@ function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
     rankedGameSlug: '',
     rankedUserIds: { red: null, silver: null },
     rankedSettled: false,
+    startedAt: Date.now(),
   };
 }
 
@@ -138,6 +174,7 @@ function hydrateRoom(p: PersistedRoom): Room {
     rankedGameSlug: p.rankedGameSlug ?? '',
     rankedUserIds: p.rankedUserIds ?? { red: null, silver: null },
     rankedSettled: p.rankedSettled ?? false, // settlement is NOT idempotent (±1 rank, +1 win/loss)
+    startedAt: p.turnStartedAt || Date.now(),
   };
 }
 
@@ -281,6 +318,7 @@ function onTimeout(room: Room) {
   persist(room);
   broadcast(room, { type: 'timeout', winner: room.game.winner });
   broadcast(room, snapshot(room));
+  recordGameEnd(room, room.game.winner, 'timeout');
   void finalizeRanked(room, room.game.winner).catch((e) => console.error('finalizeRanked failed:', e));
 }
 
@@ -327,6 +365,7 @@ function forfeitNow(room: Room, loser: Color) {
   persist(room);
   broadcast(room, { type: 'forfeit', winner: room.game.winner });
   broadcast(room, snapshot(room));
+  recordGameEnd(room, room.game.winner, 'forfeit');
   void finalizeRanked(room, room.game.winner).catch((e) => console.error('finalizeRanked failed:', e));
 }
 
@@ -573,6 +612,7 @@ function applyGameAction(room: Room, color: Color, action: Action): { ok: boolea
 
   if (result.winner) {
     stopTurnClock(room);
+    recordGameEnd(room, result.winner, 'completed');
     void finalizeRanked(room, result.winner).catch((e) => console.error('finalizeRanked failed:', e));
   } else {
     resetTurnClockForNewTurn(room); // reset the clock for the next player's turn

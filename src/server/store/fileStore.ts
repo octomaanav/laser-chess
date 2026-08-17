@@ -1,10 +1,18 @@
-// Local-dev backend: setups + admin secret in ./data/*.json. Rooms are not
-// persisted in dev (kept in memory, as before) - that only matters in prod.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SetupDef } from '../../game/types';
-import type { FriendEdge, OAuthIdentity, PersistedCoupRoom, PersistedRoom, PlayerRating, Store, User } from './types';
+import type {
+  ActiveRoomSummary,
+  FriendEdge,
+  GameMatch,
+  OAuthIdentity,
+  PersistedCoupRoom,
+  PersistedRoom,
+  PlayerRating,
+  Store,
+  User,
+} from './types';
 
 const dir = () => path.join(process.cwd(), 'data');
 const setupsFile = () => path.join(dir(), 'setups.json');
@@ -12,6 +20,8 @@ const secretFile = () => path.join(dir(), 'adminSecret.json');
 const usersFile = () => path.join(dir(), 'users.json');
 const friendsFile = () => path.join(dir(), 'friends.json');
 const ratingsFile = () => path.join(dir(), 'ratings.json');
+const matchesFile = () => path.join(dir(), 'matches.json');
+const analyticsFile = () => path.join(dir(), 'analytics.json');
 
 interface RatingsData {
   entries: PlayerRating[];
@@ -22,7 +32,6 @@ interface UsersData {
   identities: OAuthIdentity[];
 }
 
-// A friendship is stored once per pair as requester → addressee.
 interface FriendRow {
   requesterId: string;
   addresseeId: string;
@@ -178,5 +187,24 @@ export class FileStore implements Store {
     if (idx >= 0) data.entries[idx] = r;
     else data.entries.push(r);
     writeJSON(ratingsFile(), data);
+  }
+
+  // match history
+  private readMatches(): GameMatch[] {
+    return readJSON<GameMatch[]>(matchesFile(), []);
+  }
+  async recordMatch(match: GameMatch): Promise<void> {
+    const matches = this.readMatches();
+    const idx = matches.findIndex((m) => m.id === match.id);
+    if (idx >= 0) matches[idx] = match;
+    else matches.unshift(match);
+    writeJSON(matchesFile(), matches.slice(0, 100));
+  }
+  async getRecentMatches(limit = 50): Promise<GameMatch[]> {
+    return this.readMatches().slice(0, limit);
+  }
+
+  async getActiveRooms(): Promise<ActiveRoomSummary[]> {
+    return [];
   }
 }

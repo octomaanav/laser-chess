@@ -72,6 +72,42 @@ export interface FriendEdge {
   direction: 'incoming' | 'outgoing';
 }
 
+export interface GameMatch {
+  id: string;
+  gameSlug: string;
+  roomCode: string;
+  player1Name?: string | null;
+  player1UserId?: string | null;
+  player2Name?: string | null;
+  player2UserId?: string | null;
+  allPlayers?: Array<{ name: string; userId?: string | null; seat?: string | null }>;
+  isBot?: boolean;
+  botDifficulty?: string | null;
+  isRanked?: boolean;
+  status: 'completed' | 'forfeit' | 'timeout' | 'resigned';
+  winnerName?: string | null;
+  winnerColor?: string | null;
+  winnerUserId?: string | null;
+  movesCount: number;
+  durationSeconds: number;
+  startedAt: number; // epoch ms
+  endedAt: number; // epoch ms
+  createdAt?: number; // epoch ms
+}
+
+export interface ActiveRoomSummary {
+  code: string;
+  gameSlug: string;
+  hostName: string | null;
+  playerNames: Record<string, string | null> | string[];
+  playerCount: number;
+  isBot: boolean;
+  botDifficulty: string | null;
+  isRanked: boolean;
+  status: string;
+  updatedAt: number;
+}
+
 export interface Store {
   // custom starting configurations (defaults are merged in by the caller)
   getCustomSetups(): Promise<Record<string, SetupDef>>;
@@ -112,4 +148,11 @@ export interface Store {
   // per-player rank indices, scoped per game slug
   getRating(userId: string, gameSlug: string): Promise<PlayerRating | null>;
   upsertRating(r: PlayerRating): Promise<void>;
+
+  // game match logs & history
+  recordMatch(match: GameMatch): Promise<void>;
+  getRecentMatches(limit?: number): Promise<GameMatch[]>;
+
+  // active rooms
+  getActiveRooms(): Promise<ActiveRoomSummary[]>;
 }
