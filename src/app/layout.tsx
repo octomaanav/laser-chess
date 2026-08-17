@@ -74,6 +74,16 @@ const jsonLd = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <head>
+        {/* Rajdhani: used inline (not via CSS var) by Coup's card-art SVGs, which
+            reference the literal family name directly in fontFamily props. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           <SocialProvider>

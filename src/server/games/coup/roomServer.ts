@@ -95,7 +95,7 @@ function persist(room: Room) {
   if (!room.state) return;
   // A transient store error here must never become an unhandled rejection -
   // this runs on every broadcast in every room, and an unhandled rejection
-  // crashes the whole Node process (taking down Laser Chess's rooms too).
+  // crashes the whole Node process (taking down Photon's rooms too).
   getStore()
     .saveCoupRoom({
       code: room.code,

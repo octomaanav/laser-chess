@@ -66,9 +66,9 @@ describe('income', () => {
 });
 
 describe('tax challenge', () => {
-  it('actor proves Duke: keeps the coins, challenger loses influence', () => {
+  it('actor proves Chair: keeps the coins, challenger loses influence', () => {
     let s = createGame(P);
-    s = withHand(s, 'a', ['duke', 'assassin']);
+    s = withHand(s, 'a', ['chair', 'fixer']);
     s = declareAction(s, 'a', 'tax', null);
     s = declareChallenge(s, 'b');
     expect(s.phase).toBe('awaiting_reveal');
@@ -81,7 +81,7 @@ describe('tax challenge', () => {
 
   it("actor bluffing: loses influence, action fails, no coins gained", () => {
     let s = createGame(P);
-    s = withHand(s, 'a', ['captain', 'ambassador']); // no duke
+    s = withHand(s, 'a', ['auditor', 'broker']); // no chair
     s = declareAction(s, 'a', 'tax', null);
     s = declareChallenge(s, 'b');
     s = chooseReveal(s, 'a', 0);
@@ -91,10 +91,10 @@ describe('tax challenge', () => {
 });
 
 describe('foreign aid block', () => {
-  it('duke block goes unchallenged: actor gets nothing', () => {
+  it('chair block goes unchallenged: actor gets nothing', () => {
     let s = createGame(P);
     s = declareAction(s, 'a', 'foreign-aid', null);
-    s = declareBlock(s, 'b', 'duke');
+    s = declareBlock(s, 'b', 'chair');
     s = resolveWindow(s); // block window times out unchallenged
     expect(s.players[0].coins).toBe(2);
     expect(s.phase).toBe('idle');
@@ -102,9 +102,9 @@ describe('foreign aid block', () => {
 
   it('block is challenged and blocker was bluffing: action proceeds', () => {
     let s = createGame(P);
-    s = withHand(s, 'b', ['captain', 'ambassador']); // no duke
+    s = withHand(s, 'b', ['auditor', 'broker']); // no chair
     s = declareAction(s, 'a', 'foreign-aid', null);
-    s = declareBlock(s, 'b', 'duke');
+    s = declareBlock(s, 'b', 'chair');
     s = declareChallenge(s, 'a');
     s = chooseReveal(s, 'b', 0);
     expect(s.players[0].coins).toBe(4); // foreign aid succeeded after all
@@ -114,11 +114,11 @@ describe('foreign aid block', () => {
 describe('double danger of assassination', () => {
   it('losing a block-challenge costs 2 influence in one turn', () => {
     let s = createGame(P);
-    s = withHand(s, 'a', ['assassin', 'captain']);
-    s = withHand(s, 'b', ['duke', 'ambassador']); // no contessa
+    s = withHand(s, 'a', ['fixer', 'auditor']);
+    s = withHand(s, 'b', ['chair', 'broker']); // no counsel
     s.players[0].coins = 5;
     s = declareAction(s, 'a', 'assassinate', 'b');
-    s = declareBlock(s, 'b', 'contessa');
+    s = declareBlock(s, 'b', 'counsel');
     s = declareChallenge(s, 'a');
     // b loses the block-challenge -> reveal #1
     expect(s.pendingReveals[0].playerId).toBe('b');
@@ -220,7 +220,7 @@ describe('challenge eligibility', () => {
 describe('exchange with reduced influence', () => {
   it('keeps only the unrevealed slot in play, never touching an already-revealed card', () => {
     let s = createGame(P);
-    s = withHand(s, 'a', ['assassin', 'captain']);
+    s = withHand(s, 'a', ['fixer', 'auditor']);
     s.players[0].influence[0].revealed = true; // 'a' is down to 1 influence, not eliminated
     s = declareAction(s, 'a', 'exchange', null);
     s = resolveWindow(s);
@@ -229,7 +229,7 @@ describe('exchange with reduced influence', () => {
     s = chooseExchange(s, 'a', [1]); // only 1 unrevealed slot -> keep the first drawn candidate
     expect(s.phase).toBe('idle');
     // the revealed slot must be untouched - never overwritten, never returned to the deck
-    expect(s.players[0].influence[0]).toEqual({ character: 'assassin', revealed: true });
+    expect(s.players[0].influence[0]).toEqual({ character: 'fixer', revealed: true });
     // the surviving unrevealed slot gets the chosen candidate
     expect(s.players[0].influence[1]).toEqual({ character: offerCard, revealed: false });
     expect(s.deck).toHaveLength(15 - 6); // 2 drawn, 2 returned - net unchanged
@@ -245,9 +245,9 @@ describe('exchange with reduced influence', () => {
 });
 
 describe('assassinate bluff refund', () => {
-  it('actor bluffing assassin: loses influence, coins and treasury are refunded', () => {
+  it('actor bluffing fixer: loses influence, coins and treasury are refunded', () => {
     let s = createGame(P);
-    s = withHand(s, 'a', ['captain', 'ambassador']); // no assassin
+    s = withHand(s, 'a', ['auditor', 'broker']); // no fixer
     s.players[0].coins = 5;
     const treasuryBefore = s.treasury;
     s = declareAction(s, 'a', 'assassinate', 'b');
@@ -265,20 +265,20 @@ describe('chooseStartingCharacter (2-player variant)', () => {
   it('lets both players draft, then deals the shared third pool', () => {
     let s = createGame([P[0], P[1]]);
     expect(s.phase).toBe('variant-setup');
-    s = chooseStartingCharacter(s, 'a', 'duke');
+    s = chooseStartingCharacter(s, 'a', 'chair');
     expect(s.phase).toBe('variant-setup'); // still waiting on b
-    s = chooseStartingCharacter(s, 'b', 'contessa');
+    s = chooseStartingCharacter(s, 'b', 'counsel');
     expect(s.phase).toBe('idle');
-    expect(s.players[0].influence[0].character).toBe('duke');
-    expect(s.players[1].influence[0].character).toBe('contessa');
+    expect(s.players[0].influence[0].character).toBe('chair');
+    expect(s.players[1].influence[0].character).toBe('counsel');
     expect(s.deck).toHaveLength(3); // third 5-card pool minus the 2 dealt
     expect(s.variantPools).toBeNull();
   });
 
   it('rejects a character not in the caller draft pool', () => {
     let s = createGame([P[0], P[1]]);
-    s.variantPools!['a'] = ['duke'];
-    expect(() => chooseStartingCharacter(s, 'a', 'contessa')).toThrow();
+    s.variantPools!['a'] = ['chair'];
+    expect(() => chooseStartingCharacter(s, 'a', 'counsel')).toThrow();
   });
 });
 
@@ -341,7 +341,7 @@ describe('forfeitPlayer', () => {
   it('unwinds a ghost pending block when the forfeiting player was the blocker', () => {
     let s = createGame(P);
     s = declareAction(s, 'a', 'foreign-aid', null);
-    s = declareBlock(s, 'b', 'duke');
+    s = declareBlock(s, 'b', 'chair');
     expect(s.phase).toBe('block_declared');
     s = forfeitPlayer(s, 'b');
     expect(s.phase).toBe('idle');

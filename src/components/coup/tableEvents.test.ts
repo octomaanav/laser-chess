@@ -6,7 +6,7 @@ function baseState(overrides: Partial<ClientCoupState> = {}): ClientCoupState {
   return {
     you: 'a',
     players: [
-      { id: 'a', name: 'Alice', coins: 2, eliminated: false, connected: true, influenceCount: 2, influence: [{ character: 'duke', revealed: false }, { character: 'captain', revealed: false }] },
+      { id: 'a', name: 'Alice', coins: 2, eliminated: false, connected: true, influenceCount: 2, influence: [{ character: 'chair', revealed: false }, { character: 'auditor', revealed: false }] },
       { id: 'b', name: 'Bob', coins: 2, eliminated: false, connected: true, influenceCount: 2, influence: [{ character: null, revealed: false }, { character: null, revealed: false }] },
     ],
     deckSize: 15,
@@ -57,14 +57,14 @@ describe('deriveTableEvents', () => {
   it('tags a reveal caused by losing a challenge as challenge-lost', () => {
     const prev = baseState({
       phase: 'action_declared',
-      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'duke', costPaid: 0 },
+      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'chair', costPaid: 0 },
       pendingRevealPlayerId: 'a',
     });
     const next = baseState({
       phase: 'awaiting_reveal',
-      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'duke', costPaid: 0 },
+      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'chair', costPaid: 0 },
       pendingRevealPlayerId: null,
-      players: [{ ...prev.players[0], influence: [{ character: 'duke', revealed: true }, { character: 'captain', revealed: false }] }, prev.players[1]],
+      players: [{ ...prev.players[0], influence: [{ character: 'chair', revealed: true }, { character: 'auditor', revealed: false }] }, prev.players[1]],
     });
     const events = deriveTableEvents(prev, next);
     expect(events).toContainEqual(expect.objectContaining({ kind: 'card-revealed', playerId: 'a', cardIndex: 0, cause: 'challenge-lost' }));
@@ -80,7 +80,7 @@ describe('deriveTableEvents', () => {
       phase: 'awaiting_reveal',
       pendingAction: { type: 'coup', actorId: 'b', targetId: 'a', claimedCharacter: null, costPaid: 7 },
       pendingRevealPlayerId: null,
-      players: [{ ...prev.players[0], influence: [{ character: 'duke', revealed: true }, { character: 'captain', revealed: false }] }, prev.players[1]],
+      players: [{ ...prev.players[0], influence: [{ character: 'chair', revealed: true }, { character: 'auditor', revealed: false }] }, prev.players[1]],
     });
     const events = deriveTableEvents(prev, next);
     expect(events).toContainEqual(expect.objectContaining({ kind: 'card-revealed', playerId: 'a', cardIndex: 0, cause: 'hit' }));
@@ -89,16 +89,16 @@ describe('deriveTableEvents', () => {
   it('emits claim-proved when the accused keeps their claim and the challenger must reveal instead', () => {
     const prev = baseState({
       phase: 'action_declared',
-      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'duke', costPaid: 0 },
+      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'chair', costPaid: 0 },
       pendingRevealPlayerId: null,
     });
     const next = baseState({
       phase: 'action_declared',
-      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'duke', costPaid: 0 },
+      pendingAction: { type: 'tax', actorId: 'a', targetId: null, claimedCharacter: 'chair', costPaid: 0 },
       pendingRevealPlayerId: 'b',
     });
     const events = deriveTableEvents(prev, next);
-    expect(events).toContainEqual(expect.objectContaining({ kind: 'claim-proved', playerId: 'a', character: 'duke' }));
+    expect(events).toContainEqual(expect.objectContaining({ kind: 'claim-proved', playerId: 'a', character: 'chair' }));
   });
 
   it('emits block-declared when a pendingBlock first appears', () => {
@@ -109,7 +109,7 @@ describe('deriveTableEvents', () => {
     const next = baseState({
       phase: 'block_declared',
       pendingAction: { type: 'foreign-aid', actorId: 'a', targetId: null, claimedCharacter: null, costPaid: 0 },
-      pendingBlock: { byId: 'b', claimedCharacter: 'duke' },
+      pendingBlock: { byId: 'b', claimedCharacter: 'chair' },
     });
     const events = deriveTableEvents(prev, next);
     expect(events).toContainEqual(expect.objectContaining({ kind: 'block-declared', actorId: 'a' }));
@@ -118,14 +118,14 @@ describe('deriveTableEvents', () => {
   it('attributes a bluffed block-challenge reveal to the blocker, not the original actor', () => {
     const prev = baseState({
       phase: 'block_declared',
-      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
-      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'fixer', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'counsel' },
       pendingRevealPlayerId: 'b',
     });
     const next = baseState({
       phase: 'awaiting_reveal',
-      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
-      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'fixer', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'counsel' },
       pendingRevealPlayerId: null,
       players: [prev.players[0], { ...prev.players[1], influence: [{ character: null, revealed: true }, { character: null, revealed: false }] }],
     });
@@ -136,17 +136,17 @@ describe('deriveTableEvents', () => {
   it('emits claim-proved for the blocker (not the original actor) when a block-challenge fails', () => {
     const prev = baseState({
       phase: 'block_declared',
-      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
-      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'fixer', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'counsel' },
       pendingRevealPlayerId: null,
     });
     const next = baseState({
       phase: 'block_declared',
-      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'assassin', costPaid: 3 },
-      pendingBlock: { byId: 'b', claimedCharacter: 'contessa' },
+      pendingAction: { type: 'assassinate', actorId: 'a', targetId: 'b', claimedCharacter: 'fixer', costPaid: 3 },
+      pendingBlock: { byId: 'b', claimedCharacter: 'counsel' },
       pendingRevealPlayerId: 'c',
     });
     const events = deriveTableEvents(prev, next);
-    expect(events).toContainEqual(expect.objectContaining({ kind: 'claim-proved', playerId: 'b', character: 'contessa' }));
+    expect(events).toContainEqual(expect.objectContaining({ kind: 'claim-proved', playerId: 'b', character: 'counsel' }));
   });
 });

@@ -43,7 +43,7 @@ export default function Navbar({
   const defaultBrandHref = isCoup ? '/games/coup' : isLaser ? '/games/laser-chess' : '/';
   const resolvedBrandHref = brandHref || defaultBrandHref;
 
-  const defaultTitle = isCoup ? 'Coup' : isLaser ? 'Laser Chess' : SITE_NAME;
+  const defaultTitle = isCoup ? 'Boardroom' : isLaser ? 'Laser Chess' : SITE_NAME;
   const resolvedTitle = title || defaultTitle;
 
   const [tutorialOpen, setTutorialOpen] = React.useState(false);

@@ -3,7 +3,7 @@
 //   - variant-setup: 2-player-only starting-character draft (blocks move zero
 //     of every 2p game)
 //   - awaiting_reveal: choosing which influence card to flip face up
-//   - exchange_choice: Ambassador exchange (choosing which cards to keep)
+//   - exchange_choice: Broker exchange (choosing which cards to keep)
 'use client';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';

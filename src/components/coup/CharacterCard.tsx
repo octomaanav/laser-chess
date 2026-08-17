@@ -2,11 +2,8 @@ import { cn } from '@/lib/utils';
 import type { Character } from '@/game/coup/types';
 import { CHARACTER_ACCENT } from './characterAccent';
 import CardBack from './art/CardBack';
-import DukeCard from './art/DukeCard';
-import AssassinCard from './art/AssassinCard';
-import CaptainCard from './art/CaptainCard';
-import AmbassadorCard from './art/AmbassadorCard';
-import ContessaCard from './art/ContessaCard';
+import CoupCard from './art/CoupCard';
+import { CARDS } from './art/coupCardData';
 
 interface CharacterCardProps {
   character: Character | null; // null = face-down, unknown to this viewer
@@ -18,13 +15,9 @@ interface CharacterCardProps {
   activeAbilityIndex?: number;
 }
 
-const CARD_ART: Record<Character, (props: { activeAbilityIndex?: number }) => React.ReactElement> = {
-  duke: DukeCard,
-  assassin: AssassinCard,
-  captain: CaptainCard,
-  ambassador: AmbassadorCard,
-  contessa: ContessaCard,
-};
+const CARD_DATA: Record<Character, (typeof CARDS)[number]> = Object.fromEntries(
+  CARDS.map((c) => [c.key, c])
+) as Record<Character, (typeof CARDS)[number]>;
 
 // Card face is a full standalone SVG (icon + name + ability text baked in) -
 // this component just handles face-down/revealed states and sizing.
@@ -79,17 +72,30 @@ export default function CharacterCard({ character, revealed = false, size = 'lg'
   }
 
   const accent = CHARACTER_ACCENT[character];
-  const Art = CARD_ART[character];
+  const data = CARD_DATA[character];
 
   return (
     <div
       className={cn('relative overflow-hidden', className)}
       style={{ ...dims, boxShadow: `0 0 0 1px ${accent}55${revealed ? '' : ', 0 0 12px ' + accent + '33'}` }}
     >
-      <Art activeAbilityIndex={activeAbilityIndex} />
+      <div className={cn(revealed && 'grayscale')}>
+        <CoupCard {...data} activeAbilityIndex={activeAbilityIndex} />
+      </div>
       {revealed && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-[9px] font-semibold uppercase tracking-widest text-white/80">
-          Revealed
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/60 pb-[22%] text-white/80">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-2/5 w-2/5 opacity-80"
+            style={{ stroke: 'var(--coup-danger)' }}
+            fill="none"
+            strokeWidth={2}
+            strokeLinecap="round"
+          >
+            <line x1="5" y1="5" x2="19" y2="19" />
+            <line x1="19" y1="5" x2="5" y2="19" />
+          </svg>
+          <span className="text-[9px] font-semibold uppercase tracking-widest">Revealed</span>
         </div>
       )}
     </div>

@@ -50,7 +50,7 @@ export default function CardBack() {
         />
       ))}
 
-      {/* Centered crest: two nested diamonds, echoing the Ambassador icon /
+      {/* Centered crest: two nested diamonds, echoing the Broker icon /
           the game's card-suit motif, without depicting any one character. */}
       <g transform="translate(150 210)">
         <polygon points="0,-46 46,0 0,46 -46,0" fill="none" stroke={crest} strokeWidth="2" strokeOpacity="0.55" />
