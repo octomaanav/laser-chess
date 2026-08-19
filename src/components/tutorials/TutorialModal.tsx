@@ -17,16 +17,18 @@ interface TutorialModalProps {
   onOpenChange: (open: boolean) => void;
   gameTitle: string;
   steps: TutorialStep[];
-  // Coup's surfaces are themed via the [data-game='coup'] CSS scope, but a
-  // Radix Dialog portals to document.body and escapes that wrapper - so the
-  // --coup-* tokens go undefined unless this content carries the attribute
-  // itself (see ReferenceCard.tsx for the same portal-escape problem).
-  theme?: 'laser' | 'coup';
+  // Coup/Flip 7's surfaces are themed via the [data-game='...'] CSS scope,
+  // but a Radix Dialog portals to document.body and escapes that wrapper -
+  // so the --coup-*/--flip7-* tokens go undefined unless this content
+  // carries the attribute itself (see ReferenceCard.tsx for the same
+  // portal-escape problem).
+  theme?: 'laser' | 'coup' | 'flip7';
 }
 
 export default function TutorialModal({ open, onOpenChange, gameTitle, steps, theme = 'laser' }: TutorialModalProps) {
   const [index, setIndex] = useState(0);
   const isCoup = theme === 'coup';
+  const isFlip7 = theme === 'flip7';
 
   useEffect(() => {
     if (open) setIndex(0);
@@ -42,32 +44,36 @@ export default function TutorialModal({ open, onOpenChange, gameTitle, steps, th
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        data-game={isCoup ? 'coup' : undefined}
+        data-game={isCoup ? 'coup' : isFlip7 ? 'flip7' : undefined}
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight') next();
           if (e.key === 'ArrowLeft') back();
         }}
         className={cn(
           'flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl',
-          isCoup && 'border-[var(--coup-panel-border)] bg-[var(--coup-panel-bg)] text-[var(--coup-text)]'
+          isCoup && 'border-[var(--coup-panel-border)] bg-[var(--coup-panel-bg)] text-[var(--coup-text)]',
+          isFlip7 && 'border-[var(--flip7-panel-border)] bg-[var(--flip7-panel-bg)] text-[var(--flip7-text)]'
         )}
       >
         <div
           className={cn(
             'shrink-0 border-b px-6 py-4',
-            isCoup ? 'border-[var(--coup-panel-border)]' : 'border-border'
+            isCoup ? 'border-[var(--coup-panel-border)]' : isFlip7 ? 'border-[var(--flip7-panel-border)]' : 'border-border'
           )}
         >
           <p
             className={cn(
               'text-xs font-semibold uppercase tracking-widest',
-              isCoup ? 'text-[var(--coup-text-muted)]' : 'text-muted-foreground'
+              isCoup ? 'text-[var(--coup-text-muted)]' : isFlip7 ? 'text-[var(--flip7-text-muted)]' : 'text-muted-foreground'
             )}
           >
             {gameTitle} · How to play
           </p>
           <DialogTitle
-            className={cn('font-display text-xl font-bold', isCoup ? 'text-[var(--coup-text)]' : 'text-foreground')}
+            className={cn(
+              'font-display text-xl font-bold',
+              isCoup ? 'text-[var(--coup-text)]' : isFlip7 ? 'text-[var(--flip7-text)]' : 'text-foreground'
+            )}
           >
             {step.title}
           </DialogTitle>
@@ -78,7 +84,7 @@ export default function TutorialModal({ open, onOpenChange, gameTitle, steps, th
           <div
             className={cn(
               'space-y-3 text-[14px] leading-relaxed',
-              isCoup ? 'text-[var(--coup-text)]' : 'text-foreground/90'
+              isCoup ? 'text-[var(--coup-text)]' : isFlip7 ? 'text-[var(--flip7-text)]' : 'text-foreground/90'
             )}
           >
             {step.body}
@@ -88,7 +94,7 @@ export default function TutorialModal({ open, onOpenChange, gameTitle, steps, th
         <div
           className={cn(
             'flex shrink-0 items-center justify-between gap-3 border-t px-6 py-4',
-            isCoup ? 'border-[var(--coup-panel-border)]' : 'border-border'
+            isCoup ? 'border-[var(--coup-panel-border)]' : isFlip7 ? 'border-[var(--flip7-panel-border)]' : 'border-border'
           )}
         >
           <div className="flex gap-1.5">
@@ -100,10 +106,14 @@ export default function TutorialModal({ open, onOpenChange, gameTitle, steps, th
                   i === index
                     ? isCoup
                       ? 'bg-[var(--coup-gold)]'
-                      : 'bg-laser'
+                      : isFlip7
+                        ? 'bg-[var(--flip7-amber)]'
+                        : 'bg-laser'
                     : isCoup
                       ? 'bg-[var(--coup-panel-border)]'
-                      : 'bg-border'
+                      : isFlip7
+                        ? 'bg-[var(--flip7-panel-border)]'
+                        : 'bg-border'
                 )}
               />
             ))}
@@ -115,7 +125,13 @@ export default function TutorialModal({ open, onOpenChange, gameTitle, steps, th
             <Button
               size="sm"
               onClick={next}
-              className={isCoup ? 'bg-[var(--coup-gold)] text-black hover:bg-[var(--coup-gold-dark)]' : undefined}
+              className={
+                isCoup
+                  ? 'bg-[var(--coup-gold)] text-black hover:bg-[var(--coup-gold-dark)]'
+                  : isFlip7
+                    ? 'bg-[var(--flip7-amber)] text-black hover:bg-[var(--flip7-amber-dark)]'
+                    : undefined
+              }
             >
               {isLast ? 'Got it' : 'Next'} {!isLast && <ChevronRight className="size-4" />}
             </Button>

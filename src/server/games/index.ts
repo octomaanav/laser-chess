@@ -5,8 +5,10 @@
 import type { WebSocketServer } from 'ws';
 import { createGameWss } from '../gameServer';
 import { createCoupWss } from './coup/roomServer';
+import { createFlip7Wss } from './flip7/roomServer';
 
 export const GAME_WSS: Record<string, WebSocketServer> = {
   'laser-chess': createGameWss(),
   coup: createCoupWss(),
+  flip7: createFlip7Wss(),
 };

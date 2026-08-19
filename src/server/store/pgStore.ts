@@ -9,6 +9,7 @@ import type {
   GameMatch,
   OAuthIdentity,
   PersistedCoupRoom,
+  PersistedFlip7Room,
   PersistedRoom,
   PlayerRating,
   Store,
@@ -171,6 +172,54 @@ export class PgStore implements Store {
   }
   async sweepCoupRooms(maxAgeMs: number): Promise<void> {
     await this.q(`delete from coup_rooms where updated_at < now() - ($1::bigint * interval '1 millisecond')`, [maxAgeMs]);
+  }
+
+  async loadFlip7Room(code: string): Promise<PersistedFlip7Room | null> {
+    const r = await this.q('select state from flip7_rooms where code = $1', [code]);
+    return (r.rows[0]?.state as PersistedFlip7Room) ?? null;
+  }
+  async saveFlip7Room(room: PersistedFlip7Room): Promise<void> {
+    const playerNamesArray = Object.values(room.names);
+    const hostName = playerNamesArray[0] || 'Host';
+    const playerCount = room.seats.length;
+    let status = 'waiting';
+    let winnerName: string | null = null;
+    if (room.state) {
+      status = room.state.winner ? 'finished' : 'in_progress';
+      if (room.state.winner) {
+        winnerName = room.names[room.state.winner] || room.state.winner;
+      }
+    }
+
+    await this.q(
+      `insert into flip7_rooms(
+        code, game_slug, host_name, player_names, player_count, status, winner_name, state, updated_at
+      ) values($1, $2, $3, $4, $5, $6, $7, $8, now())
+      on conflict(code) do update set
+        host_name = excluded.host_name,
+        player_names = excluded.player_names,
+        player_count = excluded.player_count,
+        status = excluded.status,
+        winner_name = excluded.winner_name,
+        state = excluded.state,
+        updated_at = now()`,
+      [
+        room.code,
+        'flip7',
+        hostName,
+        JSON.stringify(playerNamesArray),
+        playerCount,
+        status,
+        winnerName,
+        JSON.stringify(room),
+      ],
+    );
+  }
+  async deleteFlip7Room(code: string): Promise<void> {
+    await this.q('delete from flip7_rooms where code = $1', [code]);
+  }
+  async sweepFlip7Rooms(maxAgeMs: number): Promise<void> {
+    await this.q(`delete from flip7_rooms where updated_at < now() - ($1::bigint * interval '1 millisecond')`, [maxAgeMs]);
   }
 
   private rowToUser(row: Record<string, unknown>): User {
@@ -375,6 +424,10 @@ export class PgStore implements Store {
       union all
       select code, game_slug, host_name, player_names, player_count, false as is_bot, null as bot_difficulty, false as is_ranked, status, updated_at
       from coup_rooms
+      where updated_at > now() - interval '2 hours'
+      union all
+      select code, game_slug, host_name, player_names, player_count, false as is_bot, null as bot_difficulty, false as is_ranked, status, updated_at
+      from flip7_rooms
       where updated_at > now() - interval '2 hours'
       order by updated_at desc
     `);

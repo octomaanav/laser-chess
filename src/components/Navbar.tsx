@@ -6,13 +6,15 @@ import AccountMenu from './AccountMenu';
 import { Button } from './ui/button';
 import LogoMark from './LogoMark';
 import CoupLogoMark from './coup/CoupLogoMark';
+import Flip7LogoMark from './flip7/Flip7LogoMark';
 import TutorialModal from './tutorials/TutorialModal';
 import { LASER_CHESS_TUTORIAL_STEPS } from './tutorials/laserChessTutorial';
 import { COUP_TUTORIAL_STEPS } from './tutorials/coupTutorial';
+import { FLIP7_TUTORIAL_STEPS } from './tutorials/flip7Tutorial';
 import { SITE_NAME } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
-export type NavbarGame = 'platform' | 'laser-chess' | 'coup';
+export type NavbarGame = 'platform' | 'laser-chess' | 'coup' | 'flip7';
 
 export interface NavbarProps {
   game?: NavbarGame;
@@ -36,11 +38,12 @@ export default function Navbar({
   // Determine game theme styling tokens
   const isCoup = game === 'coup';
   const isLaser = game === 'laser-chess';
+  const isFlip7 = game === 'flip7';
 
-  const defaultBrandHref = isCoup ? '/games/coup' : isLaser ? '/games/laser-chess' : '/';
+  const defaultBrandHref = isCoup ? '/games/coup' : isLaser ? '/games/laser-chess' : isFlip7 ? '/games/flip7' : '/';
   const resolvedBrandHref = brandHref || defaultBrandHref;
 
-  const defaultTitle = isCoup ? 'Boardroom' : isLaser ? 'Laser Chess' : SITE_NAME;
+  const defaultTitle = isCoup ? 'Boardroom' : isLaser ? 'Laser Chess' : isFlip7 ? 'Flip 7' : SITE_NAME;
   const resolvedTitle = title || defaultTitle;
 
   const [tutorialOpen, setTutorialOpen] = React.useState(false);
@@ -51,7 +54,9 @@ export default function Navbar({
         'flex w-full max-w-full shrink-0 items-center justify-between px-2.5 py-2 sm:px-5 lg:px-8 sm:py-3 transition-colors duration-200 gap-1.5 sm:gap-2 overflow-hidden',
         isCoup
           ? 'border-b border-[var(--coup-panel-border)] text-[var(--coup-text)]'
-          : 'border-b border-border/70 text-foreground',
+          : isFlip7
+            ? 'border-b border-[var(--flip7-panel-border)] text-[var(--flip7-text)]'
+            : 'border-b border-border/70 text-foreground',
         className
       )}
     >
@@ -61,11 +66,13 @@ export default function Navbar({
           href={resolvedBrandHref}
           className={cn(
             'flex items-center gap-1.5 sm:gap-2.5 transition-opacity hover:opacity-90 shrink-0',
-            isCoup ? 'text-[var(--coup-text)]' : 'text-foreground'
+            isCoup ? 'text-[var(--coup-text)]' : isFlip7 ? 'text-[var(--flip7-text)]' : 'text-foreground'
           )}
         >
           {isCoup ? (
             <CoupLogoMark size={24} />
+          ) : isFlip7 ? (
+            <Flip7LogoMark size={24} />
           ) : isLaser ? (
             <LogoMark size={24} />
           ) : (
@@ -91,14 +98,16 @@ export default function Navbar({
               'mr-1 hidden md:inline text-xs sm:text-sm font-medium transition-colors whitespace-nowrap',
               isCoup
                 ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]'
-                : 'text-muted-foreground hover:text-foreground'
+                : isFlip7
+                  ? 'text-[var(--flip7-text-muted)] hover:text-[var(--flip7-text)]'
+                  : 'text-muted-foreground hover:text-foreground'
             )}
           >
             ← All games
           </a>
         )}
 
-        {(isLaser || isCoup) && (
+        {(isLaser || isCoup || isFlip7) && (
           <>
             <Button
               variant="ghost"
@@ -106,7 +115,11 @@ export default function Navbar({
               onClick={() => setTutorialOpen(true)}
               className={cn(
                 'size-8 sm:size-8 lg:size-auto lg:h-9 lg:px-2.5 shrink-0',
-                isCoup ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]' : undefined
+                isCoup
+                  ? 'text-[var(--coup-text-muted)] hover:text-[var(--coup-text)]'
+                  : isFlip7
+                    ? 'text-[var(--flip7-text-muted)] hover:text-[var(--flip7-text)]'
+                    : undefined
               )}
               title="How to play"
               aria-label="How to play"
@@ -118,8 +131,8 @@ export default function Navbar({
               open={tutorialOpen}
               onOpenChange={setTutorialOpen}
               gameTitle={resolvedTitle}
-              steps={isCoup ? COUP_TUTORIAL_STEPS : LASER_CHESS_TUTORIAL_STEPS}
-              theme={isCoup ? 'coup' : 'laser'}
+              steps={isCoup ? COUP_TUTORIAL_STEPS : isFlip7 ? FLIP7_TUTORIAL_STEPS : LASER_CHESS_TUTORIAL_STEPS}
+              theme={isCoup ? 'coup' : isFlip7 ? 'flip7' : 'laser'}
             />
           </>
         )}
