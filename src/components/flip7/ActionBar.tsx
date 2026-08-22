@@ -35,7 +35,7 @@ export default function ActionBar({
   const canAct = yourTurn && you?.status === 'active' && state.phase === 'round_active';
   const currentHandScore = you ? computeHandScore(you.hand) : 0;
 
-  // Keyboard shortcut listener (Space/Enter to Hit, S to Stay)
+  // Keyboard shortcut listener (Space/Enter to Draw, S to Stay)
   useEffect(() => {
     if (!canAct) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -53,27 +53,7 @@ export default function ActionBar({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [canAct, controller]);
 
-  // 1. FORCED DRAW (FLIP THREE) IN PROGRESS
-  if (state.flipThreeQueue.length > 0) {
-    const front = state.flipThreeQueue[0];
-    const target = state.players.find((p) => p.id === front.targetId);
-    return (
-      <div
-        className={cn(
-          'flex h-full min-h-[140px] flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-red-500/40 bg-red-950/35 p-4 text-center text-red-300 shadow-xl backdrop-blur-md animate-pulse',
-          className
-        )}
-      >
-        <RotateCcw className="size-6 animate-spin text-red-400" />
-        <div className="text-sm font-black uppercase tracking-wider">Forced Draw</div>
-        <p className="text-xs text-red-200">
-          <strong>{target?.name}</strong> must flip {front.remaining} more card{front.remaining === 1 ? '' : 's'}!
-        </p>
-      </div>
-    );
-  }
-
-  // 2. AWAITING TARGET CHOICE
+  // 1. AWAITING TARGET CHOICE (Freeze, Flip Three, Second Chance)
   if (state.phase === 'awaiting_target' && state.pendingTarget) {
     const { drawerId, kind } = state.pendingTarget;
     const drawer = state.players.find((p) => p.id === drawerId);
@@ -143,6 +123,26 @@ export default function ActionBar({
     );
   }
 
+  // 2. FORCED DRAW (FLIP THREE) IN PROGRESS
+  const activeForced = state.flipThreeQueue.find((f) => f.remaining > 0);
+  if (activeForced && state.phase === 'round_active') {
+    const target = state.players.find((p) => p.id === activeForced.targetId);
+    return (
+      <div
+        className={cn(
+          'flex h-full min-h-[140px] flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-red-500/40 bg-red-950/35 p-4 text-center text-red-300 shadow-xl backdrop-blur-md animate-pulse',
+          className
+        )}
+      >
+        <RotateCcw className="size-6 animate-spin text-red-400" />
+        <div className="text-sm font-black uppercase tracking-wider">Forced Draw</div>
+        <p className="text-xs text-red-200">
+          <strong>{target?.name}</strong> must flip {activeForced.remaining} more card{activeForced.remaining === 1 ? '' : 's'}!
+        </p>
+      </div>
+    );
+  }
+
   // 3. YOUR TURN: ACTIVE ACTION COMMAND CONSOLE BENTO BOX
   if (canAct) {
     return (
@@ -163,9 +163,8 @@ export default function ActionBar({
           </span>
         </div>
 
-        {/* Buttons Grid */}
+        {/* DRAW BUTTON */}
         <div className="flex items-center gap-2.5 my-auto">
-          {/* HIT (DRAW) BUTTON */}
           <Button
             size="lg"
             className="group relative flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-amber-300 bg-amber-400 px-3 py-3 text-xs sm:text-sm font-black text-slate-950 shadow-xl transition-all hover:scale-105 hover:bg-amber-300 active:scale-95"
@@ -175,7 +174,7 @@ export default function ActionBar({
             onClick={() => controller.hit()}
           >
             <ArrowDownToDot className="size-4 shrink-0 transition-transform group-hover:translate-y-0.5" />
-            <span>HIT</span>
+            <span>DRAW</span>
             <span className="hidden sm:inline rounded bg-black/20 px-1 py-0.2 text-[9px] font-mono font-bold uppercase">
               Space
             </span>
@@ -201,7 +200,7 @@ export default function ActionBar({
 
         {/* Tip text */}
         <p className="text-[10px] text-slate-400 text-center">
-          Flip for more points or bank your score safely.
+          Draw for more points or bank your score safely.
         </p>
       </div>
     );
@@ -226,7 +225,7 @@ export default function ActionBar({
           <span>{activePlayer?.name}&apos;s Turn</span>
         </div>
         <p className="text-[11px] text-slate-400 mt-1">
-          {activePlayer?.name} is deciding whether to Hit or Stay.
+          {activePlayer?.name} is deciding whether to Draw or Stay.
         </p>
       </div>
 

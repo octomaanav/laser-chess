@@ -143,7 +143,7 @@ export default function PlayerHand({
         <div className="flex flex-1 min-h-[76px] flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-black/40 p-2.5 sm:p-3 shadow-inner">
           {displayCards.length === 0 ? (
             <span className="w-full text-center text-xs text-slate-500 py-3">
-              No cards yet this round. Hit to draw your first card!
+              No cards yet this round. Draw your first card!
             </span>
           ) : (
             displayCards.map((c, i) => {

@@ -197,6 +197,49 @@ describe('Flip Three', () => {
     expect(a.hand.filter((x) => x.kind === 'number')).toHaveLength(2); // A's remaining 2 forced draws resolved after
     expect(s.phase).toBe('round_active');
   });
+
+  it('cleans up queue when an Action card is drawn on the final forced draw', () => {
+    let s = game(['A', 'B', 'C']);
+    // B targets A with Flip Three. A draws 2 number cards, then Freeze on the 3rd forced draw.
+    s = withDeck(s, [flipThree, num(1), num(2), freeze]);
+    s = hit(s, 'p1'); // B draws Flip Three
+    s = chooseFlipThreeTarget(s, 'p1', 'p0'); // Targets A
+    expect(s.phase).toBe('awaiting_target');
+    expect(s.pendingTarget).toEqual({ drawerId: 'p0', kind: 'freeze' });
+    expect(s.flipThreeQueue).toHaveLength(0); // Queue should not hold stale { remaining: 0 }
+    s = chooseFreezeTarget(s, 'p0', 'p2'); // A freezes C (C is now frozen)
+    expect(s.phase).toBe('round_active');
+    expect(s.turn).toBe(0); // Next active player after B (since C is frozen) is A (p0)
+  });
+
+  it('cancels remaining forced draws if the target busts mid-sequence', () => {
+    let s = game(['A', 'B', 'C']);
+    // A (p0) will draw a 5.
+    // Turn starts with B (p1). B stays.
+    // Turn is C (p2). C stays.
+    // Turn is A (p0). A hits and gets a 5.
+    // Turn is B (p1). B hits and draws Flip Three targeting A.
+    // A draws a 5 (duplicate) on the 1st forced draw and busts.
+    s = withDeck(s, [num(5), flipThree, num(5), num(8), num(9)]);
+    s = stay(s, 'p1'); // B stays
+    s = stay(s, 'p2'); // C stays
+    s = hit(s, 'p0');  // A draws 5
+    // Now only A is active, so turn stays with A or A is the only player.
+    // Instead let's test with B active:
+    let s2 = game(['A', 'B', 'C']);
+    // A has 5. B draws Flip Three. A draws 5 on forced draw.
+    s2 = withDeck(s2, [num(3), num(5), flipThree, num(5), num(8), num(9)]);
+    s2 = hit(s2, 'p1'); // B draws 3
+    s2 = stay(s2, 'p2'); // C stays
+    s2 = hit(s2, 'p0'); // A draws 5
+    s2 = hit(s2, 'p1'); // B draws Flip Three
+    s2 = chooseFlipThreeTarget(s2, 'p1', 'p0'); // Targets A
+    const a = s2.players.find((p) => p.id === 'p0')!;
+    expect(a.status).toBe('busted');
+    expect(s2.flipThreeQueue).toHaveLength(0); // Queue cleared on bust
+    expect(s2.phase).toBe('round_active');
+    expect(s2.turn).toBe(1); // Turn is back to B who is still active
+  });
 });
 
 describe('startNextRound', () => {

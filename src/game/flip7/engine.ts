@@ -105,10 +105,14 @@ function drawOneCard(state: Flip7State, playerId: string, isForced: boolean): Fl
   const deck = s.deck.slice();
   const card = deck.pop()!;
   s = { ...s, deck };
-  if (isForced) {
+  if (isForced && s.flipThreeQueue.length > 0) {
     const queue = s.flipThreeQueue.slice();
-    queue[0] = { ...queue[0], remaining: queue[0].remaining - 1 };
-    s = { ...s, flipThreeQueue: queue };
+    if (queue[0].remaining <= 1) {
+      s = { ...s, flipThreeQueue: queue.slice(1) };
+    } else {
+      queue[0] = { ...queue[0], remaining: queue[0].remaining - 1 };
+      s = { ...s, flipThreeQueue: queue };
+    }
   }
   switch (card.kind) {
     case 'number':
@@ -150,6 +154,7 @@ function resolveNumberCard(state: Flip7State, playerId: string, card: NumberCard
     s = {
       ...s,
       discard: [...s.discard, card, ...player.hand],
+      flipThreeQueue: s.flipThreeQueue.filter((f) => f.targetId !== playerId),
       lastDraw: {
         id: nextLogId(state),
         card,
@@ -386,7 +391,12 @@ export function chooseFreezeTarget(state: Flip7State, drawerId: string, targetId
   const score = computeHandScore(target.hand);
   let s = updatePlayer(state, targetId, (p) => ({ ...p, status: 'frozen' }));
   s = appendLog(s, `${drawer.name} freezes ${target.name}, who banks ${score} point${plural(score)}.`);
-  s = { ...s, phase: 'round_active', pendingTarget: null };
+  s = {
+    ...s,
+    phase: 'round_active',
+    pendingTarget: null,
+    flipThreeQueue: s.flipThreeQueue.filter((f) => f.targetId !== targetId && f.remaining > 0),
+  };
   return continueAfterResolution(s);
 }
 
@@ -401,7 +411,7 @@ export function chooseFlipThreeTarget(state: Flip7State, drawerId: string, targe
     ...s,
     phase: 'round_active',
     pendingTarget: null,
-    flipThreeQueue: [{ targetId, remaining: 3, initiatorId: drawerId }, ...s.flipThreeQueue],
+    flipThreeQueue: [{ targetId, remaining: 3, initiatorId: drawerId }, ...s.flipThreeQueue.filter((f) => f.remaining > 0)],
   };
   return continueAfterResolution(s);
 }

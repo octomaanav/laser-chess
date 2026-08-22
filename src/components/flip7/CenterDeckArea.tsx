@@ -19,7 +19,8 @@ export default function CenterDeckArea({
 }) {
   const isYourTurn = state.phase === 'round_active' && state.players[state.turn]?.id === state.you;
   const you = state.players.find((p) => p.id === state.you);
-  const canHit = isYourTurn && you?.status === 'active' && state.flipThreeQueue.length === 0;
+  const hasForcedDraw = state.flipThreeQueue.some((f) => f.remaining > 0);
+  const canHit = isYourTurn && you?.status === 'active' && !hasForcedDraw;
 
   const lastDraw = state.lastDraw;
 
@@ -171,7 +172,7 @@ export default function CenterDeckArea({
           ) : (
             <div className="flex flex-col items-center justify-center py-5 sm:py-7 text-center text-xs text-slate-400">
               <p className="font-semibold text-slate-300 text-xs sm:text-sm">Draw pile ready</p>
-              <p className="mt-1 text-[10px] sm:text-xs text-slate-500">Hit to flip card</p>
+              <p className="mt-1 text-[10px] sm:text-xs text-slate-500">Draw to flip card</p>
             </div>
           )}
         </div>
