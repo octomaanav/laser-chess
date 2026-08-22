@@ -1,4 +1,4 @@
-import type { Flip7State, ForcedDraw, LogEntry, PendingTarget, Phase, Player } from './types';
+import type { Card, Flip7State, ForcedDraw, LastDraw, LogEntry, PendingTarget, Phase, Player } from './types';
 
 // Flip 7 hands are fully public once drawn (players watch each other's
 // progress toward 7 unique numbers), so unlike Coup there's no hidden
@@ -9,6 +9,8 @@ export interface ClientFlip7State {
   players: Player[];
   deckCount: number;
   discardCount: number;
+  topDiscard: Card | null;
+  lastDraw: LastDraw | null;
   dealerIndex: number;
   turn: number;
   phase: Phase;
@@ -25,6 +27,8 @@ export function redactStateFor(state: Flip7State, viewerId: string): ClientFlip7
     players: state.players,
     deckCount: state.deck.length,
     discardCount: state.discard.length,
+    topDiscard: state.discard.length > 0 ? state.discard[state.discard.length - 1] : null,
+    lastDraw: state.lastDraw,
     dealerIndex: state.dealerIndex,
     turn: state.turn,
     phase: state.phase,
@@ -35,3 +39,4 @@ export function redactStateFor(state: Flip7State, viewerId: string): ClientFlip7
     winner: state.winner,
   };
 }
+

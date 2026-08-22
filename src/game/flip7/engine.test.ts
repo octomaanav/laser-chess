@@ -274,3 +274,58 @@ describe('Second Chance giveaway', () => {
     expect(c.hand.some((card) => card.kind === 'action' && card.action === 'second-chance')).toBe(true);
   });
 });
+
+describe('lastDraw and card showcase metadata', () => {
+  it('records lastDraw and preserved bustedHand on duplicate bust', () => {
+    let s = game(['A', 'B']);
+    s = withDeck(s, [num(5), num(1), num(5)]);
+    s = hit(s, 'p1'); // B draws 5
+    expect(s.lastDraw).toMatchObject({
+      playerId: 'p1',
+      playerName: 'B',
+      card: { kind: 'number', value: 5 },
+      outcome: 'added',
+    });
+    s = hit(s, 'p0'); // A draws 1
+    s = hit(s, 'p1'); // duplicate 5 -> bust
+    expect(s.lastDraw).toMatchObject({
+      playerId: 'p1',
+      playerName: 'B',
+      card: { kind: 'number', value: 5 },
+      outcome: 'duplicate_bust',
+    });
+    const b = s.players.find((p) => p.id === 'p1')!;
+    expect(b.bustedHand).toEqual([
+      { kind: 'number', value: 5 },
+      { kind: 'number', value: 5 },
+    ]);
+  });
+
+  it('records lastDraw for modifiers, multipliers, and freeze actions', () => {
+    let s = game(['A', 'B', 'C']);
+    s = withDeck(s, [modifier(6)]);
+    s = hit(s, 'p1');
+    expect(s.lastDraw).toMatchObject({
+      playerId: 'p1',
+      card: { kind: 'modifier', value: 6 },
+      outcome: 'added',
+    });
+
+    s = withDeck(s, [multiplier]);
+    s = hit(s, 'p2');
+    expect(s.lastDraw).toMatchObject({
+      playerId: 'p2',
+      card: { kind: 'multiplier' },
+      outcome: 'added',
+    });
+
+    s = withDeck(s, [freeze]);
+    s = hit(s, 'p0');
+    expect(s.lastDraw).toMatchObject({
+      playerId: 'p0',
+      card: { kind: 'action', action: 'freeze' },
+      outcome: 'freeze',
+    });
+  });
+});
+

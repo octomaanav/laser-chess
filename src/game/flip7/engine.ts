@@ -132,18 +132,53 @@ function resolveNumberCard(state: Flip7State, playerId: string, card: NumberCard
       const usedCard = player.hand[scIndex];
       const newHand = player.hand.filter((_, i) => i !== scIndex);
       let s = updatePlayer(state, playerId, (p) => ({ ...p, hand: newHand }));
-      s = { ...s, discard: [...s.discard, card, usedCard] };
+      s = {
+        ...s,
+        discard: [...s.discard, card, usedCard],
+        lastDraw: {
+          id: nextLogId(state),
+          card,
+          playerId,
+          playerName: player.name,
+          outcome: 'second_chance_saved',
+        },
+      };
       return appendLog(s, `${player.name}'s Second Chance saves them from busting on ${card.value}.`);
     }
-    let s = updatePlayer(state, playerId, (p) => ({ ...p, status: 'busted', hand: [] }));
-    s = { ...s, discard: [...s.discard, card, ...player.hand] };
+    const fullBustedHand = [...player.hand, card];
+    let s = updatePlayer(state, playerId, (p) => ({ ...p, status: 'busted', hand: [], bustedHand: fullBustedHand }));
+    s = {
+      ...s,
+      discard: [...s.discard, card, ...player.hand],
+      lastDraw: {
+        id: nextLogId(state),
+        card,
+        playerId,
+        playerName: player.name,
+        outcome: 'duplicate_bust',
+        bustedHand: fullBustedHand,
+      },
+    };
     return appendLog(s, `${player.name} draws a duplicate ${card.value} and busts.`);
   }
 
-  let s = updatePlayer(state, playerId, (p) => ({ ...p, hand: [...p.hand, card] }));
+  const newHand = [...player.hand, card];
+  const uniqueNumbers = newHand.filter((c) => c.kind === 'number').length;
+  const isFlip7 = uniqueNumbers >= 7;
+
+  let s = updatePlayer(state, playerId, (p) => ({ ...p, hand: newHand }));
+  s = {
+    ...s,
+    lastDraw: {
+      id: nextLogId(state),
+      card,
+      playerId,
+      playerName: player.name,
+      outcome: isFlip7 ? 'flip_seven' : 'added',
+    },
+  };
   s = appendLog(s, `${player.name} draws ${card.value}.`);
-  const uniqueNumbers = getPlayer(s, playerId).hand.filter((c) => c.kind === 'number').length;
-  if (uniqueNumbers >= 7) {
+  if (isFlip7) {
     s = appendLog(s, `${player.name} flips 7! The round ends immediately.`);
     return endRound(s);
   }
@@ -153,25 +188,65 @@ function resolveNumberCard(state: Flip7State, playerId: string, card: NumberCard
 function resolveModifierCard(state: Flip7State, playerId: string, card: ModifierCard): Flip7State {
   const player = getPlayer(state, playerId);
   const s = updatePlayer(state, playerId, (p) => ({ ...p, hand: [...p.hand, card] }));
-  return appendLog(s, `${player.name} draws +${card.value}.`);
+  const withDraw: Flip7State = {
+    ...s,
+    lastDraw: {
+      id: nextLogId(state),
+      card,
+      playerId,
+      playerName: player.name,
+      outcome: 'added',
+    },
+  };
+  return appendLog(withDraw, `${player.name} draws +${card.value}.`);
 }
 
 function resolveMultiplierCard(state: Flip7State, playerId: string, card: MultiplierCard): Flip7State {
   const player = getPlayer(state, playerId);
   const s = updatePlayer(state, playerId, (p) => ({ ...p, hand: [...p.hand, card] }));
-  return appendLog(s, `${player.name} draws the x2 multiplier!`);
+  const withDraw: Flip7State = {
+    ...s,
+    lastDraw: {
+      id: nextLogId(state),
+      card,
+      playerId,
+      playerName: player.name,
+      outcome: 'added',
+    },
+  };
+  return appendLog(withDraw, `${player.name} draws the x2 multiplier!`);
 }
 
 function resolveActionCard(state: Flip7State, playerId: string, card: ActionCard): Flip7State {
   const player = getPlayer(state, playerId);
 
   if (card.action === 'freeze') {
-    const s = { ...state, discard: [...state.discard, card] };
+    const s = {
+      ...state,
+      discard: [...state.discard, card],
+      lastDraw: {
+        id: nextLogId(state),
+        card,
+        playerId,
+        playerName: player.name,
+        outcome: 'freeze' as const,
+      },
+    };
     return { ...appendLog(s, `${player.name} draws Freeze.`), phase: 'awaiting_target', pendingTarget: { drawerId: playerId, kind: 'freeze' } };
   }
 
   if (card.action === 'flip-three') {
-    const s = { ...state, discard: [...state.discard, card] };
+    const s = {
+      ...state,
+      discard: [...state.discard, card],
+      lastDraw: {
+        id: nextLogId(state),
+        card,
+        playerId,
+        playerName: player.name,
+        outcome: 'flip_three' as const,
+      },
+    };
     return {
       ...appendLog(s, `${player.name} draws Flip Three.`),
       phase: 'awaiting_target',
@@ -183,17 +258,47 @@ function resolveActionCard(state: Flip7State, playerId: string, card: ActionCard
   const alreadyHas = player.hand.some((c) => c.kind === 'action' && c.action === 'second-chance');
   if (!alreadyHas) {
     const s = updatePlayer(state, playerId, (p) => ({ ...p, hand: [...p.hand, card] }));
-    return appendLog(s, `${player.name} draws a Second Chance.`);
+    const withDraw: Flip7State = {
+      ...s,
+      lastDraw: {
+        id: nextLogId(state),
+        card,
+        playerId,
+        playerName: player.name,
+        outcome: 'second_chance_kept',
+      },
+    };
+    return appendLog(withDraw, `${player.name} draws a Second Chance.`);
   }
   const eligible = state.players.some(
     (p) => p.id !== playerId && p.status === 'active' && !p.hand.some((c) => c.kind === 'action' && c.action === 'second-chance'),
   );
   if (!eligible) {
-    const s = { ...state, discard: [...state.discard, card] };
+    const s = {
+      ...state,
+      discard: [...state.discard, card],
+      lastDraw: {
+        id: nextLogId(state),
+        card,
+        playerId,
+        playerName: player.name,
+        outcome: 'second_chance_kept' as const,
+      },
+    };
     return appendLog(s, `${player.name} already has a Second Chance - the extra is discarded (no one else could take it).`);
   }
+  const s: Flip7State = {
+    ...state,
+    lastDraw: {
+      id: nextLogId(state),
+      card,
+      playerId,
+      playerName: player.name,
+      outcome: 'second_chance_giveaway',
+    },
+  };
   return {
-    ...appendLog(state, `${player.name} already has a Second Chance and must give this one away.`),
+    ...appendLog(s, `${player.name} already has a Second Chance and must give this one away.`),
     phase: 'awaiting_target',
     pendingTarget: { drawerId: playerId, kind: 'second-chance' },
   };
@@ -237,6 +342,7 @@ export function createGame(players: { id: string; name: string }[]): Flip7State 
     players: ps,
     deck: buildDeck(),
     discard: [],
+    lastDraw: null,
     dealerIndex,
     turn,
     phase: 'round_active',
@@ -248,6 +354,7 @@ export function createGame(players: { id: string; name: string }[]): Flip7State 
   };
   return appendLog(s, `${ps[dealerIndex].name} is the dealer. Round 1 begins.`);
 }
+
 
 export function hit(state: Flip7State, playerId: string): Flip7State {
   if (state.phase !== 'round_active') throw new Error('not accepting hits right now');
@@ -320,7 +427,7 @@ export function startNextRound(state: Flip7State, playerId: string): Flip7State 
   do {
     dealerIndex = (dealerIndex + 1) % state.players.length;
   } while (state.players[dealerIndex].status === 'forfeited');
-  const players = state.players.map((p) => (p.status === 'forfeited' ? p : { ...p, hand: [], status: 'active' as const }));
+  const players = state.players.map((p) => (p.status === 'forfeited' ? p : { ...p, hand: [], bustedHand: undefined, status: 'active' as const }));
   let turn = dealerIndex;
   do {
     turn = (turn + 1) % players.length;
@@ -330,6 +437,7 @@ export function startNextRound(state: Flip7State, playerId: string): Flip7State 
     players,
     deck: buildDeck(),
     discard: [],
+    lastDraw: null,
     dealerIndex,
     turn,
     phase: 'round_active',

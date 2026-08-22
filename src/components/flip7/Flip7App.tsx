@@ -20,7 +20,7 @@ export default function Flip7App({ initialRoomCode }: { initialRoomCode: string 
   return (
     <div
       data-game="flip7"
-      className={showGame ? 'flex h-dvh flex-col overflow-hidden' : 'flex min-h-dvh flex-col'}
+      className="flex min-h-dvh flex-col w-full overflow-x-hidden"
       style={{
         background: 'var(--flip7-table-bg)',
         color: 'var(--flip7-text)',
