@@ -39,6 +39,17 @@ export const GAMES: GameEntry[] = [
     icon: '👑',
   },
   {
+    slug: 'flip7',
+    name: 'Flip 7',
+    tagline: 'Push your luck. Don’t flip a duplicate.',
+    description:
+      'Draw cards to build a hand of unique numbers - hit again for a shot at the big bonus, or stay and bank what you’ve got before a duplicate busts you. Freeze rivals, force extra draws, first to 200 wins.',
+    status: 'live',
+    players: '2–7 players',
+    accent: '#ffb020',
+    icon: '🃏',
+  },
+  {
     slug: 'secret-hitler',
     name: 'Secret Hitler',
     tagline: 'Hidden roles. Trust no one.',

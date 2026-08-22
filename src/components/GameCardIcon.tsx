@@ -84,6 +84,23 @@ export default function GameCardIcon({ slug, accent, className, size = 28 }: Gam
         </svg>
       );
 
+    case 'flip7':
+      return (
+        <svg {...common}>
+          <defs>
+            <linearGradient id="f7-grad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#ffe08a" />
+              <stop offset="1" stopColor={accent} />
+            </linearGradient>
+          </defs>
+          {/* Two fanned cards */}
+          <rect x="4" y="8" width="14" height="19" rx="2.5" transform="rotate(-10 11 17.5)" fill={accent} fillOpacity="0.18" stroke={accent} strokeWidth="1.4" />
+          <rect x="13" y="6" width="15" height="20" rx="2.5" fill="url(#f7-grad)" fillOpacity="0.3" stroke="url(#f7-grad)" strokeWidth="1.8" />
+          {/* The "7" */}
+          <path d="M17.5 11H24.5L19 23" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+
     case 'secret-hitler':
       return (
         <svg {...common}>

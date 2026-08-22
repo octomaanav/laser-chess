@@ -8,6 +8,7 @@ import type {
   GameMatch,
   OAuthIdentity,
   PersistedCoupRoom,
+  PersistedFlip7Room,
   PersistedRoom,
   PlayerRating,
   Store,
@@ -91,6 +92,14 @@ export class FileStore implements Store {
   async saveCoupRoom(): Promise<void> {}
   async deleteCoupRoom(): Promise<void> {}
   async sweepCoupRooms(): Promise<void> {}
+
+  // flip7 rooms: not persisted in dev
+  async loadFlip7Room(): Promise<PersistedFlip7Room | null> {
+    return null;
+  }
+  async saveFlip7Room(): Promise<void> {}
+  async deleteFlip7Room(): Promise<void> {}
+  async sweepFlip7Rooms(): Promise<void> {}
 
   // users: persisted (accounts should outlive a dev restart, like setups)
   private readUsers(): UsersData {

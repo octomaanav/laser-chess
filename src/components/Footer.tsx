@@ -3,7 +3,7 @@ import { AUTHOR_NAME, AUTHOR_URL, CO_AUTHOR_NAME, CO_AUTHOR_URL } from '@/lib/si
 import { cn } from '@/lib/utils';
 
 export interface FooterProps {
-  theme?: 'platform' | 'laser' | 'coup';
+  theme?: 'platform' | 'laser' | 'coup' | 'flip7';
   extraContent?: React.ReactNode;
   className?: string;
 }
@@ -11,6 +11,7 @@ export interface FooterProps {
 export default function Footer({ theme = 'platform', extraContent, className }: FooterProps) {
   const isCoup = theme === 'coup';
   const isLaser = theme === 'laser';
+  const isFlip7 = theme === 'flip7';
 
   return (
     <footer
@@ -19,9 +20,11 @@ export default function Footer({ theme = 'platform', extraContent, className }: 
         extraContent ? 'justify-between' : 'justify-center',
         isCoup
           ? 'text-[var(--coup-text-muted)]'
-          : isLaser
-            ? 'border-t border-border/60 text-muted-foreground'
-            : 'text-muted-foreground',
+          : isFlip7
+            ? 'text-[var(--flip7-text-muted)]'
+            : isLaser
+              ? 'border-t border-border/60 text-muted-foreground'
+              : 'text-muted-foreground',
         className
       )}
     >
@@ -39,9 +42,11 @@ export default function Footer({ theme = 'platform', extraContent, className }: 
             'font-semibold underline underline-offset-4 transition-colors',
             isCoup
               ? 'text-[var(--coup-text)] hover:opacity-80'
-              : isLaser
-                ? 'text-foreground hover:text-laser decoration-laser/50'
-                : 'text-foreground hover:text-primary decoration-primary/50'
+              : isFlip7
+                ? 'text-[var(--flip7-text)] hover:opacity-80'
+                : isLaser
+                  ? 'text-foreground hover:text-laser decoration-laser/50'
+                  : 'text-foreground hover:text-primary decoration-primary/50'
           )}
         >
           {AUTHOR_NAME}
@@ -55,9 +60,11 @@ export default function Footer({ theme = 'platform', extraContent, className }: 
             'font-semibold underline underline-offset-4 transition-colors',
             isCoup
               ? 'text-[var(--coup-text)] hover:opacity-80'
-              : isLaser
-                ? 'text-foreground hover:text-laser decoration-laser/50'
-                : 'text-foreground hover:text-primary decoration-primary/50'
+              : isFlip7
+                ? 'text-[var(--flip7-text)] hover:opacity-80'
+                : isLaser
+                  ? 'text-foreground hover:text-laser decoration-laser/50'
+                  : 'text-foreground hover:text-primary decoration-primary/50'
           )}
         >
           {CO_AUTHOR_NAME}

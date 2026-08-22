@@ -3,6 +3,7 @@
 import type { Color, GameState, SetupDef } from '../../game/types';
 import type { Difficulty } from '../../game/bot/types';
 import type { CoupState } from '../../game/coup/types';
+import type { Flip7State } from '../../game/flip7/types';
 
 export interface PersistedRoom {
   code: string;
@@ -43,6 +44,17 @@ export interface User {
   displayName: string;
   passwordHash: string | null;
   createdAt: number; // epoch ms
+}
+
+// A persisted Flip 7 room (separate table/namespace from Laser Chess's and
+// Coup's rooms - see src/server/games/flip7/roomServer.ts).
+export interface PersistedFlip7Room {
+  code: string;
+  state: Flip7State;
+  seats: string[]; // player ids in seat order
+  names: Record<string, string>;
+  forfeitPlayerId: string | null;
+  forfeitDeadline: number | null;
 }
 
 // A link between an account and an external identity provider (Google/GitHub).
@@ -128,6 +140,12 @@ export interface Store {
   saveCoupRoom(room: PersistedCoupRoom): Promise<void>;
   deleteCoupRoom(code: string): Promise<void>;
   sweepCoupRooms(maxAgeMs: number): Promise<void>;
+
+  // Flip 7 rooms (separate table/namespace from Laser Chess's and Coup's rooms)
+  loadFlip7Room(code: string): Promise<PersistedFlip7Room | null>;
+  saveFlip7Room(room: PersistedFlip7Room): Promise<void>;
+  deleteFlip7Room(code: string): Promise<void>;
+  sweepFlip7Rooms(maxAgeMs: number): Promise<void>;
 
   // user accounts (email/password + linked OAuth identities)
   createUser(user: User): Promise<void>;

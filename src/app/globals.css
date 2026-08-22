@@ -133,6 +133,64 @@
   --coup-glow-ring: 0 0 12px 2px rgba(224, 179, 84, 0.55);
 }
 
+/* ============================================================================
+   Flip 7: "neon carnival" push-your-luck theme, scoped so it never leaks
+   into the other games. Amber = hit/action, green = safe/stay, red = bust.
+   ========================================================================= */
+[data-game='flip7'] {
+  --flip7-table-bg: #0c1017;
+  --flip7-panel-bg: #141b26;
+  --flip7-panel-border: rgba(255, 216, 117, 0.15);
+  --flip7-felt-bg: radial-gradient(ellipse at center, #152232 0%, #0d1622 70%, #080d15 100%);
+  --flip7-felt-border: rgba(255, 176, 32, 0.25);
+  --flip7-text: #f8fafc;
+  --flip7-text-muted: #94a3b8;
+  --flip7-amber: #ffb020;
+  --flip7-amber-dark: #d98204;
+  --flip7-green: #22c55e;
+  --flip7-danger: #ef4444;
+  --flip7-success: #22c55e;
+  --flip7-glow-ring: 0 0 16px 2px rgba(255, 176, 32, 0.45);
+  --flip7-text-glow: 0 0 20px rgba(255, 176, 32, 0.5);
+  --flip7-backdrop:
+    radial-gradient(60rem 45rem at 50% 0%, rgba(30, 148, 168, 0.12), transparent 70%),
+    radial-gradient(50rem 40rem at 100% 100%, rgba(255, 176, 32, 0.08), transparent 60%),
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+}
+
+.dark [data-game='flip7'] {
+  --flip7-table-bg: #090d13;
+  --flip7-panel-bg: #111721;
+  --flip7-panel-border: rgba(255, 216, 117, 0.12);
+}
+
+@keyframes flip7-card-flip {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) rotateY(90deg) translateY(-20px);
+  }
+  60% {
+    transform: scale(1.05) rotateY(0deg) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotateY(0deg) translateY(0);
+  }
+}
+
+@keyframes flip7-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px) rotate(-1deg); }
+  40%, 80% { transform: translateX(4px) rotate(1deg); }
+}
+
+@keyframes flip7-pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 176, 32, 0.3); }
+  50% { box-shadow: 0 0 22px rgba(255, 176, 32, 0.7); }
+}
+
+
 @keyframes coup-float-up {
   0% {
     opacity: 0;
