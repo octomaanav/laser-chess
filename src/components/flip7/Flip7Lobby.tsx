@@ -1,11 +1,17 @@
 // src/components/flip7/Flip7Lobby.tsx
 'use client';
 import { useEffect, useState } from 'react';
-import { ArrowRight, Check, Copy, Users } from 'lucide-react';
+import { ArrowRight, Bot, Check, Copy, Plus, Trash2, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { Flip7Controller, Flip7View } from '@/client/flip7Controller';
 import { useSession } from '@/client/useSession';
 import Navbar from '../Navbar';
@@ -16,7 +22,7 @@ import { FLIP7_TUTORIAL_STEPS } from '../tutorials/flip7Tutorial';
 const PERKS = [
   { c: 'var(--flip7-amber)', t: 'No account needed. Just share a link or code' },
   { c: 'var(--flip7-danger)', t: 'Authoritative server resolves every draw, bust & bonus' },
-  { c: 'var(--flip7-green)', t: '2–7 players, live presence, reconnect if you drop' },
+  { c: 'var(--flip7-green)', t: '2–7 players, play with friends or challenge smart bots' },
 ];
 
 function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -61,7 +67,7 @@ export default function Flip7Lobby({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard permission denied - the room code is still visible to copy manually */
+      /* clipboard permission denied */
     }
   };
 
@@ -90,7 +96,7 @@ export default function Flip7Lobby({
                   />
                   <span className="relative inline-flex size-2 rounded-full" style={{ background: 'var(--flip7-amber)' }} />
                 </span>
-                Real-time multiplayer · free · no install
+                Real-time multiplayer & bots · free · no install
               </Badge>
               <h1 className="font-display text-5xl font-bold leading-[1.02] tracking-tight sm:text-6xl" style={{ color: 'var(--flip7-text)' }}>
                 Push your luck.
@@ -99,7 +105,7 @@ export default function Flip7Lobby({
               </h1>
               <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed md:mx-0" style={{ color: 'var(--flip7-text-muted)' }}>
                 Draw cards, chase 7 unique numbers for the bonus, and bank your score before a duplicate busts you.
-                2–7 players, right in the browser.
+                2–7 players or solo against smart bots.
               </p>
               <ul className="mx-auto mt-7 hidden max-w-md flex-col gap-3 text-left sm:flex md:mx-0">
                 {PERKS.map((p) => (
@@ -196,6 +202,8 @@ export default function Flip7Lobby({
   const lobby = view.lobby;
   const seatCount = lobby?.seats.length ?? 0;
   const maxSeats = lobby?.maxSeats ?? 7;
+  const isHost = lobby?.seats[0]?.id === view.playerId;
+  const canAddBot = isHost && seatCount < maxSeats;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -228,30 +236,128 @@ export default function Flip7Lobby({
             </Button>
           </div>
 
-          <ul className="mt-5 space-y-1.5">
-            {lobby?.seats.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: 'var(--flip7-panel-border)', background: 'var(--flip7-table-bg)' }}
-              >
-                <span className="flex items-center gap-2 font-medium" style={{ color: 'var(--flip7-text)' }}>
-                  <span className="size-2 rounded-full" style={{ background: s.connected ? 'var(--flip7-success)' : 'var(--flip7-text-muted)' }} />
-                  {s.name}
-                  {s.id === view.playerId && (
-                    <span className="text-xs font-normal" style={{ color: 'var(--flip7-text-muted)' }}>
-                      (you)
-                    </span>
-                  )}
-                </span>
-                {!s.connected && (
-                  <span className="text-xs" style={{ color: 'var(--flip7-text-muted)' }}>
-                    disconnected
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {/* Player list */}
+          <div className="mt-5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Seated Players
+              </span>
+
+              {canAddBot && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1 border-amber-500/30 bg-amber-500/10 px-2.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20"
+                    >
+                      <Plus className="size-3.5" />
+                      <span>Add Bot</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36 bg-[#161e2a] border-amber-500/30">
+                    <DropdownMenuItem
+                      onClick={() => controller.addBot('easy')}
+                      className="cursor-pointer text-xs font-semibold text-slate-200 hover:text-amber-300"
+                    >
+                      <span className="size-2 rounded-full bg-emerald-400 mr-2" />
+                      Easy Bot
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => controller.addBot('medium')}
+                      className="cursor-pointer text-xs font-semibold text-slate-200 hover:text-amber-300"
+                    >
+                      <span className="size-2 rounded-full bg-amber-400 mr-2" />
+                      Medium Bot
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => controller.addBot('hard')}
+                      className="cursor-pointer text-xs font-semibold text-slate-200 hover:text-amber-300"
+                    >
+                      <span className="size-2 rounded-full bg-red-400 mr-2" />
+                      Hard Bot
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+
+            <ul className="space-y-1.5">
+              {lobby?.seats.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                  style={{ borderColor: 'var(--flip7-panel-border)', background: 'var(--flip7-table-bg)' }}
+                >
+                  <div className="flex items-center gap-2 font-medium" style={{ color: 'var(--flip7-text)' }}>
+                    {s.isBot ? (
+                      <Bot className="size-4 text-amber-400 shrink-0" />
+                    ) : (
+                      <span
+                        className="size-2 rounded-full shrink-0"
+                        style={{ background: s.connected ? 'var(--flip7-success)' : 'var(--flip7-text-muted)' }}
+                      />
+                    )}
+                    <span className="truncate max-w-[180px]">{s.name}</span>
+                    {s.id === view.playerId && (
+                      <span className="text-xs font-normal" style={{ color: 'var(--flip7-text-muted)' }}>
+                        (you)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {s.isBot && s.botDifficulty && (
+                      <span
+                        className="rounded-full px-2 py-0.2 text-[10px] font-bold uppercase tracking-wider"
+                        style={{
+                          background:
+                            s.botDifficulty === 'hard'
+                              ? 'rgba(239, 68, 68, 0.15)'
+                              : s.botDifficulty === 'medium'
+                              ? 'rgba(245, 158, 11, 0.15)'
+                              : 'rgba(34, 197, 94, 0.15)',
+                          color:
+                            s.botDifficulty === 'hard'
+                              ? '#f87171'
+                              : s.botDifficulty === 'medium'
+                              ? '#fbbf24'
+                              : '#4ade80',
+                          border: `1px solid ${
+                            s.botDifficulty === 'hard'
+                              ? 'rgba(239, 68, 68, 0.3)'
+                              : s.botDifficulty === 'medium'
+                              ? 'rgba(245, 158, 11, 0.3)'
+                              : 'rgba(34, 197, 94, 0.3)'
+                          }`,
+                        }}
+                      >
+                        {s.botDifficulty}
+                      </span>
+                    )}
+
+                    {isHost && s.isBot && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => controller.removeBot(s.id)}
+                        className="size-6 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                        title="Remove bot"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    )}
+
+                    {!s.connected && !s.isBot && (
+                      <span className="text-xs" style={{ color: 'var(--flip7-text-muted)' }}>
+                        disconnected
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <Button
             size="lg"

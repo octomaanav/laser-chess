@@ -1,8 +1,19 @@
 import type { ClientFlip7State } from './redact';
+import type { BotDifficulty } from './bot';
+
+export interface LobbySeat {
+  id: string;
+  name: string;
+  connected: boolean;
+  isBot?: boolean;
+  botDifficulty?: BotDifficulty;
+}
 
 export type ClientMessage =
   | { type: 'join'; playerId: string; name: string; code?: string }
   | { type: 'start' } // host starts the game once 2-7 seats are filled
+  | { type: 'add-bot'; difficulty: BotDifficulty }
+  | { type: 'remove-bot'; botId: string }
   | { type: 'hit' }
   | { type: 'stay' }
   | { type: 'choose-freeze-target'; targetId: string }
@@ -14,7 +25,7 @@ export type ClientMessage =
 
 export type ServerMessage =
   | { type: 'joined'; code: string; playerId: string; seated: boolean }
-  | { type: 'lobby'; code: string; seats: { id: string; name: string; connected: boolean }[]; maxSeats: number; canStart: boolean }
+  | { type: 'lobby'; code: string; seats: LobbySeat[]; maxSeats: number; canStart: boolean }
   | { type: 'state'; state: ClientFlip7State }
   | { type: 'error'; message: string }
   | { type: 'forfeit'; playerId: string }

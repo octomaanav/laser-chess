@@ -1,10 +1,11 @@
 import { Net } from '@/lib/net';
-import type { ClientMessage, ServerMessage } from '@/game/flip7/messages';
+import type { ClientMessage, ServerMessage, LobbySeat } from '@/game/flip7/messages';
 import type { ClientFlip7State } from '@/game/flip7/redact';
+import type { BotDifficulty } from '@/game/flip7/bot';
 
 export interface Flip7LobbyView {
   code: string;
-  seats: { id: string; name: string; connected: boolean }[];
+  seats: LobbySeat[];
   maxSeats: number;
   canStart: boolean;
 }
@@ -101,6 +102,14 @@ export class Flip7Controller {
 
   startGame() {
     this.send({ type: 'start' });
+  }
+
+  addBot(difficulty: BotDifficulty = 'medium') {
+    this.send({ type: 'add-bot', difficulty });
+  }
+
+  removeBot(botId: string) {
+    this.send({ type: 'remove-bot', botId });
   }
 
   hit() {

@@ -14,11 +14,6 @@ export interface QueueEntry {
   gameSlug: string;
 }
 
-// A match that has been made but not yet picked up by the player. The socket
-// push is best-effort (the client may be mid-reconnect, backgrounded, or behind
-// a proxy that dropped the WS), so every match is ALSO parked here and handed
-// out by the polling GET /api/ranked/queue. Without this a paired player is
-// removed from the queue and never learns their room code.
 export interface PendingMatch {
   code: string;
   gameSlug: string;
@@ -36,10 +31,36 @@ const EXPAND_MS = 20_000;   // then +1 rank of tolerance per interval
 const ANY_RANK_MS = 45_000; // past this, any opponent beats no opponent
 const SMALL_QUEUE = 4;      // at or below this many waiting, everything halves
 
+// Bot backfill threshold: if no real human match is found after 10s, match with a bot.
+export const BOT_BACKFILL_DELAY_MS = 10_000;
+
+// Curated realistic human gamer names for matchmaking bots
+export const MATCHMAKING_BOT_PROFILES: { displayName: string; username: string }[] = [
+  { displayName: 'Elena Rostova', username: 'elena_r' },
+  { displayName: 'Marcus Vance', username: 'marcus_v' },
+  { displayName: 'Samira Khan', username: 'samira_k' },
+  { displayName: 'Oliver Pratt', username: 'oliver_p' },
+  { displayName: 'Sophia Miller', username: 'sophia_m' },
+  { displayName: 'Leo Zhang', username: 'leo_zhang' },
+  { displayName: 'Maya Chen', username: 'maya_chen' },
+  { displayName: 'Lucas Sterling', username: 'lucas_s' },
+  { displayName: 'Chloe Bennett', username: 'chloe_b' },
+  { displayName: 'Daniel Torres', username: 'daniel_t' },
+  { displayName: 'Aria Thorne', username: 'aria_t' },
+  { displayName: 'Kai Takahashi', username: 'kai_t' },
+  { displayName: 'Zoe Patel', username: 'zoe_patel' },
+  { displayName: 'Ethan Brooks', username: 'ethan_b' },
+  { displayName: 'Gabriel Silva', username: 'gabriel_s' },
+];
+
+export function getBotDifficultyForRating(rating: number): 'easy' | 'medium' | 'hard' {
+  if (rating <= 4) return 'easy';
+  if (rating <= 9) return 'medium';
+  return 'hard';
+}
+
 // How far from their own rank a player is currently willing to be matched.
 export function rankTolerance(waitMs: number, queueSize: number): number {
-  // With few players around there is rarely a same-rank opponent, so halve the
-  // strict phase and reach "anyone" twice as fast rather than making them wait.
   const scale = queueSize <= SMALL_QUEUE ? 0.5 : 1;
   if (waitMs >= ANY_RANK_MS * scale) return Number.POSITIVE_INFINITY;
   const strict = STRICT_MS * scale;
@@ -47,26 +68,33 @@ export function rankTolerance(waitMs: number, queueSize: number): number {
   return 1 + Math.floor((waitMs - strict) / (EXPAND_MS * scale));
 }
 
-// Per-slug factory registry - avoids circular deps (matchmaking → gameServer
-// → matchmaking). Each game's server registers its own factory via
-// registerCreateRankedRoom(slug, fn) after defining it.
+// Per-slug factory registry - avoids circular deps (matchmaking → gameServer → matchmaking).
 type CreateRankedRoomFn = (redUserId: string, silverUserId: string, gameSlug: string) => Promise<string>;
+type CreateRankedBotRoomFn = (
+  humanUserId: string,
+  humanColor: 'red' | 'silver',
+  botDifficulty: 'easy' | 'medium' | 'hard',
+  botName: string,
+  gameSlug: string
+) => Promise<string>;
+
 const _factories = new Map<string, CreateRankedRoomFn>();
+const _botFactories = new Map<string, CreateRankedBotRoomFn>();
+
 export function registerCreateRankedRoom(gameSlug: string, fn: CreateRankedRoomFn) {
   _factories.set(gameSlug, fn);
+}
+
+export function registerCreateRankedBotRoom(gameSlug: string, fn: CreateRankedBotRoomFn) {
+  _botFactories.set(gameSlug, fn);
 }
 
 class MatchmakingQueue {
   private queue = new Map<string, QueueEntry>();
   private pending = new Map<string, PendingMatch>();
-  // Paired, room still being created. Held out of `queue` so a second tick can't
-  // re-pair them, but still reported as queued so the polling client doesn't see
-  // a momentary "not queued" and re-join mid-pairing.
   private reserving = new Set<string>();
 
   joinQueue(userId: string, displayName: string, username: string, rating: number, gameSlug: string) {
-    // Drop any stale unclaimed match so a fresh search isn't immediately
-    // resolved with a room from a previous session.
     this.pending.delete(userId);
     if (this.queue.has(userId) || this.reserving.has(userId)) return;
     this.queue.set(userId, { userId, displayName, username, rating, joinedAt: Date.now(), gameSlug });
@@ -81,7 +109,6 @@ class MatchmakingQueue {
     return this.queue.has(userId) || this.reserving.has(userId);
   }
 
-  // Hand a made match to its player exactly once (the client navigates on it).
   takePendingMatch(userId: string): PendingMatch | null {
     const m = this.pending.get(userId);
     if (!m) return null;
@@ -95,8 +122,6 @@ class MatchmakingQueue {
     return count;
   }
 
-  // Called every 3s from server.mts. Pairs same-rank players first, then falls
-  // back to nearby ranks for anyone whose tolerance has opened up.
   async tick() {
     const now = Date.now();
 
@@ -113,18 +138,26 @@ class MatchmakingQueue {
     }
 
     const matched: [QueueEntry, QueueEntry][] = [];
+    const unmatched: QueueEntry[] = [];
 
     for (const [slug, entries] of bySlug) {
-      if (entries.length < 2 || !_factories.has(slug)) continue;
-      matched.push(...pairEntries(entries, now));
+      if (!_factories.has(slug) && !_botFactories.has(slug)) continue;
+      const pairs = _factories.has(slug) ? pairEntries(entries, now) : [];
+      matched.push(...pairs);
+
+      const pairedIds = new Set(pairs.flatMap(([a, b]) => [a.userId, b.userId]));
+      for (const entry of entries) {
+        if (!pairedIds.has(entry.userId)) {
+          unmatched.push(entry);
+        }
+      }
     }
 
+    // 1. Resolve human-vs-human matches (priority)
     for (const [a, b] of matched) {
       const factory = _factories.get(a.gameSlug);
       if (!factory) continue;
 
-      // Reserve both players before the await so a second tick can't pair them
-      // again while the room is being created.
       this.queue.delete(a.userId);
       this.queue.delete(b.userId);
       this.reserving.add(a.userId);
@@ -138,8 +171,6 @@ class MatchmakingQueue {
           id: e.userId, username: e.username, displayName: e.displayName,
         });
 
-        // Park the result for the poller, then push over the socket. Whichever
-        // arrives first wins; takePendingMatch() makes the poll idempotent.
         this.pending.set(a.userId, { code, gameSlug: a.gameSlug, opponent: toSocialUser(b), createdAt: now });
         this.pending.set(b.userId, { code, gameSlug: a.gameSlug, opponent: toSocialUser(a), createdAt: now });
 
@@ -147,7 +178,6 @@ class MatchmakingQueue {
         socialHub.notify(b.userId, { type: 'ranked-matched', code, gameSlug: a.gameSlug, opponent: toSocialUser(a) });
       } catch (err) {
         console.error('[matchmaking] failed to create ranked room:', err);
-        // Room creation failed - put both back so they keep searching.
         this.queue.set(a.userId, a);
         this.queue.set(b.userId, b);
       } finally {
@@ -155,12 +185,49 @@ class MatchmakingQueue {
         this.reserving.delete(b.userId);
       }
     }
+
+    // 2. Resolve bot backfill for players waiting >= BOT_BACKFILL_DELAY_MS
+    for (const entry of unmatched) {
+      const botFactory = _botFactories.get(entry.gameSlug);
+      if (!botFactory) continue;
+
+      const waitTime = now - entry.joinedAt;
+      if (waitTime < BOT_BACKFILL_DELAY_MS) continue;
+
+      this.queue.delete(entry.userId);
+      this.reserving.add(entry.userId);
+
+      try {
+        const difficulty = getBotDifficultyForRating(entry.rating);
+        const botProfile = MATCHMAKING_BOT_PROFILES[Math.floor(Math.random() * MATCHMAKING_BOT_PROFILES.length)];
+        const humanColor = Math.random() < 0.5 ? 'red' : 'silver';
+
+        const code = await botFactory(
+          entry.userId,
+          humanColor,
+          difficulty,
+          botProfile.displayName,
+          entry.gameSlug
+        );
+
+        const botUser: SocialUser = {
+          id: `bot:${difficulty}:${entry.userId}`,
+          username: botProfile.username,
+          displayName: botProfile.displayName,
+        };
+
+        this.pending.set(entry.userId, { code, gameSlug: entry.gameSlug, opponent: botUser, createdAt: now });
+        socialHub.notify(entry.userId, { type: 'ranked-matched', code, gameSlug: entry.gameSlug, opponent: botUser });
+      } catch (err) {
+        console.error('[matchmaking] failed to create ranked bot room:', err);
+        this.queue.set(entry.userId, entry);
+      } finally {
+        this.reserving.delete(entry.userId);
+      }
+    }
   }
 }
 
-// Two passes: exact-rank pairs first (longest-waiting first), then whatever is
-// left gets paired with its nearest neighbour if BOTH players' tolerance covers
-// the gap. Exported for testing.
 export function pairEntries(entries: QueueEntry[], now: number): [QueueEntry, QueueEntry][] {
   const pairs: [QueueEntry, QueueEntry][] = [];
   const used = new Set<string>();
@@ -174,7 +241,7 @@ export function pairEntries(entries: QueueEntry[], now: number): [QueueEntry, Qu
     byRating.set(e.rating, list);
   }
   for (const list of byRating.values()) {
-    list.sort((a, b) => a.joinedAt - b.joinedAt); // FIFO: longest wait pairs first
+    list.sort((a, b) => a.joinedAt - b.joinedAt);
     for (let i = 0; i + 1 < list.length; i += 2) {
       pairs.push([list[i], list[i + 1]]);
       used.add(list[i].userId);

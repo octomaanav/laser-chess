@@ -12,7 +12,7 @@ import { resolveAccountFromReq } from './auth/cookies';
 import { getStore, type PersistedRoom } from './store';
 import { applyResult, getRank, normalizeRating } from '../game/ranking';
 import { socialHub } from './social/socialHub';
-import { registerCreateRankedRoom } from './matchmaking';
+import { registerCreateRankedRoom, registerCreateRankedBotRoom } from './matchmaking';
 import type { Action, Color, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
 
@@ -192,9 +192,40 @@ export async function createRankedRoom(redUserId: string, silverUserId: string, 
   return code;
 }
 
+// Called by the matchmaking queue when backfilling with a ranked bot opponent.
+export async function createRankedBotRoom(
+  humanUserId: string,
+  humanColor: Color,
+  botDifficulty: Difficulty,
+  botName: string,
+  gameSlug: string
+): Promise<string> {
+  const code = makeCode();
+  const room = makeRoom(code, await createGame('Classic'), 0);
+  room.isRanked = true;
+  room.rankedGameSlug = gameSlug;
+
+  const botColor = opposite(humanColor);
+  const botId = `bot:${botDifficulty}:${crypto.randomUUID()}`;
+
+  room.seats[botColor] = botId;
+  room.names[botColor] = botName;
+  room.botDifficulty[botColor] = botDifficulty;
+
+  room.rankedUserIds = {
+    red: humanColor === 'red' ? humanUserId : botId,
+    silver: humanColor === 'silver' ? humanUserId : botId,
+  };
+
+  rooms.set(code, room);
+  persist(room);
+  return code;
+}
+
 // Register with the matchmaking module so it can create ranked rooms without a
 // circular module dependency (matchmaking imports socialHub, gameServer imports matchmaking).
 registerCreateRankedRoom('laser-chess', createRankedRoom);
+registerCreateRankedBotRoom('laser-chess', createRankedBotRoom);
 
 // Settle rank after a ranked game ends. Called from every game-ending path
 // (move win, timeout, forfeit). `rankedSettled` prevents double-execution.
@@ -207,9 +238,12 @@ async function finalizeRanked(room: Room, winner: Color) {
 
   const store = getStore();
   const gameSlug = room.rankedGameSlug;
+
+  const isBotId = (id: string) => id.startsWith('bot:');
+
   const [redRec, silverRec] = await Promise.all([
-    store.getRating(redId, gameSlug),
-    store.getRating(silverId, gameSlug),
+    isBotId(redId) ? Promise.resolve(null) : store.getRating(redId, gameSlug),
+    isBotId(silverId) ? Promise.resolve(null) : store.getRating(silverId, gameSlug),
   ]);
 
   const redRating = normalizeRating(redRec?.rating);
@@ -219,39 +253,53 @@ async function finalizeRanked(room: Room, winner: Color) {
   const newSilverRating = applyResult(silverRating, winner === 'silver');
   const now = Date.now();
 
-  await Promise.all([
-    store.upsertRating({
-      userId: redId, gameSlug,
-      rating: newRedRating,
-      peakRating: Math.max(normalizeRating(redRec?.peakRating), newRedRating),
-      wins: (redRec?.wins ?? 0) + (winner === 'red' ? 1 : 0),
-      losses: (redRec?.losses ?? 0) + (winner === 'red' ? 0 : 1),
-      updatedAt: now,
-    }),
-    store.upsertRating({
-      userId: silverId, gameSlug,
-      rating: newSilverRating,
-      peakRating: Math.max(normalizeRating(silverRec?.peakRating), newSilverRating),
-      wins: (silverRec?.wins ?? 0) + (winner === 'silver' ? 1 : 0),
-      losses: (silverRec?.losses ?? 0) + (winner === 'silver' ? 0 : 1),
-      updatedAt: now,
-    }),
-  ]);
+  const updates: Promise<any>[] = [];
 
-  socialHub.notify(redId, {
-    type: 'rating-updated',
-    gameSlug,
-    newRating: newRedRating,
-    delta: newRedRating - redRating,
-    rankName: getRank(newRedRating).name,
-  });
-  socialHub.notify(silverId, {
-    type: 'rating-updated',
-    gameSlug,
-    newRating: newSilverRating,
-    delta: newSilverRating - silverRating,
-    rankName: getRank(newSilverRating).name,
-  });
+  if (!isBotId(redId)) {
+    updates.push(
+      store.upsertRating({
+        userId: redId, gameSlug,
+        rating: newRedRating,
+        peakRating: Math.max(normalizeRating(redRec?.peakRating), newRedRating),
+        wins: (redRec?.wins ?? 0) + (winner === 'red' ? 1 : 0),
+        losses: (redRec?.losses ?? 0) + (winner === 'red' ? 0 : 1),
+        updatedAt: now,
+      }),
+      Promise.resolve(
+        socialHub.notify(redId, {
+          type: 'rating-updated',
+          gameSlug,
+          newRating: newRedRating,
+          delta: newRedRating - redRating,
+          rankName: getRank(newRedRating).name,
+        })
+      )
+    );
+  }
+
+  if (!isBotId(silverId)) {
+    updates.push(
+      store.upsertRating({
+        userId: silverId, gameSlug,
+        rating: newSilverRating,
+        peakRating: Math.max(normalizeRating(silverRec?.peakRating), newSilverRating),
+        wins: (silverRec?.wins ?? 0) + (winner === 'silver' ? 1 : 0),
+        losses: (silverRec?.losses ?? 0) + (winner === 'silver' ? 0 : 1),
+        updatedAt: now,
+      }),
+      Promise.resolve(
+        socialHub.notify(silverId, {
+          type: 'rating-updated',
+          gameSlug,
+          newRating: newSilverRating,
+          delta: newSilverRating - silverRating,
+          rankName: getRank(newSilverRating).name,
+        })
+      )
+    );
+  }
+
+  await Promise.all(updates);
 }
 
 // Which side a signed-in account is entitled to in a ranked room, if any.

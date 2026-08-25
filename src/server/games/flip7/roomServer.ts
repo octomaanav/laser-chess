@@ -1,5 +1,5 @@
 // src/server/games/flip7/roomServer.ts
-// Authoritative WebSocket server for Flip 7 rooms.
+// Authoritative WebSocket server for Flip 7 rooms with Easy/Medium/Hard Bot AI.
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   chooseFlipThreeTarget,
@@ -13,7 +13,8 @@ import {
 } from '../../../game/flip7/engine';
 import { redactStateFor } from '../../../game/flip7/redact';
 import type { Flip7State } from '../../../game/flip7/types';
-import type { ClientMessage, ServerMessage } from '../../../game/flip7/messages';
+import type { ClientMessage, ServerMessage, LobbySeat } from '../../../game/flip7/messages';
+import { decideBotMove, decideBotTarget, BOT_NAMES, type BotDifficulty } from '../../../game/flip7/bot';
 import { getStore, type PersistedFlip7Room } from '../../store';
 
 interface Client extends WebSocket {
@@ -29,6 +30,8 @@ interface Room {
   names: Map<string, string>;
   clients: Set<Client>;
   state: Flip7State | null; // null until `start`
+  botDifficulty: Map<string, BotDifficulty>;
+  botTimer: ReturnType<typeof setTimeout> | null;
   forfeitTimers: Map<string, ReturnType<typeof setTimeout>>;
   rematchVotes: Set<string>;
   startedAt?: number;
@@ -57,6 +60,8 @@ function makeRoom(code: string): Room {
     names: new Map(),
     clients: new Set(),
     state: null,
+    botDifficulty: new Map(),
+    botTimer: null,
     forfeitTimers: new Map(),
     rematchVotes: new Set(),
     startedAt: Date.now(),
@@ -69,13 +74,20 @@ function send(ws: Client, msg: ServerMessage) {
 }
 
 function broadcastLobby(room: Room) {
-  const seats = room.seats.map((id) => ({ id, name: room.names.get(id) ?? '?', connected: isConnected(room, id) }));
+  const seats: LobbySeat[] = room.seats.map((id) => ({
+    id,
+    name: room.names.get(id) ?? '?',
+    connected: isConnected(room, id) || room.botDifficulty.has(id),
+    isBot: room.botDifficulty.has(id),
+    botDifficulty: room.botDifficulty.get(id),
+  }));
   for (const c of room.clients) {
     send(c, { type: 'lobby', code: room.code, seats, maxSeats: MAX_SEATS, canStart: room.seats.length >= MIN_SEATS });
   }
 }
 
 function isConnected(room: Room, playerId: string): boolean {
+  if (room.botDifficulty.has(playerId)) return true;
   for (const c of room.clients) if (c.playerId === playerId) return true;
   return false;
 }
@@ -102,7 +114,7 @@ function broadcastState(room: Room) {
         player1Name: allPlayers[0]?.name,
         player2Name: allPlayers[1]?.name,
         allPlayers,
-        isBot: false,
+        isBot: room.botDifficulty.size > 0,
         isRanked: false,
         status: 'completed',
         winnerName,
@@ -119,12 +131,66 @@ function broadcastState(room: Room) {
     if (!c.playerId) continue;
     send(c, { type: 'state', state: redactStateFor(room.state, c.playerId) });
   }
+
+  // Trigger any bot turns or target resolutions
+  maybeTriggerBot(room);
+}
+
+function maybeTriggerBot(room: Room) {
+  if (!room.state) return;
+  if (room.botTimer) {
+    clearTimeout(room.botTimer);
+    room.botTimer = null;
+  }
+
+  // 1. AWAITING TARGET CHOICE (Freeze, Flip Three, Second Chance)
+  if (room.state.phase === 'awaiting_target' && room.state.pendingTarget) {
+    const drawerId = room.state.pendingTarget.drawerId;
+    const difficulty = room.botDifficulty.get(drawerId);
+    if (difficulty) {
+      const delay = 800 + Math.floor(Math.random() * 400); // 800ms - 1200ms
+      room.botTimer = setTimeout(() => {
+        room.botTimer = null;
+        if (!room.state || room.state.phase !== 'awaiting_target' || !room.state.pendingTarget) return;
+        const targetId = decideBotTarget(room.state, drawerId, room.state.pendingTarget.kind, difficulty);
+        const kind = room.state.pendingTarget.kind;
+        if (kind === 'freeze') {
+          handleChooseFreezeTarget(room, drawerId, targetId);
+        } else if (kind === 'flip-three') {
+          handleChooseFlipThreeTarget(room, drawerId, targetId);
+        } else {
+          handleChooseSecondChanceRecipient(room, drawerId, targetId);
+        }
+      }, delay);
+    }
+    return;
+  }
+
+  // 2. ACTIVE TURN: BOT DECIDES DRAW (HIT) OR STAY
+  if (room.state.phase === 'round_active' && room.state.flipThreeQueue.length === 0) {
+    const currentP = room.state.players[room.state.turn];
+    if (currentP && room.botDifficulty.has(currentP.id) && currentP.status === 'active') {
+      const difficulty = room.botDifficulty.get(currentP.id)!;
+      const delay = 700 + Math.floor(Math.random() * 500); // 700ms - 1200ms
+      room.botTimer = setTimeout(() => {
+        room.botTimer = null;
+        if (!room.state || room.state.phase !== 'round_active') return;
+        const p = room.state.players[room.state.turn];
+        if (!p || p.id !== currentP.id || p.status !== 'active') return;
+
+        const move = decideBotMove(room.state, p.id, difficulty);
+        if (move === 'hit') {
+          handleHit(room, p.id);
+        } else {
+          handleStay(room, p.id);
+        }
+      }, delay);
+    }
+  }
 }
 
 function persist(room: Room) {
   if (!room.state) return;
-  // A transient store error here must never become an unhandled rejection -
-  // this runs on every broadcast in every room.
   getStore()
     .saveFlip7Room({
       code: room.code,
@@ -146,6 +212,8 @@ function hydrateRoom(p: PersistedFlip7Room): Room {
     names: new Map(Object.entries(p.names)),
     clients: new Set(),
     state: p.state,
+    botDifficulty: new Map(),
+    botTimer: null,
     forfeitTimers: new Map(),
     rematchVotes: new Set(),
   };
@@ -177,9 +245,6 @@ export function createFlip7Wss(): WebSocketServer {
     ws.on('close', () => handleDisconnect(ws));
   });
 
-  // Half-open connections (laptop sleep, mobile network drop) never fire a
-  // 'close' event on their own - without this, isConnected() stays true
-  // forever for a dead socket, so the real player gets rejected on rejoin.
   const heartbeat = setInterval(() => {
     for (const ws of wss.clients as Set<Client>) {
       if (!ws.isAlive) {
@@ -194,7 +259,7 @@ export function createFlip7Wss(): WebSocketServer {
       }
     }
   }, 30000);
-  // drop persisted rooms that haven't been touched in a day
+
   const sweep = setInterval(() => void getStore().sweepFlip7Rooms(24 * 60 * 60 * 1000).catch(() => {}), 60 * 60 * 1000);
   wss.on('close', () => {
     clearInterval(heartbeat);
@@ -215,6 +280,10 @@ async function handleMessage(ws: Client, msg: ClientMessage) {
   switch (msg.type) {
     case 'start':
       return handleStart(room, ws.playerId);
+    case 'add-bot':
+      return handleAddBot(room, ws.playerId, msg.difficulty);
+    case 'remove-bot':
+      return handleRemoveBot(room, ws.playerId, msg.botId);
     case 'hit':
       return handleHit(room, ws.playerId);
     case 'stay':
@@ -235,9 +304,41 @@ async function handleMessage(ws: Client, msg: ClientMessage) {
   }
 }
 
+function handleAddBot(room: Room, hostPlayerId: string, difficulty: BotDifficulty) {
+  if (room.state) throw new Error('game already in progress');
+  if (room.seats[0] !== hostPlayerId) throw new Error('only room host can add bots');
+  if (room.seats.length >= MAX_SEATS) throw new Error('room is full');
+
+  // Choose a distinct bot name
+  const existingNames = new Set(room.names.values());
+  const unusedNames = BOT_NAMES.filter((n) => !existingNames.has(`${n} (Bot)`));
+  const chosenBase = unusedNames.length > 0
+    ? unusedNames[Math.floor(Math.random() * unusedNames.length)]
+    : `Bot ${room.seats.length + 1}`;
+  const diffLabel = difficulty[0].toUpperCase() + difficulty.slice(1);
+  const botName = `${chosenBase} (${diffLabel})`;
+
+  const botId = `bot_${difficulty}_${Math.random().toString(36).slice(2, 8)}`;
+  room.seats.push(botId);
+  room.names.set(botId, botName);
+  room.botDifficulty.set(botId, difficulty);
+
+  broadcastLobby(room);
+}
+
+function handleRemoveBot(room: Room, hostPlayerId: string, botId: string) {
+  if (room.state) throw new Error('game already in progress');
+  if (room.seats[0] !== hostPlayerId) throw new Error('only room host can remove bots');
+  if (!room.botDifficulty.has(botId)) throw new Error('seat is not a bot');
+
+  room.seats = room.seats.filter((id) => id !== botId);
+  room.names.delete(botId);
+  room.botDifficulty.delete(botId);
+
+  broadcastLobby(room);
+}
+
 async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawCode: string | undefined) {
-  // Persisted to Postgres on every broadcast (see persist()), so these must
-  // be bounded - mirrors gameServer.ts's onJoin clamping.
   const playerId = String(rawPlayerId || '').slice(0, 64);
   const name = String(rawName || 'Player').slice(0, 24);
   if (!playerId) throw new Error('missing playerId');
@@ -246,7 +347,6 @@ async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawC
   let room: Room;
   if (code) {
     let existing = rooms.get(code);
-    // not in memory (e.g. after a restart) → try to rehydrate from the store
     if (!existing) {
       const persisted = await getStore().loadFlip7Room(code);
       existing = rooms.get(code) ?? undefined;
@@ -263,10 +363,9 @@ async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawC
     rooms.set(newCode, room);
   }
 
-  // A player id is visible to everyone in the room (lobby/state broadcasts),
-  // so it's not a secret - never trust a `join` claiming an id that's
-  // already live under a different socket.
-  if (isConnected(room, playerId)) throw new Error('that player is already connected');
+  if (isConnected(room, playerId) && !room.botDifficulty.has(playerId)) {
+    throw new Error('that player is already connected');
+  }
 
   if (!room.seats.includes(playerId)) {
     if (room.state) throw new Error('game already in progress');
@@ -289,7 +388,7 @@ async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawC
   send(ws, { type: 'joined', code: room.code, playerId, seated: true });
   if (room.state) {
     for (const p of room.state.players) if (p.id === playerId) p.connected = true;
-    broadcastState(room); // so every other player's view flips this player back to connected
+    broadcastState(room);
   } else {
     broadcastLobby(room);
   }
@@ -298,9 +397,6 @@ async function handleJoin(ws: Client, rawPlayerId: string, rawName: string, rawC
 function handleStart(room: Room, playerId: string) {
   if (room.state) throw new Error('already started');
   if (room.seats.length < MIN_SEATS) throw new Error('not enough players');
-  // Only the room creator (first seat) may start - otherwise any seated
-  // client could start the moment MIN_SEATS is reached, potentially cutting
-  // off players still in the process of joining a shared link.
   if (room.seats[0] !== playerId) throw new Error('only the room creator can start the game');
   room.startedAt = Date.now();
   room.matchLogged = false;
@@ -346,9 +442,11 @@ function handleStartNextRound(room: Room, playerId: string) {
 
 function handleRematchVote(room: Room, playerId: string) {
   room.rematchVotes.add(playerId);
-  // Only players who are still actually connected can be re-seated: a
-  // player whose forfeit timer already fired has a socket that's long gone,
-  // and no `close` event will ever fire again to arm a new forfeit timer.
+  // Bots automatically agree to rematch
+  for (const botId of room.botDifficulty.keys()) {
+    if (room.seats.includes(botId)) room.rematchVotes.add(botId);
+  }
+
   const connectedSeats = room.seats.filter((id) => isConnected(room, id));
   if (connectedSeats.length >= MIN_SEATS && room.rematchVotes.size >= connectedSeats.length) {
     room.seats = connectedSeats;
@@ -360,11 +458,10 @@ function handleRematchVote(room: Room, playerId: string) {
   }
 }
 
-// Reclaims a room once nothing is left that still needs it: an abandoned
-// pre-game lobby, or a finished game nobody's still watching.
 function maybeReclaimRoom(room: Room) {
   const reclaimable = !room.state || room.state.phase === 'game_over';
   if (room.clients.size === 0 && reclaimable) {
+    if (room.botTimer) clearTimeout(room.botTimer);
     for (const timer of room.forfeitTimers.values()) clearTimeout(timer);
     room.forfeitTimers.clear();
     rooms.delete(room.code);
@@ -377,7 +474,7 @@ function handleDisconnect(ws: Client) {
   room.clients.delete(ws);
   const playerId = ws.playerId;
 
-  if (isConnected(room, playerId)) return; // another tab/connection for the same player is still open
+  if (isConnected(room, playerId)) return;
 
   if (room.state) {
     const player = room.state.players.find((p) => p.id === playerId);
@@ -398,7 +495,6 @@ function handleDisconnect(ws: Client) {
       room.forfeitTimers.set(playerId, timer);
     }
   } else {
-    // Pre-game: release the seat rather than burning it forever.
     room.seats = room.seats.filter((id) => id !== playerId);
     room.names.delete(playerId);
     broadcastLobby(room);
