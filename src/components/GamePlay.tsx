@@ -218,7 +218,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
 
         <aside className="flex shrink-0 flex-col gap-3 overflow-y-auto border-t border-border/70 p-3 lg:w-80 lg:border-l lg:border-t-0">
           {view.isRanked && gameRank && (
-            <Card className="relative overflow-hidden gap-3 p-4 border-laser/25 bg-linear-to-br from-laser/12 via-card to-card shadow-lg shadow-laser/5">
+            <Card className="relative shrink-0 overflow-hidden gap-3 p-4 border-laser/25 bg-linear-to-br from-laser/12 via-card to-card shadow-lg shadow-laser/5">
               <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-laser/70 to-transparent" />
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -234,7 +234,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
           )}
 
           {!spectator && !view.bothSeated && (
-            <Card className="gap-3 p-4">
+            <Card className="shrink-0 gap-3 p-4">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invite a friend</div>
               <div className="flex gap-2">
                 <Input readOnly value={view.shareLink} onClick={(e) => (e.target as HTMLInputElement).select()} className="text-xs" />
@@ -251,7 +251,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
           <CasualtiesCard view={view} />
 
           {view.moves > 0 && (
-            <Card className="gap-3 p-4">
+            <Card className="shrink-0 gap-3 p-4">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Moves · {view.moves}</div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" onClick={() => controller.reviewPrev()} title="previous move">
@@ -270,7 +270,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             </Card>
           )}
 
-          <Card className="hidden gap-3 p-4 lg:flex">
+          <Card className="hidden shrink-0 gap-3 p-4 lg:flex">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pieces</div>
             <ul className="flex flex-col gap-2 text-sm">
               {LEGEND.map((p) => (
@@ -374,7 +374,7 @@ function CasualtiesCard({ view }: { view: ViewState }) {
   const displayColors: Color[] = [topColor, bottomColor];
 
   return (
-    <Card className="gap-3 p-4 animate-in fade-in slide-in-from-right-1 duration-200">
+    <Card className="shrink-0 gap-3 p-4 animate-in fade-in slide-in-from-right-1 duration-200">
       <div className="flex items-center justify-between">
         <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Casualties</div>
         <span className="rounded-full bg-secondary px-2 py-0.5 font-mono text-[11px] font-medium tabular-nums text-muted-foreground">

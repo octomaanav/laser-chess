@@ -50,6 +50,8 @@ export const viewport: Viewport = {
   themeColor: '#0a0b10',
 };
 
+const liveGames = GAMES.filter((g) => g.status === 'live');
+
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -62,7 +64,7 @@ const jsonLd = {
     {
       '@type': 'ItemList',
       name: `Games on ${SITE_NAME}`,
-      itemListElement: GAMES.map((g, i) => ({
+      itemListElement: liveGames.map((g, i) => ({
         '@type': 'ListItem',
         position: i + 1,
         name: g.name,
