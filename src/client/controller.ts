@@ -576,6 +576,16 @@ export class GameController {
     this.renderDisplayed();
     this.emit();
   }
+  // Instant jump to the start position (no step-by-step animation, like chess.com's |◀ jump-to-start).
+  reviewFirst() {
+    if (this.busy || this.history.length <= 1) return;
+    this.reviewIndex = 0;
+    this.reviewSeq++;
+    this.renderer?.cancelAnimations();
+    this.renderer?.setBoard(this.history[0].board, { flip: this.myColor === 'red' });
+    this.renderer?.setReviewMark(null);
+    this.emit();
+  }
   private enterReview(idx: number, dir: 'forward' | 'backward') {
     this.reviewIndex = idx;
     this.selected = null;
