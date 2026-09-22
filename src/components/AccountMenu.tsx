@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   ChevronDown,
   LogOut,
@@ -28,7 +28,9 @@ import FriendsModal from './FriendsModal';
 // Unified Profile & Navigation Dropdown Menu
 // When logged in: houses Profile, Account, Friends & Invites, Theme Toggle, Feedback, and Sign Out.
 // When logged out: houses a clean "Sign in" button + a sleek options dropdown (Theme, Feedback, Sign in).
-export default function AccountMenu() {
+// `extraItems` lets a caller (e.g. an in-game screen) inject its own controls at the
+// top of this same menu instead of adding a second dropdown trigger next to it.
+export default function AccountMenu({ extraItems }: { extraItems?: ReactNode } = {}) {
   const { user, providers, setUser, logout } = useSession();
   const social = useSocial();
   const { resolvedTheme, setTheme } = useTheme();
@@ -71,6 +73,12 @@ export default function AccountMenu() {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-xl border-border bg-card">
+            {extraItems && (
+              <>
+                {extraItems}
+                <DropdownMenuSeparator />
+              </>
+            )}
             {/* User Header */}
             <div className="flex items-center gap-2.5 px-2.5 py-2">
               <span className="grid size-8 place-items-center rounded-full bg-lime-500 dark:bg-[#c3f53b] text-xs font-extrabold text-black shrink-0">
@@ -168,6 +176,12 @@ export default function AccountMenu() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 p-1.5 shadow-xl border-border bg-card">
+              {extraItems && (
+                <>
+                  {extraItems}
+                  <DropdownMenuSeparator />
+                </>
+              )}
               {/* Theme Toggle */}
               <DropdownMenuItem
                 onClick={() => setTheme(isDark ? 'light' : 'dark')}
