@@ -679,7 +679,8 @@ export class GameController {
 
   // ---- input ----------------------------------------------------------------
   private onPointer(e: PointerEvent) {
-    if (e.pointerType === 'touch') return; // touch taps are resolved in onAnnotationPointerUp instead
+    if (e.pointerType === 'touch') return;
+    if (e.button !== 0) return;
     this.handleTap(e.clientX, e.clientY);
   }
 
