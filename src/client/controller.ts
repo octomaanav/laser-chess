@@ -556,9 +556,7 @@ export class GameController {
   reviewPrev() {
     if (this.busy || this.history.length <= 1) return; // don't interrupt a live move
     const last = this.history.length - 1;
-    // from live, the first ◀ replays the most recent move (the one you likely missed);
-    // stepping back further should animate in reverse, current -> previous
-    if (this.reviewIndex == null) this.enterReview(last, 'forward');
+    if (this.reviewIndex == null) this.enterReview(Math.max(0, last - 1), 'backward');
     else this.enterReview(Math.max(0, this.reviewIndex - 1), 'backward');
   }
   reviewNext() {
@@ -612,9 +610,18 @@ export class GameController {
       await this.pause(250);
       if (seq !== this.reviewSeq) return;
       const reversed = reverseAction(acting.action, h.board);
-      await r.animatePieceAction(reversed, acting.board, h.board, 550);
+      const boardAfterUndoMove = applyMoveOnly(acting.board, reversed);
+      await r.animatePieceAction(reversed, acting.board, boardAfterUndoMove, 550);
       if (seq !== this.reviewSeq) return;
-      r.setBoardQuiet(h.board);
+      if (acting.laser && acting.laser.length && acting.by) {
+        await r.animateLaser(acting.laser, acting.by, () => {
+          if (acting!.removed) void r.unexplode(acting!.removed!.x, acting!.removed!.y, acting!.removed!.piece.color);
+          r.setBoardQuiet(h.board);
+        });
+        if (seq !== this.reviewSeq) return;
+      } else {
+        r.setBoardQuiet(h.board);
+      }
       r.setReviewMark(idx === 0 ? null : h.action);
       return;
     }

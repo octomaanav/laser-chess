@@ -945,6 +945,51 @@ export class Renderer {
       this._ensureLoop();
     });
   }
+
+  // Mirror of explode(): particles converge inward and the ring shrinks, for
+  // animating a capture undone during history "step back".
+  unexplode(x: number, y: number, color: Color): Promise<void> {
+    const c = this.cellCenterPx(x, y);
+    const beam = BEAM[color] || BEAM.red;
+    const start = performance.now();
+    const dur = 620;
+    const N = 14;
+    const parts = Array.from({ length: N }, (_, i) => {
+      const a = (i / N) * TAU + Math.random() * 0.4;
+      const v = this.geom.cell * (0.8 + Math.random() * 1.1);
+      return { a, v, r: 1.5 + Math.random() * 2 };
+    });
+    return new Promise((resolve) => {
+      this._fx.push({
+        resolve,
+        update: (t) => t - start >= dur,
+        draw: (ctx, t) => {
+          const k = clamp((t - start) / dur, 0, 1);
+          const s = this.geom.cell;
+          ctx.save();
+          ctx.globalAlpha = k * 0.9;
+          ctx.strokeStyle = beam.core;
+          ctx.lineWidth = Math.max(1.5, s * 0.07 * k);
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, s * (0.9 - k * 0.7), 0, TAU);
+          ctx.stroke();
+          for (const pt of parts) {
+            const dist = pt.v * (1 - easeOut(k));
+            const px = c.x + Math.cos(pt.a) * dist,
+              py = c.y + Math.sin(pt.a) * dist;
+            ctx.globalAlpha = k;
+            ctx.fillStyle = beam.core;
+            ctx.beginPath();
+            ctx.arc(px, py, pt.r * (0.5 + k * 0.5), 0, TAU);
+            ctx.fill();
+          }
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        },
+      });
+      this._ensureLoop();
+    });
+  }
 }
 
 // ---- canvas helpers --------------------------------------------------------
