@@ -427,7 +427,8 @@ export class GameController {
           this.winner = msg.winner;
           if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
           this.board = msg.board;
-          this.maybeFirePremove();
+          if (this.winner) this.cancelPremove();
+          else this.maybeFirePremove();
           if (this.reviewIndex == null) this.renderDisplayed();
         }
         this.emit();
@@ -453,7 +454,9 @@ export class GameController {
         this.overReason = 'timeout';
         this.turnEndsAt = null;
         this.selected = null;
+        this.cancelPremove();
         this.renderer?.clearSelection();
+        this.renderer?.clearAnnotations();
         this.emit();
         break;
       case 'forfeit':
@@ -461,7 +464,9 @@ export class GameController {
         this.overReason = 'forfeit';
         this.turnEndsAt = null;
         this.selected = null;
+        this.cancelPremove();
         this.renderer?.clearSelection();
+        this.renderer?.clearAnnotations();
         this.pendingLeave?.(); // our own resignation landed - safe to navigate away
         this.emit();
         break;
@@ -474,7 +479,9 @@ export class GameController {
         this.selected = null;
         this.history = [];
         this.reviewIndex = null;
+        this.cancelPremove();
         this.renderer?.clearSelection();
+        this.renderer?.clearAnnotations();
         this.renderer?.setReviewMark(null);
         this.emit();
         break;
@@ -488,6 +495,8 @@ export class GameController {
       case 'reseat':
         this.myColor = msg.you;
         this.spectator = !msg.you;
+        this.cancelPremove();
+        this.renderer?.clearAnnotations();
         if (this.renderer) this.renderer.flip = this.myColor === 'red';
         this.renderDisplayed();
         this.emit();
@@ -527,7 +536,8 @@ export class GameController {
     this.board = msg.board;
     r?.clearAnnotations();
     this.turn = msg.turn;
-    this.maybeFirePremove();
+    if (msg.winner) this.cancelPremove();
+    else this.maybeFirePremove();
     this.winner = msg.winner;
     this.notifyIfMyTurn();
     this.emit();
