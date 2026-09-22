@@ -424,10 +424,10 @@ export class GameController {
         if (this.history.length === 0) this.history = [{ board: msg.board, action: null, by: null, removed: null, laser: null }];
         if (!this.busy) {
           this.turn = msg.turn;
-          this.maybeFirePremove();
           this.winner = msg.winner;
           if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
           this.board = msg.board;
+          this.maybeFirePremove();
           if (this.reviewIndex == null) this.renderDisplayed();
         }
         this.emit();
