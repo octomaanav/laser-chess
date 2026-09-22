@@ -665,19 +665,27 @@ export class GameController {
       r.setReviewMark(null);
       await this.pause(250);
       if (seq !== this.reviewSeq) return;
-      const reversed = reverseAction(acting.action, h.board);
-      const boardAfterUndoMove = applyMoveOnly(acting.board, reversed);
-      await r.animatePieceAction(reversed, acting.board, boardAfterUndoMove, 550);
-      if (seq !== this.reviewSeq) return;
+      // Fire the laser FIRST, while the mover is still on the square it actually fired
+      // from (acting.board) — acting.laser's geometry was computed against that board,
+      // so it must animate before the piece slides back or the beam won't line up.
+      let boardAfterLaser = acting.board;
       if (acting.laser && acting.laser.length && acting.by) {
         await r.animateLaser(acting.laser, acting.by, () => {
-          if (acting!.removed) void r.unexplode(acting!.removed!.x, acting!.removed!.y, acting!.removed!.piece.color);
-          r.setBoardQuiet(h.board);
+          if (acting!.removed) {
+            const restored = acting!.removed!;
+            boardAfterLaser = acting!.board.map((row, y) =>
+              row.map((p, x) => (x === restored.x && y === restored.y ? restored.piece : p))
+            ) as Board;
+            void r.unexplode(restored.x, restored.y, restored.piece.color);
+            r.setBoardQuiet(boardAfterLaser);
+          }
         });
         if (seq !== this.reviewSeq) return;
-      } else {
-        r.setBoardQuiet(h.board);
       }
+      const reversed = reverseAction(acting.action, h.board);
+      await r.animatePieceAction(reversed, boardAfterLaser, h.board, 550);
+      if (seq !== this.reviewSeq) return;
+      r.setBoardQuiet(h.board);
       r.setReviewMark(idx === 0 ? null : h.action);
       return;
     }
