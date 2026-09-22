@@ -101,6 +101,19 @@ function reverseAction(action: Action, boardBefore: Board): Action {
   return { type: 'rotate', x: action.x, y: action.y, orient, spin: action.spin ? ((-action.spin) as 1 | -1) : undefined };
 }
 
+// Structural equality for two actions — used to check whether a queued premove
+// still matches one of the actions the live board considers legal.
+function actionsEqual(a: Action, b: Action): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === 'move' && b.type === 'move') {
+    return a.x === b.x && a.y === b.y && a.tx === b.tx && a.ty === b.ty && !!a.swap === !!b.swap;
+  }
+  if (a.type === 'rotate' && b.type === 'rotate') {
+    return a.x === b.x && a.y === b.y && a.orient === b.orient;
+  }
+  return false;
+}
+
 export class GameController {
   private net = new Net<ServerMessage>(LASER_CHESS_WS_PATH);
   private renderer: Renderer | null = null;
@@ -133,7 +146,14 @@ export class GameController {
   private history: HistoryEntry[] = [];
   private reviewIndex: number | null = null;
   private reviewSeq = 0; // bumped on each navigation to cancel superseded replays
+  private premove: Action | null = null;
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
+  private annoDownBound = (e: PointerEvent) => this.onAnnotationPointerDown(e);
+  private annoMoveBound = (e: PointerEvent) => this.onAnnotationPointerMove(e);
+  private annoUpBound = (e: PointerEvent) => this.onAnnotationPointerUp(e);
+  private contextMenuBound = (e: Event) => e.preventDefault();
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressFired = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -343,10 +363,19 @@ export class GameController {
     renderer.resize();
     this.renderDisplayed();
     renderer.fxCanvas.addEventListener('pointerdown', this.onPointerBound);
+    renderer.fxCanvas.addEventListener('pointerdown', this.annoDownBound);
+    renderer.fxCanvas.addEventListener('pointermove', this.annoMoveBound);
+    renderer.fxCanvas.addEventListener('pointerup', this.annoUpBound);
+    renderer.fxCanvas.addEventListener('contextmenu', this.contextMenuBound);
 
     return () => {
       ro.disconnect();
       renderer.fxCanvas.removeEventListener('pointerdown', this.onPointerBound);
+      renderer.fxCanvas.removeEventListener('pointerdown', this.annoDownBound);
+      renderer.fxCanvas.removeEventListener('pointermove', this.annoMoveBound);
+      renderer.fxCanvas.removeEventListener('pointerup', this.annoUpBound);
+      renderer.fxCanvas.removeEventListener('contextmenu', this.contextMenuBound);
+      if (this.longPressTimer) clearTimeout(this.longPressTimer);
       renderer.destroy();
       if (this.renderer === renderer) this.renderer = null;
     };
@@ -398,6 +427,8 @@ export class GameController {
           this.winner = msg.winner;
           if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
           this.board = msg.board;
+          if (this.winner) this.cancelPremove();
+          else this.maybeFirePremove();
           if (this.reviewIndex == null) this.renderDisplayed();
         }
         this.emit();
@@ -423,7 +454,9 @@ export class GameController {
         this.overReason = 'timeout';
         this.turnEndsAt = null;
         this.selected = null;
+        this.cancelPremove();
         this.renderer?.clearSelection();
+        this.renderer?.clearAnnotations();
         this.emit();
         break;
       case 'forfeit':
@@ -431,7 +464,9 @@ export class GameController {
         this.overReason = 'forfeit';
         this.turnEndsAt = null;
         this.selected = null;
+        this.cancelPremove();
         this.renderer?.clearSelection();
+        this.renderer?.clearAnnotations();
         this.pendingLeave?.(); // our own resignation landed - safe to navigate away
         this.emit();
         break;
@@ -444,7 +479,9 @@ export class GameController {
         this.selected = null;
         this.history = [];
         this.reviewIndex = null;
+        this.cancelPremove();
         this.renderer?.clearSelection();
+        this.renderer?.clearAnnotations();
         this.renderer?.setReviewMark(null);
         this.emit();
         break;
@@ -458,6 +495,8 @@ export class GameController {
       case 'reseat':
         this.myColor = msg.you;
         this.spectator = !msg.you;
+        this.cancelPremove();
+        this.renderer?.clearAnnotations();
         if (this.renderer) this.renderer.flip = this.myColor === 'red';
         this.renderDisplayed();
         this.emit();
@@ -495,7 +534,10 @@ export class GameController {
       r.setBoardQuiet(msg.board);
     }
     this.board = msg.board;
+    r?.clearAnnotations();
     this.turn = msg.turn;
+    if (msg.winner) this.cancelPremove();
+    else this.maybeFirePremove();
     this.winner = msg.winner;
     this.notifyIfMyTurn();
     this.emit();
@@ -577,6 +619,8 @@ export class GameController {
   // Instant jump to the start position (no step-by-step animation, like chess.com's |◀ jump-to-start).
   reviewFirst() {
     if (this.busy || this.history.length <= 1) return;
+    this.renderer?.clearAnnotations();
+    this.cancelPremove();
     this.reviewIndex = 0;
     this.reviewSeq++;
     this.renderer?.cancelAnimations();
@@ -585,6 +629,8 @@ export class GameController {
     this.emit();
   }
   private enterReview(idx: number, dir: 'forward' | 'backward') {
+    this.renderer?.clearAnnotations();
+    this.cancelPremove();
     this.reviewIndex = idx;
     this.selected = null;
     this.renderer?.clearSelection();
@@ -619,19 +665,27 @@ export class GameController {
       r.setReviewMark(null);
       await this.pause(250);
       if (seq !== this.reviewSeq) return;
-      const reversed = reverseAction(acting.action, h.board);
-      const boardAfterUndoMove = applyMoveOnly(acting.board, reversed);
-      await r.animatePieceAction(reversed, acting.board, boardAfterUndoMove, 550);
-      if (seq !== this.reviewSeq) return;
+      // Fire the laser FIRST, while the mover is still on the square it actually fired
+      // from (acting.board) — acting.laser's geometry was computed against that board,
+      // so it must animate before the piece slides back or the beam won't line up.
+      let boardAfterLaser = acting.board;
       if (acting.laser && acting.laser.length && acting.by) {
         await r.animateLaser(acting.laser, acting.by, () => {
-          if (acting!.removed) void r.unexplode(acting!.removed!.x, acting!.removed!.y, acting!.removed!.piece.color);
-          r.setBoardQuiet(h.board);
+          if (acting!.removed) {
+            const restored = acting!.removed!;
+            boardAfterLaser = acting!.board.map((row, y) =>
+              row.map((p, x) => (x === restored.x && y === restored.y ? restored.piece : p))
+            ) as Board;
+            void r.unexplode(restored.x, restored.y, restored.piece.color);
+            r.setBoardQuiet(boardAfterLaser);
+          }
         });
         if (seq !== this.reviewSeq) return;
-      } else {
-        r.setBoardQuiet(h.board);
       }
+      const reversed = reverseAction(acting.action, h.board);
+      await r.animatePieceAction(reversed, boardAfterLaser, h.board, 550);
+      if (seq !== this.reviewSeq) return;
+      r.setBoardQuiet(h.board);
       r.setReviewMark(idx === 0 ? null : h.action);
       return;
     }
@@ -664,38 +718,117 @@ export class GameController {
 
   // ---- input ----------------------------------------------------------------
   private onPointer(e: PointerEvent) {
+    if (e.pointerType === 'touch') return;
+    if (e.button !== 0) return;
+    this.handleTap(e.clientX, e.clientY);
+  }
+
+  private handleTap(clientX: number, clientY: number) {
     const r = this.renderer;
     if (!r || !this.board) return;
-    if (this.reviewIndex != null) this.reviewLive(); // clicking a piece snaps back to the live game
+    if (this.reviewIndex != null) this.reviewLive();
     if (this.busy || this.spectator || this.winner) return;
-    const pick = r.pick(e.clientX, e.clientY);
+    r.clearAnnotations();
+    const pick = r.pick(clientX, clientY);
     if (!pick) return this.deselect();
     if (pick.kind === 'action') {
-      this.send({ type: 'action', action: pick.action });
+      if (this.turn === this.myColor) {
+        this.send({ type: 'action', action: pick.action });
+      } else {
+        this.setPremove(pick.action);
+      }
       return this.deselect();
     }
     const cell = this.board[pick.y][pick.x];
     if (this.selected && this.selected.x === pick.x && this.selected.y === pick.y) return this.deselect();
-    if (cell && cell.color === this.myColor && this.turn === this.myColor) {
+    if (cell && cell.color === this.myColor && this.premove && this.premove.x === pick.x && this.premove.y === pick.y) {
+      this.cancelPremove();
+      return this.deselect();
+    }
+    if (cell && cell.color === this.myColor) {
       this.selected = { x: pick.x, y: pick.y };
       const actions = legalActionsFor(this.board, this.myColor, pick.x, pick.y);
       r.select(this.selected, actions);
-      // Rotation moves off the board into the Action Panel: normalize each rotate
-      // action to a spin direction (sphinx rotates carry `orient` instead of `spin`).
       this.selectedRotations = actions
         .filter((a): a is RotateAction => a.type === 'rotate')
         .map((a) => ({ spin: (a.spin ?? ((a.orient - cell.orient + 4) % 4 === 1 ? 1 : -1)) as 1 | -1, action: a }));
       this.emit();
     } else {
       this.deselect();
-      if (cell && cell.color === this.myColor && this.turn !== this.myColor) this.toast('Not your turn');
     }
+  }
+
+  private onAnnotationPointerDown(e: PointerEvent) {
+    const r = this.renderer;
+    if (!r || this.reviewIndex != null) return;
+    if (e.button === 2) {
+      r.beginAnnotationDrag(e.clientX, e.clientY);
+      return;
+    }
+    if (e.pointerType === 'touch') {
+      this.longPressFired = false;
+      const { clientX, clientY } = e;
+      if (this.longPressTimer) clearTimeout(this.longPressTimer);
+      this.longPressTimer = setTimeout(() => {
+        this.longPressFired = true;
+        r.beginAnnotationDrag(clientX, clientY);
+      }, 350);
+    }
+  }
+
+  private onAnnotationPointerMove(e: PointerEvent) {
+    if (this.longPressTimer && !this.longPressFired) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    if (e.buttons === 2 || this.longPressFired) this.renderer?.updateAnnotationDrag(e.clientX, e.clientY);
+  }
+
+  private onAnnotationPointerUp(e: PointerEvent) {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    if (e.button === 2 || this.longPressFired) {
+      this.renderer?.endAnnotationDrag(e.clientX, e.clientY);
+    } else if (e.pointerType === 'touch') {
+      this.handleTap(e.clientX, e.clientY);
+    }
+    this.longPressFired = false;
   }
   private deselect() {
     this.selected = null;
     this.selectedRotations = [];
     this.renderer?.clearSelection();
     this.emit();
+  }
+
+  setPremove(action: Action) {
+    this.premove = action;
+    this.renderer?.setPremoveMark(action);
+  }
+
+  cancelPremove() {
+    if (!this.premove) return;
+    this.premove = null;
+    this.renderer?.setPremoveMark(null);
+  }
+
+  // Called whenever `this.turn` might have just become `this.myColor`. Re-validates
+  // the queued premove against the CURRENT board (never trusts set-time legality)
+  // and either sends it or discards it with a toast.
+  private maybeFirePremove() {
+    if (!this.premove || !this.board || this.turn !== this.myColor) return;
+    const premove = this.premove;
+    this.premove = null;
+    this.renderer?.setPremoveMark(null);
+    const legal = legalActionsFor(this.board, this.myColor, premove.x, premove.y);
+    const match = legal.find((a) => actionsEqual(a, premove));
+    if (match) {
+      this.send({ type: 'action', action: match });
+    } else {
+      this.toast('Premove was no longer legal');
+    }
   }
 
   // Rotate the selected piece from the Action Panel (keeps the piece highlighted
