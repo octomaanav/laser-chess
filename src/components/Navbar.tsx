@@ -24,6 +24,8 @@ export interface NavbarProps {
   centerContent?: React.ReactNode;
   rightContent?: React.ReactNode;
   className?: string;
+  hideHelpButton?: boolean; // caller renders its own How-to-play trigger (e.g. inside an overflow menu)
+  accountMenuExtra?: React.ReactNode; // extra items injected at the top of AccountMenu's dropdown
 }
 
 export default function Navbar({
@@ -34,6 +36,8 @@ export default function Navbar({
   centerContent,
   rightContent,
   className,
+  hideHelpButton = false,
+  accountMenuExtra,
 }: NavbarProps) {
   // Determine game theme styling tokens
   const isCoup = game === 'coup';
@@ -107,7 +111,7 @@ export default function Navbar({
           </a>
         )}
 
-        {(isLaser || isCoup || isFlip7) && (
+        {(isLaser || isCoup || isFlip7) && !hideHelpButton && (
           <>
             <Button
               variant="ghost"
@@ -137,7 +141,7 @@ export default function Navbar({
           </>
         )}
 
-        <AccountMenu />
+        <AccountMenu extraItems={accountMenuExtra} />
 
         {/* Extra in-game controls (e.g. leave button, sound toggle, player badge) */}
         {rightContent}
