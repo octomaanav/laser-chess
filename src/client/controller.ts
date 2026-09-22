@@ -133,6 +133,7 @@ export class GameController {
   private history: HistoryEntry[] = [];
   private reviewIndex: number | null = null;
   private reviewSeq = 0; // bumped on each navigation to cancel superseded replays
+  private premove: Action | null = null;
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
   private annoDownBound = (e: PointerEvent) => this.onAnnotationPointerDown(e);
   private annoMoveBound = (e: PointerEvent) => this.onAnnotationPointerMove(e);
@@ -696,12 +697,20 @@ export class GameController {
     const pick = r.pick(clientX, clientY);
     if (!pick) return this.deselect();
     if (pick.kind === 'action') {
-      this.send({ type: 'action', action: pick.action });
+      if (this.turn === this.myColor) {
+        this.send({ type: 'action', action: pick.action });
+      } else {
+        this.setPremove(pick.action);
+      }
       return this.deselect();
     }
     const cell = this.board[pick.y][pick.x];
     if (this.selected && this.selected.x === pick.x && this.selected.y === pick.y) return this.deselect();
-    if (cell && cell.color === this.myColor && this.turn === this.myColor) {
+    if (cell && cell.color === this.myColor && this.premove && this.premove.x === pick.x && this.premove.y === pick.y) {
+      this.cancelPremove();
+      return this.deselect();
+    }
+    if (cell && cell.color === this.myColor) {
       this.selected = { x: pick.x, y: pick.y };
       const actions = legalActionsFor(this.board, this.myColor, pick.x, pick.y);
       r.select(this.selected, actions);
@@ -711,7 +720,6 @@ export class GameController {
       this.emit();
     } else {
       this.deselect();
-      if (cell && cell.color === this.myColor && this.turn !== this.myColor) this.toast('Not your turn');
     }
   }
 
@@ -758,6 +766,17 @@ export class GameController {
     this.selectedRotations = [];
     this.renderer?.clearSelection();
     this.emit();
+  }
+
+  setPremove(action: Action) {
+    this.premove = action;
+    this.renderer?.setPremoveMark(action);
+  }
+
+  cancelPremove() {
+    if (!this.premove) return;
+    this.premove = null;
+    this.renderer?.setPremoveMark(null);
   }
 
   // Rotate the selected piece from the Action Panel (keeps the piece highlighted

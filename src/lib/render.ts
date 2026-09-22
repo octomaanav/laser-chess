@@ -616,6 +616,17 @@ export class Renderer {
     this.drawFx();
   }
 
+  // Highlight the from/to squares of a queued premove, visually distinct from
+  // setReviewMark's history highlight (dashed, amber) so the two are never confused.
+  setPremoveMark(action: Action | null) {
+    this.premoveMark = [];
+    if (action) {
+      this.premoveMark.push({ x: action.x, y: action.y });
+      if (action.type === 'move') this.premoveMark.push({ x: action.tx, y: action.ty });
+    }
+    this.drawFx();
+  }
+
   // The two rotate-annotation hit zones for a cell, positioned the same way the
   // real rotate handles are in rebuildFxElements (top-left = CCW, top-right = CW),
   // but computed on demand for ANY cell (not just the currently selected piece).
@@ -733,6 +744,17 @@ export class Renderer {
     }
     for (const h of this.handles) this._drawHandle(ctx, h);
     this._drawAnnotations(ctx);
+    for (const m of this.premoveMark) {
+      const c = this.cellCenterPx(m.x, m.y);
+      const s = this.geom.cell;
+      ctx.save();
+      ctx.strokeStyle = ANNOTATION_COLOR;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([s * 0.1, s * 0.08]);
+      roundRect(ctx, c.x - s * 0.46, c.y - s * 0.46, s * 0.92, s * 0.92, 8);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (this._fx.length) {
       const t = now ?? performance.now();
