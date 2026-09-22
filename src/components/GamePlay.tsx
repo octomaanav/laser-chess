@@ -116,6 +116,22 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
   // before the navigation tears the socket down.
   const leave = () => controller.leave(() => (window.location.href = window.location.pathname));
 
+  // ←/→ step through move history, same as the review card's buttons.
+  // Ignored while focus is in a text field/dialog so typing (e.g. a name field) isn't hijacked.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable)) return;
+      if (view.moves === 0) return;
+      e.preventDefault();
+      if (e.key === 'ArrowLeft') controller.reviewPrev();
+      else controller.reviewNext();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [controller, view.moves]);
+
   if (!view.connected || !controller.hasState()) {
     return <GameLoadingSkeleton view={view} leave={leave} />;
   }
