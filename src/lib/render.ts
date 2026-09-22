@@ -834,8 +834,7 @@ export class Renderer {
       ctx.arc(0, 0, zone.r, 0, TAU);
       ctx.stroke();
       if (a.dir < 0) ctx.scale(-1, 1);
-      ctx.fillStyle = ANNOTATION_COLOR;
-      this._rotateGlyph(ctx, zone.r);
+      this._rotateGlyph(ctx, zone.r, ANNOTATION_COLOR);
       ctx.restore();
     }
     if (this._annoDrag && this._annoPreview && (this._annoPreview.x !== this._annoDrag.x || this._annoPreview.y !== this._annoDrag.y)) {
@@ -848,12 +847,12 @@ export class Renderer {
 
   // A clean "rotate" icon: a ~270° arc with a filled triangular arrowhead at
   // its leading tip. Drawn clockwise; the caller mirrors it for CCW handles.
-  private _rotateGlyph(ctx: Ctx, R: number) {
+  private _rotateGlyph(ctx: Ctx, R: number, color: string = INK) {
     const rr = R * 0.5;
     const start = Math.PI * 0.72; // 130°
     const end = start + Math.PI * 1.5; // sweep 270° clockwise (canvas y-down)
-    ctx.strokeStyle = INK;
-    ctx.fillStyle = INK;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = Math.max(1.2, R * 0.16);
     ctx.lineCap = 'round';
     ctx.beginPath();
