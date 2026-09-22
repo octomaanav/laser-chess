@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Clock, Copy, HelpCircle, Loader2, LogOut, Radio, RotateCcw, RotateCw, Wifi, WifiOff } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Copy, HelpCircle, Loader2, LogOut, Radio, RotateCcw, RotateCw, Wifi, WifiOff } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color, PieceType } from '@/game/types';
 import { opposite } from '@/game/engine';
@@ -191,9 +191,10 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
       />
 
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <div className="flex min-h-[calc(100dvh-54px)] sm:min-h-[calc(100dvh-60px)] lg:min-h-0 w-full shrink-0 lg:shrink lg:flex-1 flex-col items-center justify-between gap-1 p-2 sm:p-3">
-          <div className="flex shrink-0 flex-col items-center gap-1">
+        <div className="flex min-h-[calc(100dvh-54px)] sm:min-h-[calc(100dvh-60px)] lg:min-h-0 w-full shrink-0 lg:shrink lg:flex-1 flex-col items-center justify-center gap-2 p-2 sm:p-3 lg:justify-between lg:gap-1">
+          <div className="flex shrink-0 items-center gap-2">
             <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
+            <CapturedStrip pieces={view.captured[topColor]} />
           </div>
 
           {view.waiting && (
@@ -212,16 +213,19 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             </Banner>
           ) : null}
 
-          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center py-1 max-w-4xl">
+          <div className="flex w-full shrink-0 flex-col items-center justify-center py-1 max-w-4xl lg:min-h-0 lg:flex-1">
             <div className="relative w-full aspect-[10/8] max-h-[calc(100dvh-170px)] sm:max-h-[calc(100dvh-200px)] lg:max-h-full flex items-center justify-center">
               <Board controller={controller} />
             </div>
           </div>
 
-          {/* Action Panel - positioned below the board for smaller screens with fixed height to prevent layout shifts */}
-          <div className="flex lg:hidden h-10 shrink-0 items-center justify-center">
+          {/* Mobile-only dock, chess.com-style: the move-history nav is a fixed pill that's always
+              there (buttons just disable), so it never shifts. Rotate is a separate overlay that
+              floats above it while a piece with rotation options is selected, instead of replacing
+              the nav's content the way a single shared slot would. */}
+          <div className="relative flex lg:hidden shrink-0 flex-col items-center">
             {view.rotations.length > 0 && (
-              <div className="flex items-center gap-2 rounded-full border border-border bg-card/90 px-3 py-1 shadow-lg backdrop-blur animate-in fade-in slide-in-from-bottom-1">
+              <div className="absolute bottom-full mb-1.5 flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1 shadow-lg backdrop-blur animate-in fade-in zoom-in-95 slide-in-from-bottom-1">
                 <span className="pl-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rotate</span>
                 {view.rotations.some((rot) => rot.spin === -1) && (
                   <Button size="sm" variant="secondary" className="h-7 text-xs px-2.5" onClick={() => controller.rotateSelected(-1)}>
@@ -235,10 +239,34 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
                 )}
               </div>
             )}
+
+            <div className="flex items-center gap-0.5 rounded-full border border-border bg-card/90 px-1.5 py-1 shadow-lg backdrop-blur">
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => controller.reviewFirst()} disabled={view.moves === 0} title="first move">
+                <ChevronsLeft className="size-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => controller.reviewPrev()} disabled={view.moves === 0} title="previous move">
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="min-w-20 text-center text-[11px] text-muted-foreground">{view.reviewLabel ?? 'Live'}</span>
+              <Button variant="ghost" size="icon" className="size-7" onClick={() => controller.reviewNext()} disabled={!reviewing} title="next move">
+                <ChevronRight className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('size-7', reviewing && 'text-laser')}
+                onClick={() => controller.reviewLive()}
+                disabled={!reviewing}
+                title="back to live"
+              >
+                <ChevronsRight className="size-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-center gap-1">
+          <div className="flex shrink-0 items-center gap-2">
             <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
+            <CapturedStrip pieces={view.captured[bottomColor]} />
           </div>
         </div>
 
@@ -274,27 +302,29 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             </Card>
           )}
 
-          <CasualtiesCard view={view} />
+          <div className="hidden lg:contents">
+            <CasualtiesCard view={view} />
 
-          {view.moves > 0 && (
-            <Card className="shrink-0 gap-3 p-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Moves · {view.moves}</div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => controller.reviewPrev()} title="previous move">
-                  <ChevronLeft className="size-4" />
-                </Button>
-                <span className="flex-1 text-center text-xs text-muted-foreground">{view.reviewLabel ?? 'Live'}</span>
-                <Button variant="outline" size="icon" onClick={() => controller.reviewNext()} disabled={!reviewing} title="next move">
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-              {reviewing && (
-                <Button size="sm" className="w-full" onClick={() => controller.reviewLive()}>
-                  <Radio className="size-4" /> Back to live
-                </Button>
-              )}
-            </Card>
-          )}
+            {view.moves > 0 && (
+              <Card className="shrink-0 gap-3 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Moves · {view.moves}</div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" onClick={() => controller.reviewPrev()} title="previous move">
+                    <ChevronLeft className="size-4" />
+                  </Button>
+                  <span className="flex-1 text-center text-xs text-muted-foreground">{view.reviewLabel ?? 'Live'}</span>
+                  <Button variant="outline" size="icon" onClick={() => controller.reviewNext()} disabled={!reviewing} title="next move">
+                    <ChevronRight className="size-4" />
+                  </Button>
+                </div>
+                {reviewing && (
+                  <Button size="sm" className="w-full" onClick={() => controller.reviewLive()}>
+                    <Radio className="size-4" /> Back to live
+                  </Button>
+                )}
+              </Card>
+            )}
+          </div>
 
           <Card className="hidden shrink-0 gap-3 p-4 lg:flex">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pieces</div>
@@ -383,6 +413,25 @@ function SeatLabel({ color, info, active, you }: { color: Color; info: PlayerVie
       <span className="font-medium text-foreground">{name}</span>
       {you && <span className="text-xs text-muted-foreground">(you)</span>}
       {info.seated && <span className={cn('size-2 rounded-full', info.online ? 'bg-emerald-400' : 'bg-muted-foreground/50')} />}
+    </div>
+  );
+}
+
+// Compact row of glyphs for the pieces a color has lost, shown next to its SeatLabel so
+// material loss is visible at a glance without opening the sidebar (mainly for mobile,
+// where the detailed Casualties card is scrolled below the fold).
+function CapturedStrip({ pieces }: { pieces: PieceType[] }) {
+  if (pieces.length === 0) return null;
+  const counts = new Map<PieceType, number>();
+  for (const t of pieces) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-border bg-secondary/40 px-2 py-1">
+      {[...counts.entries()].map(([type, count]) => (
+        <span key={type} className="flex items-center text-muted-foreground">
+          <PieceGlyph type={type} size={12} />
+          {count > 1 && <span className="text-[10px] font-medium">×{count}</span>}
+        </span>
+      ))}
     </div>
   );
 }
