@@ -101,6 +101,19 @@ function reverseAction(action: Action, boardBefore: Board): Action {
   return { type: 'rotate', x: action.x, y: action.y, orient, spin: action.spin ? ((-action.spin) as 1 | -1) : undefined };
 }
 
+// Structural equality for two actions — used to check whether a queued premove
+// still matches one of the actions the live board considers legal.
+function actionsEqual(a: Action, b: Action): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === 'move' && b.type === 'move') {
+    return a.x === b.x && a.y === b.y && a.tx === b.tx && a.ty === b.ty && !!a.swap === !!b.swap;
+  }
+  if (a.type === 'rotate' && b.type === 'rotate') {
+    return a.x === b.x && a.y === b.y && a.orient === b.orient;
+  }
+  return false;
+}
+
 export class GameController {
   private net = new Net<ServerMessage>(LASER_CHESS_WS_PATH);
   private renderer: Renderer | null = null;
@@ -411,6 +424,7 @@ export class GameController {
         if (this.history.length === 0) this.history = [{ board: msg.board, action: null, by: null, removed: null, laser: null }];
         if (!this.busy) {
           this.turn = msg.turn;
+          this.maybeFirePremove();
           this.winner = msg.winner;
           if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
           this.board = msg.board;
@@ -513,6 +527,7 @@ export class GameController {
     this.board = msg.board;
     r?.clearAnnotations();
     this.turn = msg.turn;
+    this.maybeFirePremove();
     this.winner = msg.winner;
     this.notifyIfMyTurn();
     this.emit();
@@ -595,6 +610,7 @@ export class GameController {
   reviewFirst() {
     if (this.busy || this.history.length <= 1) return;
     this.renderer?.clearAnnotations();
+    this.cancelPremove();
     this.reviewIndex = 0;
     this.reviewSeq++;
     this.renderer?.cancelAnimations();
@@ -604,6 +620,7 @@ export class GameController {
   }
   private enterReview(idx: number, dir: 'forward' | 'backward') {
     this.renderer?.clearAnnotations();
+    this.cancelPremove();
     this.reviewIndex = idx;
     this.selected = null;
     this.renderer?.clearSelection();
@@ -777,6 +794,23 @@ export class GameController {
     if (!this.premove) return;
     this.premove = null;
     this.renderer?.setPremoveMark(null);
+  }
+
+  // Called whenever `this.turn` might have just become `this.myColor`. Re-validates
+  // the queued premove against the CURRENT board (never trusts set-time legality)
+  // and either sends it or discards it with a toast.
+  private maybeFirePremove() {
+    if (!this.premove || !this.board || this.turn !== this.myColor) return;
+    const premove = this.premove;
+    this.premove = null;
+    this.renderer?.setPremoveMark(null);
+    const legal = legalActionsFor(this.board, this.myColor, premove.x, premove.y);
+    const match = legal.find((a) => actionsEqual(a, premove));
+    if (match) {
+      this.send({ type: 'action', action: match });
+    } else {
+      this.toast('Premove was no longer legal');
+    }
   }
 
   // Rotate the selected piece from the Action Panel (keeps the piece highlighted
