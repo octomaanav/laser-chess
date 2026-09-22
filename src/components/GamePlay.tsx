@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, ChevronLeft, ChevronRight, Clock, Copy, Loader2, LogOut, Radio, RotateCcw, RotateCw } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, ChevronRight, Clock, Copy, HelpCircle, Loader2, LogOut, Radio, RotateCcw, RotateCw, Wifi, WifiOff } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
 import type { Color, PieceType } from '@/game/types';
 import { opposite } from '@/game/engine';
@@ -10,12 +10,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import Board from './Board';
 import LogoMark, { PersonIcon } from './LogoMark';
 import Navbar from './Navbar';
 import RankBadge from './RankBadge';
+import TutorialModal from './tutorials/TutorialModal';
+import { LASER_CHESS_TUTORIAL_STEPS } from './tutorials/laserChessTutorial';
 import { useSocial } from '@/client/social/SocialProvider';
 
 // Full, static class strings per player color (Tailwind can't see interpolated names).
@@ -93,6 +96,7 @@ function PieceGlyph({
 export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }: { controller: GameController; view: ViewState; gameSlug?: string }) {
   const { myColor, spectator, turn, winner } = view;
   const yours = !spectator && turn === myColor && !winner;
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const social = useSocial();
   const gameRank = social?.rankInfo?.[gameSlug] ?? null;
 
@@ -126,6 +130,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
     <section className="flex h-dvh flex-col overflow-hidden">
       <Navbar
         game="laser-chess"
+        hideHelpButton
         className="px-2.5 py-2 sm:px-4 sm:py-2.5"
         centerContent={
           <>
@@ -135,27 +140,32 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
           </>
         }
+        accountMenuExtra={
+          <>
+            <DropdownMenuItem onSelect={() => setTutorialOpen(true)}>
+              <HelpCircle className="size-4" /> How to play
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => controller.toggleSound()}>
+              {view.soundNotifyEnabled ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+              {view.soundNotifyEnabled ? 'Mute turn notifications' : 'Unmute turn notifications'}
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled className="opacity-100">
+              {view.connected ? <Wifi className="size-4 text-emerald-500" /> : <WifiOff className="size-4 text-destructive" />}
+              <span className={cn('font-medium', spectator || !myColor ? 'text-muted-foreground' : undefined)}>
+                {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
+              </span>
+              <span className="ml-auto text-xs text-muted-foreground">{view.connected ? 'Connected' : 'Disconnected'}</span>
+            </DropdownMenuItem>
+          </>
+        }
         rightContent={
           <>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => controller.toggleSound()}
-              title={view.soundNotifyEnabled ? 'Turn notifications enabled (click to mute)' : 'Turn notifications muted (click to unmute)'}
-              aria-label="Toggle turn notifications"
-              className="size-8 sm:size-9 shrink-0"
-            >
-              {view.soundNotifyEnabled ? <Bell className="size-3.5 sm:size-4" /> : <BellOff className="size-3.5 sm:size-4 text-muted-foreground" />}
-            </Button>
-            <Badge
-              variant="outline"
-              className={cn('font-medium whitespace-nowrap shrink-0 hidden md:inline-flex', spectator || !myColor ? 'text-muted-foreground' : PLAYER[myColor].tint)}
-            >
-              {spectator || !myColor ? 'Spectating' : `You: ${colorName(myColor)}`}
-            </Badge>
-            <span
-              className={cn('size-2 sm:size-2.5 shrink-0 rounded-full', view.connected ? 'bg-emerald-400' : 'bg-destructive')}
-              title={view.connected ? 'connected' : 'disconnected'}
+            <TutorialModal
+              open={tutorialOpen}
+              onOpenChange={setTutorialOpen}
+              gameTitle="Laser Chess"
+              steps={LASER_CHESS_TUTORIAL_STEPS}
+              theme="laser"
             />
             <Button variant="outline" size="sm" onClick={leave} className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0">
               <LogOut className="size-3.5 sm:size-4" /> <span className="hidden sm:inline">Leave</span>
