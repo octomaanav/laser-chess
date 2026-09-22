@@ -134,6 +134,12 @@ export class GameController {
   private reviewIndex: number | null = null;
   private reviewSeq = 0; // bumped on each navigation to cancel superseded replays
   private onPointerBound = (e: PointerEvent) => this.onPointer(e);
+  private annoDownBound = (e: PointerEvent) => this.onAnnotationPointerDown(e);
+  private annoMoveBound = (e: PointerEvent) => this.onAnnotationPointerMove(e);
+  private annoUpBound = (e: PointerEvent) => this.onAnnotationPointerUp(e);
+  private contextMenuBound = (e: Event) => e.preventDefault();
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressFired = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -343,10 +349,19 @@ export class GameController {
     renderer.resize();
     this.renderDisplayed();
     renderer.fxCanvas.addEventListener('pointerdown', this.onPointerBound);
+    renderer.fxCanvas.addEventListener('pointerdown', this.annoDownBound);
+    renderer.fxCanvas.addEventListener('pointermove', this.annoMoveBound);
+    renderer.fxCanvas.addEventListener('pointerup', this.annoUpBound);
+    renderer.fxCanvas.addEventListener('contextmenu', this.contextMenuBound);
 
     return () => {
       ro.disconnect();
       renderer.fxCanvas.removeEventListener('pointerdown', this.onPointerBound);
+      renderer.fxCanvas.removeEventListener('pointerdown', this.annoDownBound);
+      renderer.fxCanvas.removeEventListener('pointermove', this.annoMoveBound);
+      renderer.fxCanvas.removeEventListener('pointerup', this.annoUpBound);
+      renderer.fxCanvas.removeEventListener('contextmenu', this.contextMenuBound);
+      if (this.longPressTimer) clearTimeout(this.longPressTimer);
       renderer.destroy();
       if (this.renderer === renderer) this.renderer = null;
     };
@@ -664,11 +679,16 @@ export class GameController {
 
   // ---- input ----------------------------------------------------------------
   private onPointer(e: PointerEvent) {
+    if (e.pointerType === 'touch') return; // touch taps are resolved in onAnnotationPointerUp instead
+    this.handleTap(e.clientX, e.clientY);
+  }
+
+  private handleTap(clientX: number, clientY: number) {
     const r = this.renderer;
     if (!r || !this.board) return;
-    if (this.reviewIndex != null) this.reviewLive(); // clicking a piece snaps back to the live game
+    if (this.reviewIndex != null) this.reviewLive();
     if (this.busy || this.spectator || this.winner) return;
-    const pick = r.pick(e.clientX, e.clientY);
+    const pick = r.pick(clientX, clientY);
     if (!pick) return this.deselect();
     if (pick.kind === 'action') {
       this.send({ type: 'action', action: pick.action });
@@ -680,8 +700,6 @@ export class GameController {
       this.selected = { x: pick.x, y: pick.y };
       const actions = legalActionsFor(this.board, this.myColor, pick.x, pick.y);
       r.select(this.selected, actions);
-      // Rotation moves off the board into the Action Panel: normalize each rotate
-      // action to a spin direction (sphinx rotates carry `orient` instead of `spin`).
       this.selectedRotations = actions
         .filter((a): a is RotateAction => a.type === 'rotate')
         .map((a) => ({ spin: (a.spin ?? ((a.orient - cell.orient + 4) % 4 === 1 ? 1 : -1)) as 1 | -1, action: a }));
@@ -690,6 +708,45 @@ export class GameController {
       this.deselect();
       if (cell && cell.color === this.myColor && this.turn !== this.myColor) this.toast('Not your turn');
     }
+  }
+
+  private onAnnotationPointerDown(e: PointerEvent) {
+    const r = this.renderer;
+    if (!r || this.reviewIndex != null) return;
+    if (e.button === 2) {
+      r.beginAnnotationDrag(e.clientX, e.clientY);
+      return;
+    }
+    if (e.pointerType === 'touch') {
+      this.longPressFired = false;
+      const { clientX, clientY } = e;
+      if (this.longPressTimer) clearTimeout(this.longPressTimer);
+      this.longPressTimer = setTimeout(() => {
+        this.longPressFired = true;
+        r.beginAnnotationDrag(clientX, clientY);
+      }, 350);
+    }
+  }
+
+  private onAnnotationPointerMove(e: PointerEvent) {
+    if (this.longPressTimer && !this.longPressFired) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    if (e.buttons === 2 || this.longPressFired) this.renderer?.updateAnnotationDrag(e.clientX, e.clientY);
+  }
+
+  private onAnnotationPointerUp(e: PointerEvent) {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    if (e.button === 2 || this.longPressFired) {
+      this.renderer?.endAnnotationDrag(e.clientX, e.clientY);
+    } else if (e.pointerType === 'touch') {
+      this.handleTap(e.clientX, e.clientY);
+    }
+    this.longPressFired = false;
   }
   private deselect() {
     this.selected = null;
