@@ -62,6 +62,14 @@ plausible move - "beatable," not "makes obviously bad moves."
    past when this root move started"), so a deadline hit deep in the tree
    still correctly invalidates that depth's result at the root.
 
+### Transposition table, quiescence search, and move ordering
+
+- **Transposition table** (`zobrist.ts`, `transpositionTable.ts`) - positions reachable via different move orders ("transpositions") are cached by a Zobrist hash of the board plus side to move, scoped to a single `search()` call and discarded after. A cache hit at sufficient depth skips re-searching a subtree, using the stored score as an exact value or as an alpha-beta bound. The stored best move is also tried first when the position is reached again, ahead of the capture-first ordering.
+- **Quiescence search** (`quiescence.ts`) - instead of statically evaluating a leaf position, the search continues through capture-only moves (up to 4 extra plies) until the position is quiet. This reduces the horizon effect: the bot is less likely to misjudge a position in the middle of a short capture exchange (bounded at 4 plies, capture moves only). Leaf results are cached with the correct bound type, since quiescence returns window-dependent bounds rather than always exact values.
+- **Root move ordering** - each iterative-deepening depth retries the previous depth's best move first.
+
+**Measured effect.** Quiescence costs time at every leaf, so within a fixed time budget the new search reaches a shallower depth than the original (average 1.92 vs 2.49 plies at 400ms per move) but plays stronger: across two 24-game runs (48 games) against the original search at equal time per move it scored about 78% (33 wins, 6 losses, 9 draws; the runs scored 72.9% and 83.3%). The sample is modest (about +/-6 points standard error) and the budget short, so treat this as a strong indication rather than a precise number. `scripts/compare-bot-search.ts` re-runs the match using randomized openings, so exact numbers will vary (`npx tsx scripts/compare-bot-search.ts`); it is a manual tool, not wired into the app or CI.
+
 ## Evaluation function
 
 ([`evaluate.ts`](../src/game/bot/evaluate.ts)) scores a non-terminal
