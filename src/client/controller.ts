@@ -510,6 +510,7 @@ export class GameController {
       r.setBoardQuiet(msg.board);
     }
     this.board = msg.board;
+    r?.clearAnnotations();
     this.turn = msg.turn;
     this.winner = msg.winner;
     this.notifyIfMyTurn();
@@ -592,6 +593,7 @@ export class GameController {
   // Instant jump to the start position (no step-by-step animation, like chess.com's |◀ jump-to-start).
   reviewFirst() {
     if (this.busy || this.history.length <= 1) return;
+    this.renderer?.clearAnnotations();
     this.reviewIndex = 0;
     this.reviewSeq++;
     this.renderer?.cancelAnimations();
@@ -600,6 +602,7 @@ export class GameController {
     this.emit();
   }
   private enterReview(idx: number, dir: 'forward' | 'backward') {
+    this.renderer?.clearAnnotations();
     this.reviewIndex = idx;
     this.selected = null;
     this.renderer?.clearSelection();
@@ -689,6 +692,7 @@ export class GameController {
     if (!r || !this.board) return;
     if (this.reviewIndex != null) this.reviewLive();
     if (this.busy || this.spectator || this.winner) return;
+    r.clearAnnotations();
     const pick = r.pick(clientX, clientY);
     if (!pick) return this.deselect();
     if (pick.kind === 'action') {
