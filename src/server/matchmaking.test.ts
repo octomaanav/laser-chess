@@ -13,12 +13,14 @@ import {
 
 describe('Matchmaking Queue & Bot Backfill', () => {
   it('maps rating to appropriate bot difficulty', () => {
-    expect(getBotDifficultyForRating(0)).toBe('easy');
-    expect(getBotDifficultyForRating(4)).toBe('easy');
-    expect(getBotDifficultyForRating(5)).toBe('medium');
-    expect(getBotDifficultyForRating(9)).toBe('medium');
-    expect(getBotDifficultyForRating(10)).toBe('hard');
-    expect(getBotDifficultyForRating(15)).toBe('hard');
+    expect(getBotDifficultyForRating(0)).toBe('easy'); // Bronze 1
+    expect(getBotDifficultyForRating(2)).toBe('easy'); // Bronze 3
+    expect(getBotDifficultyForRating(3)).toBe('medium'); // Silver 1
+    expect(getBotDifficultyForRating(5)).toBe('medium'); // Silver 3
+    expect(getBotDifficultyForRating(6)).toBe('hard'); // Gold 1
+    expect(getBotDifficultyForRating(11)).toBe('hard'); // Platinum 3
+    expect(getBotDifficultyForRating(12)).toBe('extreme'); // Diamond 1
+    expect(getBotDifficultyForRating(15)).toBe('extreme'); // Master
   });
 
   it('pairs same-rank human entries first', () => {
@@ -57,7 +59,7 @@ describe('Matchmaking Queue & Bot Backfill', () => {
     expect(botRoomFn).toHaveBeenCalledWith(
       'u100',
       expect.stringMatching(/red|silver/),
-      'hard', // rating 12 maps to hard bot
+      'extreme', // rating 12 (Diamond 1) maps to the extreme bot
       expect.any(String),
       'laser-chess'
     );

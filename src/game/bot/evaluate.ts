@@ -1,6 +1,5 @@
-import { fireLaser, opposite } from '../engine';
+import { countLegalActions, fireLaser, opposite } from '../engine';
 import type { Color, GameState, PieceType } from '../types';
-import { enumerateActions } from './moveGen';
 
 // Pharaoh capture is a terminal state handled by search.ts (±Infinity), not
 // scored as material here. Sphinx is never captured. Scarab > anubis >
@@ -98,8 +97,8 @@ function pharaohProximityBonus(state: GameState, color: Color, weights: Weights)
 }
 
 function mobility(state: GameState, color: Color, weights: Weights): number {
-  const mine = enumerateActions(state, color).length;
-  const theirs = enumerateActions(state, opposite(color)).length;
+  const mine = countLegalActions(state.board, color);
+  const theirs = countLegalActions(state.board, opposite(color));
   return (mine - theirs) * weights.mobility;
 }
 

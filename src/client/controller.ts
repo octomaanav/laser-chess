@@ -2,7 +2,7 @@
 // and the move-animation queue. Exposes an immutable view snapshot so React can
 // subscribe with useSyncExternalStore while the imperative renderer stays smooth.
 import { applyMoveOnly, legalActionsFor, opposite } from '@/game/engine';
-import type { Action, Board, Color, Hit, LaserPoint, PieceType, RotateAction } from '@/game/types';
+import type { Action, Board, Color, DrawReason, Hit, LaserPoint, PieceType, RotateAction } from '@/game/types';
 import type { ClientMessage, ServerMessage } from '@/game/messages';
 import type { Difficulty } from '@/game/bot/types';
 import { colorName } from '@/lib/labels';
@@ -14,6 +14,8 @@ export interface PlayerView {
   seated: boolean;
   online: boolean;
 }
+export type OverReason = 'pharaoh' | 'timeout' | 'forfeit' | 'resign';
+
 export interface ViewState {
   screen: 'lobby' | 'game';
   connected: boolean;
@@ -24,11 +26,15 @@ export interface ViewState {
   spectator: boolean;
   turn: Color;
   winner: Color | null;
-  overReason: 'pharaoh' | 'timeout' | 'forfeit' | null;
+  draw: DrawReason | null;
+  over: boolean; // won, lost or drawn
+  overReason: OverReason | null;
   waiting: boolean;
   bothSeated: boolean;
   rematchMine: boolean; // I've requested a rematch
   rematchOpp: boolean; // my opponent has requested a rematch
+  drawOfferMine: boolean; // I've offered a draw
+  drawOfferOpp: boolean; // my opponent has offered a draw
   players: { red: PlayerView; silver: PlayerView };
   perMoveMs: number;
   turnEndsAt: number | null; // client epoch ms when the current turn's clock expires
@@ -59,11 +65,15 @@ const INITIAL: ViewState = {
   spectator: false,
   turn: 'silver',
   winner: null,
+  draw: null,
+  over: false,
   overReason: null,
   waiting: false,
   bothSeated: false,
   rematchMine: false,
   rematchOpp: false,
+  drawOfferMine: false,
+  drawOfferOpp: false,
   players: { red: blank(), silver: blank() },
   perMoveMs: 0,
   turnEndsAt: null,
@@ -113,7 +123,8 @@ export class GameController {
   private spectator = false;
   private turn: Color = 'silver';
   private winner: Color | null = null;
-  private overReason: 'pharaoh' | 'timeout' | 'forfeit' | null = null;
+  private draw: DrawReason | null = null;
+  private overReason: OverReason | null = null;
   private pendingLeave: (() => void) | null = null; // resolves once the server ends the game we quit
   private roomCode: string | null = null;
   private setup = 'Classic';
@@ -176,11 +187,15 @@ export class GameController {
       spectator: this.spectator,
       turn: this.turn,
       winner: this.winner,
+      draw: this.draw,
+      over: this.isOver(),
       overReason: this.overReason,
       waiting,
       bothSeated: both,
       rematchMine: this.myColor ? !!this.lastState?.rematch?.[this.myColor] : false,
       rematchOpp: this.myColor ? !!this.lastState?.rematch?.[opposite(this.myColor)] : false,
+      drawOfferMine: !!this.myColor && !this.isOver() && this.lastState?.drawOffer === this.myColor,
+      drawOfferOpp: !!this.myColor && !this.isOver() && this.lastState?.drawOffer === opposite(this.myColor),
       players,
       perMoveMs: this.perMoveMs,
       turnEndsAt: this.turnEndsAt,
@@ -215,6 +230,10 @@ export class GameController {
     const verb = h.action.type === 'move' ? 'moved' : 'rotated';
     const cap = colorName(h.by).slice(0, 1) + colorName(h.by).slice(1);
     return `Move ${this.reviewIndex}/${this.history.length - 1} · ${cap} ${verb}`;
+  }
+
+  private isOver(): boolean {
+    return !!this.winner || !!this.draw;
   }
 
   private screenGame = false;
@@ -320,7 +339,7 @@ export class GameController {
   // navigate, so tell the server first and wait for it to confirm the game is
   // over - with a short fallback in case the message or the reply is lost.
   leave(then: () => void) {
-    const live = !this.winner && this.myColor != null && this.snapshot.bothSeated;
+    const live = !this.isOver() && this.myColor != null && this.snapshot.bothSeated;
     if (!live || !this.net.isConnected()) return then();
 
     const done = () => {
@@ -396,6 +415,7 @@ export class GameController {
         if (!this.busy) {
           this.turn = msg.turn;
           this.winner = msg.winner;
+          this.draw = msg.draw;
           if (msg.winner && !this.overReason) this.overReason = 'pharaoh';
           this.board = msg.board;
           if (this.reviewIndex == null) this.renderDisplayed();
@@ -405,13 +425,14 @@ export class GameController {
       case 'move':
         this.history.push({ board: msg.board, action: msg.action, by: msg.by, removed: msg.removed, laser: msg.laser });
         this.perMoveMs = msg.perMoveMs;
-        this.turnEndsAt = msg.winner ? null : msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
+        this.turnEndsAt = msg.winner || msg.draw ? null : msg.turnEndsIn != null ? Date.now() + msg.turnEndsIn : null;
         if (msg.winner) this.overReason = 'pharaoh';
         if (this.reviewIndex != null) {
           // reviewing history: apply silently, keep the reviewed board on screen
           this.board = msg.board;
           this.turn = msg.turn;
           this.winner = msg.winner;
+          this.draw = msg.draw;
           this.emit();
         } else {
           this.moveQueue.push(msg);
@@ -427,16 +448,31 @@ export class GameController {
         this.emit();
         break;
       case 'forfeit':
+      case 'resign':
         this.winner = msg.winner;
-        this.overReason = 'forfeit';
+        this.overReason = msg.type;
         this.turnEndsAt = null;
         this.selected = null;
         this.renderer?.clearSelection();
         this.pendingLeave?.(); // our own resignation landed - safe to navigate away
         this.emit();
         break;
+      case 'draw':
+        this.draw = msg.reason;
+        this.turnEndsAt = null;
+        this.selected = null;
+        this.renderer?.clearSelection();
+        this.emit();
+        break;
+      case 'draw-declined':
+        if (msg.by !== this.myColor) {
+          const who = this.lastState?.names?.[msg.by] ?? colorName(msg.by);
+          this.toast(`${who} declined the draw`);
+        }
+        break;
       case 'rematch':
         this.winner = null;
+        this.draw = null;
         this.overReason = null;
         this.turnEndsAt = null;
         this.forfeitOf = null;
@@ -497,6 +533,7 @@ export class GameController {
     this.board = msg.board;
     this.turn = msg.turn;
     this.winner = msg.winner;
+    this.draw = msg.draw;
     this.notifyIfMyTurn();
     this.emit();
   }
@@ -518,7 +555,7 @@ export class GameController {
   }
   private notifyIfMyTurn() {
     if (typeof document === 'undefined' || !document.hidden) return;
-    if (this.spectator || this.winner || !this.myColor || this.turn !== this.myColor) return;
+    if (this.spectator || this.isOver() || !this.myColor || this.turn !== this.myColor) return;
     if (!this.soundEnabled()) return;
     this.playChime();
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -667,7 +704,7 @@ export class GameController {
     const r = this.renderer;
     if (!r || !this.board) return;
     if (this.reviewIndex != null) this.reviewLive(); // clicking a piece snaps back to the live game
-    if (this.busy || this.spectator || this.winner) return;
+    if (this.busy || this.spectator || this.isOver()) return;
     const pick = r.pick(e.clientX, e.clientY);
     if (!pick) return this.deselect();
     if (pick.kind === 'action') {
@@ -702,7 +739,7 @@ export class GameController {
   // until the rotation is committed). No-op if the rotation isn't currently legal.
   rotateSelected(spin: 1 | -1) {
     if (!this.renderer || !this.board || this.reviewIndex != null) return;
-    if (this.busy || this.spectator || this.winner || this.turn !== this.myColor) return;
+    if (this.busy || this.spectator || this.isOver() || this.turn !== this.myColor) return;
     const rot = this.selectedRotations.find((r) => r.spin === spin);
     if (!rot) return;
     this.send({ type: 'action', action: rot.action });
@@ -715,5 +752,14 @@ export class GameController {
   }
   declineRematch() {
     this.send({ type: 'rematch-decline' });
+  }
+  resign() {
+    this.send({ type: 'resign' });
+  }
+  offerDraw() {
+    this.send({ type: 'draw-offer' });
+  }
+  declineDraw() {
+    this.send({ type: 'draw-decline' });
   }
 }

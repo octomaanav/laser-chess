@@ -72,7 +72,7 @@ export default function MatchmakingModal({ gameSlug = 'laser-chess', onClose }: 
     onClose();
   };
 
-  const rating = social?.rankInfo?.[gameSlug]?.rating ?? null;
+  const rankInfo = social?.rankInfo?.[gameSlug] ?? null;
 
   return (
     // pointer-events-auto: guards against the same body-lock a Radix Dialog
@@ -106,7 +106,7 @@ export default function MatchmakingModal({ gameSlug = 'laser-chess', onClose }: 
         </p>
 
         <div className="mb-6 flex items-center justify-center gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-          <RankBadge rating={rating} />
+          <RankBadge rating={rankInfo?.rating ?? null} stars={rankInfo?.stars} starsToPromote={rankInfo?.starsToPromote} />
         </div>
 
         <p className="mb-4 text-center text-xs text-muted-foreground">

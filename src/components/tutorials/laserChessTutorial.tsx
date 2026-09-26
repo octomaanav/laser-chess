@@ -161,7 +161,8 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
           if you hit your own by mistake.
         </p>
         <p>
-          If the exact same board position repeats a third time, the player about to move can call it a draw.
+          You can resign at any time, or offer your opponent a draw. The game is also drawn automatically after 50
+          moves by each player without a piece being destroyed, or if the player to move has no legal move.
         </p>
       </>
     ),

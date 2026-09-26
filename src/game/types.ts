@@ -44,11 +44,18 @@ export interface Hit {
   piece: Piece;
 }
 
+// How a game ended without a winner. `fifty-move` = 50 moves by each side
+// (100 plies) with no piece destroyed; `stalemate` = the side to move has no
+// legal action.
+export type DrawReason = 'agreement' | 'stalemate' | 'fifty-move';
+
 export interface GameState {
   setup: string;
   board: Board;
   turn: Color;
   winner: Color | null;
+  draw?: DrawReason | null; // optional: rooms persisted before draws existed lack it
+  quietPlies?: number; // plies since a piece was last destroyed (fifty-move rule)
   moveCount: number;
 }
 
@@ -59,6 +66,8 @@ export interface ApplyResult {
   laser?: LaserPoint[];
   removed?: Hit | null;
   winner?: Color | null;
+  draw?: DrawReason | null;
+  quietPlies?: number;
   turn?: Color;
 }
 

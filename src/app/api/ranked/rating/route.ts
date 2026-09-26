@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@/server/auth/currentUser';
 import { getStore } from '@/server/store';
-import { getRank, normalizeRating } from '@/game/ranking';
+import { getRank, normalizeRating, normalizeStars, starsToPromote } from '@/game/ranking';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +18,8 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     rating,
+    stars: normalizeStars(rating, existing?.stars),
+    starsToPromote: starsToPromote(rating),
     peakRating: Math.max(normalizeRating(existing?.peakRating), rating),
     wins: existing?.wins ?? 0,
     losses: existing?.losses ?? 0,

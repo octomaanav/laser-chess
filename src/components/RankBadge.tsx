@@ -4,10 +4,13 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   rating: number | null;
+  // Progress toward the next rank, drawn as pips under the name when given.
+  stars?: number;
+  starsToPromote?: number;
   size?: 'sm' | 'md';
 }
 
-export default function RankBadge({ rating, size = 'md' }: Props) {
+export default function RankBadge({ rating, stars, starsToPromote, size = 'md' }: Props) {
   if (rating == null) return null;
   const { name, emoji, color } = getRank(rating);
   const isPremium = name.includes('Diamond') || name.includes('Master');
@@ -29,7 +32,7 @@ export default function RankBadge({ rating, size = 'md' }: Props) {
           ? `0 10px 28px color-mix(in oklab, ${color} 20%, transparent), inset 0 1px 0 color-mix(in oklab, ${color} 38%, transparent)`
           : `0 8px 20px color-mix(in oklab, ${color} 10%, transparent), inset 0 1px 0 color-mix(in oklab, ${color} 24%, transparent)`
       }}
-      title={`${name} rank`}
+      title={starsToPromote ? `${name} rank · ${stars ?? 0}/${starsToPromote} stars to rank up` : `${name} rank`}
     >
       <span className={cn('relative grid shrink-0 place-items-center rounded-full border', compact ? 'size-7' : 'size-9')} style={{ borderColor: `${color}55` }}>
         <span
@@ -46,6 +49,20 @@ export default function RankBadge({ rating, size = 'md' }: Props) {
           Ranked
         </span>
         <span className={cn('truncate text-foreground', compact ? 'text-sm' : 'text-base')}>{name}</span>
+        {!!starsToPromote && (
+          <span className="flex gap-0.5" aria-label={`${stars ?? 0} of ${starsToPromote} stars`}>
+            {Array.from({ length: starsToPromote }, (_, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className="text-[10px] leading-none"
+                style={{ color: i < (stars ?? 0) ? color : 'var(--color-muted-foreground)', opacity: i < (stars ?? 0) ? 1 : 0.35 }}
+              >
+                ★
+              </span>
+            ))}
+          </span>
+        )}
       </span>
     </span>
   );
