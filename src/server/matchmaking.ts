@@ -4,6 +4,7 @@
 // hot-reload in dev without losing queued players.
 import { socialHub } from './social/socialHub';
 import type { SocialUser } from './social/types';
+import type { Difficulty } from '../game/bot/types';
 
 export interface QueueEntry {
   userId: string;
@@ -53,10 +54,13 @@ export const MATCHMAKING_BOT_PROFILES: { displayName: string; username: string }
   { displayName: 'Gabriel Silva', username: 'gabriel_s' },
 ];
 
-export function getBotDifficultyForRating(rating: number): 'easy' | 'medium' | 'hard' {
-  if (rating <= 4) return 'easy';
-  if (rating <= 9) return 'medium';
-  return 'hard';
+// The bot a ranked player meets when no human is around, by rank index:
+// Bronze easy, Silver medium, Gold & Platinum hard, Diamond & Master extreme.
+export function getBotDifficultyForRating(rating: number): Difficulty {
+  if (rating <= 2) return 'easy';
+  if (rating <= 5) return 'medium';
+  if (rating <= 11) return 'hard';
+  return 'extreme';
 }
 
 // How far from their own rank a player is currently willing to be matched.
@@ -73,7 +77,7 @@ type CreateRankedRoomFn = (redUserId: string, silverUserId: string, gameSlug: st
 type CreateRankedBotRoomFn = (
   humanUserId: string,
   humanColor: 'red' | 'silver',
-  botDifficulty: 'easy' | 'medium' | 'hard',
+  botDifficulty: Difficulty,
   botName: string,
   gameSlug: string
 ) => Promise<string>;

@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Copy, HelpCircle, Loader2, LogOut, Radio, RotateCcw, RotateCw, Wifi, WifiOff } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Copy, Flag, Handshake, HelpCircle, Loader2, LogOut, Radio, RotateCcw, RotateCw, Trophy, Wifi, WifiOff } from 'lucide-react';
 import type { GameController, PlayerView, ViewState } from '@/client/controller';
-import type { Color, PieceType } from '@/game/types';
+import type { Color, DrawReason, PieceType } from '@/game/types';
 import { opposite } from '@/game/engine';
 import { colorName } from '@/lib/labels';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,7 @@ const PLAYER: Record<Color, { tint: string; seat: string; solid: string }> = {
   },
 };
 const YOURS_TINT = 'border-laser/40 bg-laser/10 text-laser';
+const DRAW_TINT = 'border-border bg-muted text-foreground';
 
 const LEGEND = [
   { type: 'pharaoh', name: 'Pharaoh', desc: 'protect it at all costs.' },
@@ -94,19 +95,32 @@ function PieceGlyph({
 }
 
 export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }: { controller: GameController; view: ViewState; gameSlug?: string }) {
-  const { myColor, spectator, turn, winner } = view;
-  const yours = !spectator && turn === myColor && !winner;
+  const { myColor, spectator, turn, winner, over } = view;
+  const yours = !spectator && turn === myColor && !over;
+  const live = !spectator && view.bothSeated && !over;
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const social = useSocial();
   const gameRank = social?.rankInfo?.[gameSlug] ?? null;
 
-  const turnText = winner ? `${colorName(winner)} wins` : yours ? 'Your move' : `${colorName(turn)} to move`;
+  // The result dialog can be dismissed to study the final board / step through
+  // the moves. It comes back for the next game, or when the opponent asks for a rematch.
+  const [resultDismissed, setResultDismissed] = useState(false);
+  useEffect(() => {
+    if (!over || view.rematchOpp) setResultDismissed(false);
+  }, [over, view.rematchOpp]);
+  const [confirmResign, setConfirmResign] = useState(false);
+  useEffect(() => {
+    if (over) setConfirmResign(false);
+  }, [over]);
+  const newGame = () => (window.location.href = window.location.pathname);
+
+  const turnText = winner ? `${colorName(winner)} wins` : over ? 'Draw' : yours ? 'Your move' : `${colorName(turn)} to move`;
   const reviewing = view.reviewIndex != null;
 
   const bottomColor: Color = myColor ?? 'silver';
   const topColor = opposite(bottomColor);
   const oppOffline =
-    !spectator && view.bothSeated && !winner && view.players[topColor].seated && !view.players[topColor].online;
+    !spectator && view.bothSeated && !over && view.players[topColor].seated && !view.players[topColor].online;
 
   const copyLink = async () => {
     try {
@@ -140,7 +154,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
     return <GameLoadingSkeleton view={view} leave={leave} />;
   }
 
-  const turnPill = winner ? PLAYER[winner].tint : yours ? YOURS_TINT : PLAYER[turn].tint;
+  const turnPill = winner ? PLAYER[winner].tint : over ? DRAW_TINT : yours ? YOURS_TINT : PLAYER[turn].tint;
 
   return (
     <section className="flex h-dvh flex-col overflow-hidden">
@@ -153,7 +167,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
             <div className={cn('rounded-full border px-2 py-0.5 sm:px-3 sm:py-1 text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0', turnPill)}>
               {view.connected ? turnText : 'Connecting…'}
             </div>
-            {view.perMoveMs > 0 && view.turnEndsAt != null && !winner && <MoveTimer endsAt={view.turnEndsAt} />}
+            {view.perMoveMs > 0 && view.turnEndsAt != null && !over && <MoveTimer endsAt={view.turnEndsAt} />}
           </>
         }
         accountMenuExtra={
@@ -176,6 +190,29 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
         }
         rightContent={
           <>
+            {live && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => controller.offerDraw()}
+                  disabled={view.drawOfferMine}
+                  title={view.drawOfferOpp ? 'Accept the draw' : view.drawOfferMine ? 'Draw offered' : 'Offer a draw'}
+                  className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0"
+                >
+                  <Handshake className="size-3.5 sm:size-4" /> <span className="hidden sm:inline">{view.drawOfferMine ? 'Offered' : 'Draw'}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmResign(true)}
+                  title="Resign"
+                  className="h-8 px-2 sm:h-9 sm:px-3 text-xs sm:text-sm shrink-0"
+                >
+                  <Flag className="size-3.5 sm:size-4" /> <span className="hidden sm:inline">Resign</span>
+                </Button>
+              </>
+            )}
             <TutorialModal
               open={tutorialOpen}
               onOpenChange={setTutorialOpen}
@@ -193,7 +230,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
       <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="flex min-h-[calc(100dvh-54px)] sm:min-h-[calc(100dvh-60px)] lg:min-h-0 w-full shrink-0 lg:shrink lg:flex-1 flex-col items-center justify-center gap-2 p-2 sm:p-3 lg:justify-between lg:gap-1">
           <div className="flex shrink-0 items-center gap-2">
-            <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !winner} you={false} />
+            <SeatLabel color={topColor} info={view.players[topColor]} active={turn === topColor && !over} you={false} />
             <CapturedStrip pieces={view.captured[topColor]} />
           </div>
 
@@ -202,7 +239,22 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
               <b>Waiting for an opponent…</b> Share your link to invite someone.
             </Banner>
           )}
-          {!winner && view.forfeitOf && view.forfeitEndsAt != null ? (
+          {view.drawOfferOpp && (
+            <Banner tone="info">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span>
+                  <b>{view.players[topColor].name || colorName(topColor)}</b> offers a draw
+                </span>
+                <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => controller.offerDraw()}>
+                  Accept
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={() => controller.declineDraw()}>
+                  Decline
+                </Button>
+              </div>
+            </Banner>
+          )}
+          {!over && view.forfeitOf && view.forfeitEndsAt != null ? (
             <ForfeitBanner
               label={spectator ? colorName(view.forfeitOf) : view.forfeitOf === myColor ? 'You' : 'Your opponent'}
               endsAt={view.forfeitEndsAt}
@@ -265,7 +317,7 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
-            <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !winner} you={!spectator} />
+            <SeatLabel color={bottomColor} info={view.players[bottomColor]} active={turn === bottomColor && !over} you={!spectator} />
             <CapturedStrip pieces={view.captured[bottomColor]} />
           </div>
         </div>
@@ -277,13 +329,13 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Ranked</div>
-                  <div className="mt-1 text-sm text-muted-foreground">Climb one rank per win.</div>
+                  <div className="mt-1 text-sm text-muted-foreground">Each win earns a star. Fill them all to rank up.</div>
                 </div>
                 <span className="rounded-full border border-laser/30 bg-laser/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-laser">
                   Live
                 </span>
               </div>
-              <RankBadge rating={gameRank.rating} size="md" />
+              <RankBadge rating={gameRank.rating} stars={gameRank.stars} starsToPromote={gameRank.starsToPromote} size="md" />
             </Card>
           )}
 
@@ -343,7 +395,45 @@ export default function GamePlay({ controller, view, gameSlug = 'laser-chess' }:
         </aside>
       </main>
 
-      {winner && <WinOverlay controller={controller} view={view} />}
+      {over && !resultDismissed && <WinOverlay controller={controller} view={view} onClose={() => setResultDismissed(true)} onNewGame={newGame} />}
+      {over && resultDismissed && (
+        <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+          <Card className="glow-primary flex-row items-center gap-2 px-3 py-2">
+            <span className="px-1 text-sm font-semibold">Game over</span>
+            <Button size="sm" onClick={() => setResultDismissed(false)}>
+              <Trophy className="size-4" /> Result
+            </Button>
+            <Button size="sm" variant="outline" onClick={newGame}>
+              New game
+            </Button>
+          </Card>
+        </div>
+      )}
+
+      <Dialog open={confirmResign} onOpenChange={setConfirmResign}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Resign this game?</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Your opponent wins{view.isRanked ? ' and you drop a rank' : ''}.
+            </p>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmResign(false)}>
+              Keep playing
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setConfirmResign(false);
+                controller.resign();
+              }}
+            >
+              <Flag className="size-4" /> Resign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -520,41 +610,69 @@ function CasualtiesCard({ view }: { view: ViewState }) {
   );
 }
 
-function WinOverlay({ controller, view }: { controller: GameController; view: ViewState }) {
-  const { winner, spectator, myColor, overReason } = view;
+// On a stalemate the side left to move is the one with no legal action.
+function drawReasonText(reason: DrawReason, stuck: Color): string {
+  if (reason === 'agreement') return 'Draw agreed.';
+  if (reason === 'stalemate') return `Stalemate: ${colorName(stuck)} has no legal move.`;
+  return '50 moves each without a piece destroyed.';
+}
+
+function WinOverlay({
+  controller,
+  view,
+  onClose,
+  onNewGame,
+}: {
+  controller: GameController;
+  view: ViewState;
+  onClose: () => void;
+  onNewGame: () => void;
+}) {
+  const { winner, draw, spectator, myColor, overReason, turn } = view;
   const won = !spectator && winner === myColor;
   const byTimeout = overReason === 'timeout';
   const byForfeit = overReason === 'forfeit';
-  const loser = colorName(opposite(winner!));
-  const emoji = spectator ? '🎉' : won ? '🏆' : '💥';
-  const title = spectator ? `${colorName(winner!)} wins!` : won ? 'Victory!' : 'Defeat';
-  const sub = spectator
-    ? byTimeout
-      ? `${loser} ran out of time.`
-      : byForfeit
-        ? `${loser} disconnected.`
-        : 'The game is over.'
-    : won
+  const byResign = overReason === 'resign';
+  const loser = winner ? colorName(opposite(winner)) : '';
+  const emoji = draw ? '🤝' : spectator ? '🎉' : won ? '🏆' : '💥';
+  const title = draw ? 'Draw' : spectator ? `${colorName(winner!)} wins!` : won ? 'Victory!' : 'Defeat';
+  const sub = draw
+    ? drawReasonText(draw, turn)
+    : spectator
       ? byTimeout
-        ? 'Your opponent ran out of time.'
+        ? `${loser} ran out of time.`
         : byForfeit
-          ? 'Your opponent left the game.'
-          : 'You struck the enemy Pharaoh.'
-      : byTimeout
-        ? 'You ran out of time.'
-        : byForfeit
-          ? 'You were disconnected too long.'
-          : 'Your Pharaoh was hit.';
+          ? `${loser} disconnected.`
+          : byResign
+            ? `${loser} resigned.`
+            : 'The game is over.'
+      : won
+        ? byTimeout
+          ? 'Your opponent ran out of time.'
+          : byForfeit
+            ? 'Your opponent left the game.'
+            : byResign
+              ? 'Your opponent resigned.'
+              : 'You struck the enemy Pharaoh.'
+        : byTimeout
+          ? 'You ran out of time.'
+          : byForfeit
+            ? 'You were disconnected too long.'
+            : byResign
+              ? 'You resigned.'
+              : 'Your Pharaoh was hit.';
   const { rematchMine, rematchOpp } = view;
   const oppColor = myColor ? opposite(myColor) : 'silver';
   const oppName = view.players[oppColor].name || colorName(oppColor);
 
   return (
-    <Dialog open>
-      <DialogContent className="glow-primary sm:max-w-sm [&>button]:hidden">
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="glow-primary sm:max-w-sm">
         <DialogHeader className="items-center text-center">
           <div className="text-5xl">{emoji}</div>
-          <DialogTitle className={cn('font-display text-3xl', winner === 'red' ? 'text-player-red' : 'text-player-teal')}>{title}</DialogTitle>
+          <DialogTitle className={cn('font-display text-3xl', !winner ? 'text-foreground' : winner === 'red' ? 'text-player-red' : 'text-player-teal')}>
+            {title}
+          </DialogTitle>
           <p className="text-sm text-muted-foreground">{sub}</p>
         </DialogHeader>
         {!spectator && rematchOpp && !rematchMine && <p className="text-center text-sm text-laser">{oppName} wants a rematch</p>}
@@ -579,9 +697,14 @@ function WinOverlay({ controller, view }: { controller: GameController; view: Vi
                 Rematch (swap sides)
               </Button>
             ))}
-          <Button variant="ghost" className="w-full" onClick={() => (window.location.href = window.location.pathname)}>
-            New game
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onClose}>
+              Review board
+            </Button>
+            <Button variant="ghost" className="flex-1" onClick={onNewGame}>
+              New game
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

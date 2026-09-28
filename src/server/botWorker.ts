@@ -1,4 +1,5 @@
 import { Worker } from 'node:worker_threads';
+import { TIERS } from '../game/bot/bot';
 import { enumerateActions } from '../game/bot/moveGen';
 import type { Difficulty } from '../game/bot/types';
 import type { Action, Color, GameState } from '../game/types';
@@ -10,12 +11,13 @@ import type { Action, Color, GameState } from '../game/types';
 // random-move play (see randomFallback below) with only a console.error to
 // notice.
 const WORKER_FILE_URL = new URL('./botWorkerThread.ts', import.meta.url).href;
-// Hard ceiling above the largest difficulty budget (hard = 6000ms), so a
-// stuck search can never hang a room indefinitely.
-const WORKER_TIMEOUT_MS = 8000;
+// Hard ceiling above each tier's think time (plus worker startup), so a stuck
+// search can never hang a room indefinitely.
+const WORKER_GRACE_MS = 4000;
+const workerTimeoutMs = (difficulty: Difficulty) => TIERS[difficulty].budgetMs + WORKER_GRACE_MS;
 
-// Simple concurrency cap: an unbounded number of hard-difficulty bot rooms
-// (each spawning a full-CPU worker thread for up to 3s) could otherwise pin
+// Simple concurrency cap: an unbounded number of bot rooms (each spawning a
+// full-CPU worker thread for up to 10s on extreme) could otherwise pin
 // many cores at once with no human interaction required, since a bot seated
 // on room creation moves automatically. Requests beyond the cap wait in a
 // small in-memory queue for a slot rather than being rejected outright.
@@ -109,7 +111,7 @@ function runInWorker(state: GameState, color: Color, difficulty: Difficulty): Pr
     const timer = setTimeout(() => {
       worker.terminate();
       reject(new Error('bot worker timed out'));
-    }, WORKER_TIMEOUT_MS);
+    }, workerTimeoutMs(difficulty));
 
     worker.once('message', (msg: WorkerResult) => {
       clearTimeout(timer);

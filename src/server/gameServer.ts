@@ -3,17 +3,17 @@
 import type { IncomingMessage } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 
-import { createGame, listSetups } from './setupStore';
-import { applyAction, opposite } from '../game/engine';
+import { createGame, listSetups, randomRankedSetup } from './setupStore';
+import { applyAction, isGameOver, opposite } from '../game/engine';
 import { requestBotMove } from './botWorker';
 import { DIFFICULTIES, type Difficulty } from '../game/bot/types';
 import crypto from 'node:crypto';
 import { resolveAccountFromReq } from './auth/cookies';
 import { getStore, type PersistedRoom } from './store';
-import { applyResult, getRank, normalizeRating } from '../game/ranking';
+import { applyResult, getRank, normalizeRating, normalizeStars, starsToPromote } from '../game/ranking';
 import { socialHub } from './social/socialHub';
-import { registerCreateRankedRoom, registerCreateRankedBotRoom } from './matchmaking';
-import type { Action, Color, GameState } from '../game/types';
+import { registerCreateRankedRoom, registerCreateRankedBotRoom, getBotDifficultyForRating } from './matchmaking';
+import type { Action, Color, DrawReason, GameState } from '../game/types';
 import type { ClientMessage, Names, PlayerSlots, ServerMessage } from '../game/messages';
 
 interface Client extends WebSocket {
@@ -40,18 +40,21 @@ interface Room {
   forfeitColor: Color | null; // who is about to forfeit (the disconnected player)
   forfeitDeadline: number | null; // epoch ms when the forfeit fires
   rematch: PlayerSlots; // rematch consent votes (both must agree)
+  drawOffer: Color | null; // who has a draw offer pending
+  drawOfferedAtMove: Record<Color, number | null>; // moveCount at each side's last offer (one offer per move)
   botDifficulty: Partial<Record<Color, Difficulty>>; // seats occupied by a bot
   botThinking: boolean; // true while a requestBotMove() call is in flight for this room
   isRanked: boolean;
   rankedGameSlug: string;
   rankedUserIds: { red: string | null; silver: string | null };
   rankedSettled: boolean; // prevents double rating settlement if multiple end-events fire
+  rankSettling: Promise<void> | null; // in-flight settlement, awaited before a ranked bot rematch
   startedAt: number;
 }
 
 const rooms = new Map<string, Room>();
 
-function recordGameEnd(room: Room, winner: Color | null, status: 'completed' | 'forfeit' | 'timeout' | 'resigned') {
+function recordGameEnd(room: Room, winner: Color | null, status: 'completed' | 'forfeit' | 'timeout' | 'resigned' | 'draw') {
   const winnerName = winner ? room.names[winner] ?? winner : null;
   const isBot = !!(room.botDifficulty.red || room.botDifficulty.silver);
   const botDiff = room.botDifficulty.red || room.botDifficulty.silver || null;
@@ -121,12 +124,15 @@ function makeRoom(code: string, game: GameState, perMoveMs: number): Room {
     forfeitColor: null,
     forfeitDeadline: null,
     rematch: { red: false, silver: false },
+    drawOffer: null,
+    drawOfferedAtMove: { red: null, silver: null },
     botDifficulty: {},
     botThinking: false,
     isRanked: false,
     rankedGameSlug: '',
     rankedUserIds: { red: null, silver: null },
     rankedSettled: false,
+    rankSettling: null,
     startedAt: Date.now(),
   };
 }
@@ -168,12 +174,15 @@ function hydrateRoom(p: PersistedRoom): Room {
     forfeitColor: p.forfeitColor ?? null,
     forfeitDeadline: p.forfeitDeadline ?? null,
     rematch: { red: false, silver: false },
+    drawOffer: null,
+    drawOfferedAtMove: { red: null, silver: null },
     botDifficulty: p.botDifficulty ?? {},
     botThinking: false,
     isRanked: p.isRanked ?? false,
     rankedGameSlug: p.rankedGameSlug ?? '',
     rankedUserIds: p.rankedUserIds ?? { red: null, silver: null },
     rankedSettled: p.rankedSettled ?? false, // settlement is NOT idempotent (±1 rank, +1 win/loss)
+    rankSettling: null,
     startedAt: p.turnStartedAt || Date.now(),
   };
 }
@@ -183,7 +192,7 @@ function hydrateRoom(p: PersistedRoom): Room {
 // pre-loaded with both player IDs so rating settlement can find them after the game.
 export async function createRankedRoom(redUserId: string, silverUserId: string, gameSlug: string): Promise<string> {
   const code = makeCode();
-  const room = makeRoom(code, await createGame('Classic'), 0);
+  const room = makeRoom(code, await createGame(randomRankedSetup()), 0);
   room.isRanked = true;
   room.rankedGameSlug = gameSlug;
   room.rankedUserIds = { red: redUserId, silver: silverUserId };
@@ -201,7 +210,7 @@ export async function createRankedBotRoom(
   gameSlug: string
 ): Promise<string> {
   const code = makeCode();
-  const room = makeRoom(code, await createGame('Classic'), 0);
+  const room = makeRoom(code, await createGame(randomRankedSetup()), 0);
   room.isRanked = true;
   room.rankedGameSlug = gameSlug;
 
@@ -229,77 +238,55 @@ registerCreateRankedBotRoom('laser-chess', createRankedBotRoom);
 
 // Settle rank after a ranked game ends. Called from every game-ending path
 // (move win, timeout, forfeit). `rankedSettled` prevents double-execution.
-async function finalizeRanked(room: Room, winner: Color) {
+// The in-flight promise is kept on the room so a bot rematch can wait for the
+// new rating before picking the bot's difficulty.
+function finalizeRanked(room: Room, winner: Color | null): Promise<void> {
+  const settling = settleRanked(room, winner);
+  room.rankSettling = settling.catch(() => {});
+  return settling;
+}
+
+async function settleRanked(room: Room, winner: Color | null) {
   if (!room.isRanked || room.rankedSettled) return;
   const { red: redId, silver: silverId } = room.rankedUserIds;
   if (!redId || !silverId) return;
   room.rankedSettled = true;
   persist(room); // durable before the awaits below, so a restart can't re-award
+  if (!winner) return; // a draw leaves both ranks where they were
 
   const store = getStore();
   const gameSlug = room.rankedGameSlug;
-
-  const isBotId = (id: string) => id.startsWith('bot:');
-
-  const [redRec, silverRec] = await Promise.all([
-    isBotId(redId) ? Promise.resolve(null) : store.getRating(redId, gameSlug),
-    isBotId(silverId) ? Promise.resolve(null) : store.getRating(silverId, gameSlug),
-  ]);
-
-  const redRating = normalizeRating(redRec?.rating);
-  const silverRating = normalizeRating(silverRec?.rating);
-
-  const newRedRating = applyResult(redRating, winner === 'red');
-  const newSilverRating = applyResult(silverRating, winner === 'silver');
   const now = Date.now();
 
-  const updates: Promise<any>[] = [];
-
-  if (!isBotId(redId)) {
-    updates.push(
-      store.upsertRating({
-        userId: redId, gameSlug,
-        rating: newRedRating,
-        peakRating: Math.max(normalizeRating(redRec?.peakRating), newRedRating),
-        wins: (redRec?.wins ?? 0) + (winner === 'red' ? 1 : 0),
-        losses: (redRec?.losses ?? 0) + (winner === 'red' ? 0 : 1),
+  await Promise.all(
+    (['red', 'silver'] as const).map(async (color) => {
+      const userId = room.rankedUserIds[color]!;
+      if (userId.startsWith('bot:')) return;
+      const won = winner === color;
+      const rec = await store.getRating(userId, gameSlug);
+      const rating = normalizeRating(rec?.rating);
+      const next = applyResult({ rating, stars: normalizeStars(rating, rec?.stars) }, won);
+      await store.upsertRating({
+        userId,
+        gameSlug,
+        rating: next.rating,
+        stars: next.stars,
+        peakRating: Math.max(normalizeRating(rec?.peakRating), next.rating),
+        wins: (rec?.wins ?? 0) + (won ? 1 : 0),
+        losses: (rec?.losses ?? 0) + (won ? 0 : 1),
         updatedAt: now,
-      }),
-      Promise.resolve(
-        socialHub.notify(redId, {
-          type: 'rating-updated',
-          gameSlug,
-          newRating: newRedRating,
-          delta: newRedRating - redRating,
-          rankName: getRank(newRedRating).name,
-        })
-      )
-    );
-  }
-
-  if (!isBotId(silverId)) {
-    updates.push(
-      store.upsertRating({
-        userId: silverId, gameSlug,
-        rating: newSilverRating,
-        peakRating: Math.max(normalizeRating(silverRec?.peakRating), newSilverRating),
-        wins: (silverRec?.wins ?? 0) + (winner === 'silver' ? 1 : 0),
-        losses: (silverRec?.losses ?? 0) + (winner === 'silver' ? 0 : 1),
-        updatedAt: now,
-      }),
-      Promise.resolve(
-        socialHub.notify(silverId, {
-          type: 'rating-updated',
-          gameSlug,
-          newRating: newSilverRating,
-          delta: newSilverRating - silverRating,
-          rankName: getRank(newSilverRating).name,
-        })
-      )
-    );
-  }
-
-  await Promise.all(updates);
+      });
+      socialHub.notify(userId, {
+        type: 'rating-updated',
+        gameSlug,
+        newRating: next.rating,
+        delta: next.rating - rating,
+        stars: next.stars,
+        starsToPromote: starsToPromote(next.rating),
+        rankName: getRank(next.rating).name,
+      });
+    }),
+  );
 }
 
 // Which side a signed-in account is entitled to in a ranked room, if any.
@@ -337,7 +324,7 @@ function resetTurnClockForNewTurn(room: Room) {
 
 function startTurnClock(room: Room) {
   stopTurnClockTimer(room);
-  if (room.perMoveMs <= 0 || room.game.winner || !bothSeated(room)) return;
+  if (room.perMoveMs <= 0 || isGameOver(room.game) || !bothSeated(room)) return;
   const on = presence(room);
   if (!on.red || !on.silver) return; // don't run the move clock while a player is offline
 
@@ -356,12 +343,13 @@ function startTurnClock(room: Room) {
 }
 
 function turnEndsIn(room: Room): number | null {
-  if (room.perMoveMs <= 0 || room.turnStartedAt == null || room.game.winner) return null;
+  if (room.perMoveMs <= 0 || room.turnStartedAt == null || isGameOver(room.game)) return null;
   return Math.max(0, room.perMoveMs - (Date.now() - room.turnStartedAt));
 }
 function onTimeout(room: Room) {
-  if (room.game.winner) return;
+  if (isGameOver(room.game)) return;
   room.game.winner = opposite(room.game.turn); // the player on the clock loses
+  room.drawOffer = null;
   stopTurnClock(room);
   persist(room);
   broadcast(room, { type: 'timeout', winner: room.game.winner });
@@ -389,7 +377,7 @@ function armForfeit(room: Room) {
 // already ticking. The deadline is anchored to when the player first went offline, so
 // the opponent reloading (or the server restarting) never restarts the clock.
 function refreshForfeit(room: Room) {
-  if (room.game.winner || !bothSeated(room)) return clearForfeit(room);
+  if (isGameOver(room.game) || !bothSeated(room)) return clearForfeit(room);
   const online = presence(room);
   if (room.forfeitColor) {
     if (online[room.forfeitColor]) clearForfeit(room); // they came back → cancel
@@ -404,23 +392,40 @@ function refreshForfeit(room: Room) {
   armForfeit(room);
 }
 // End the game against `loser` right now - no countdown. Used by the disconnect
-// timer and by an explicit Leave.
-function forfeitNow(room: Room, loser: Color) {
-  if (room.game.winner) return;
-  room.game.winner = opposite(loser);
+// timer and an explicit Leave (a forfeit), and by the Resign button.
+function forfeitNow(room: Room, loser: Color, how: 'forfeit' | 'resign' = 'forfeit') {
+  if (isGameOver(room.game)) return;
+  const winner = opposite(loser);
+  room.game.winner = winner;
+  room.drawOffer = null;
   clearForfeit(room);
   stopTurnClock(room);
   persist(room);
-  broadcast(room, { type: 'forfeit', winner: room.game.winner });
+  broadcast(room, { type: how, winner });
   broadcast(room, snapshot(room));
-  recordGameEnd(room, room.game.winner, 'forfeit');
-  void finalizeRanked(room, room.game.winner).catch((e) => console.error('finalizeRanked failed:', e));
+  recordGameEnd(room, winner, how === 'resign' ? 'resigned' : 'forfeit');
+  void finalizeRanked(room, winner).catch((e) => console.error('finalizeRanked failed:', e));
+}
+
+// End the game as a draw outside of a move (agreement). Draws produced by a
+// move - fifty-move rule, stalemate - are handled in applyGameAction.
+function drawNow(room: Room, reason: DrawReason) {
+  if (isGameOver(room.game)) return;
+  room.game.draw = reason;
+  room.drawOffer = null;
+  clearForfeit(room);
+  stopTurnClock(room);
+  persist(room);
+  broadcast(room, { type: 'draw', reason });
+  broadcast(room, snapshot(room));
+  recordGameEnd(room, null, 'draw');
+  void finalizeRanked(room, null).catch((e) => console.error('finalizeRanked failed:', e));
 }
 
 function doForfeit(room: Room) {
   const loser = room.forfeitColor;
   room.forfeitTimer = null;
-  if (room.game.winner || !loser || presence(room)[loser]) return clearForfeit(room);
+  if (isGameOver(room.game) || !loser || presence(room)[loser]) return clearForfeit(room);
   forfeitNow(room, loser);
 }
 
@@ -430,7 +435,44 @@ function doForfeit(room: Room) {
 function onLeave(ws: Client) {
   const room = ws.room;
   if (!room || !ws.color) return;
-  if (!room.game.winner && bothSeated(room)) forfeitNow(room, ws.color);
+  if (!isGameOver(room.game) && bothSeated(room)) forfeitNow(room, ws.color);
+}
+
+function onResign(ws: Client) {
+  const room = ws.room;
+  if (!room || !ws.color) return;
+  if (isGameOver(room.game) || !bothSeated(room)) return send(ws, { type: 'error', message: 'nothing to resign' });
+  forfeitNow(room, ws.color, 'resign');
+}
+
+// Offering when the opponent already has an offer on the table accepts it.
+// Each side gets one offer per move, so a declined offer can't be spammed.
+function onDrawOffer(ws: Client) {
+  const room = ws.room;
+  if (!room || !ws.color) return;
+  if (isGameOver(room.game) || !bothSeated(room)) return;
+  const me = ws.color;
+  if (room.drawOffer === opposite(me)) return drawNow(room, 'agreement');
+  if (room.drawOffer === me) return;
+  if (room.drawOfferedAtMove[me] === room.game.moveCount) {
+    return send(ws, { type: 'error', message: 'you can offer a draw again after the next move' });
+  }
+  room.drawOfferedAtMove[me] = room.game.moveCount;
+  // Bots play on: a draw offer to a bot is declined straight away.
+  if (room.botDifficulty[opposite(me)]) {
+    broadcast(room, { type: 'draw-declined', by: opposite(me) });
+    return;
+  }
+  room.drawOffer = me;
+  broadcast(room, snapshot(room));
+}
+
+function onDrawDecline(ws: Client) {
+  const room = ws.room;
+  if (!room || !ws.color || !room.drawOffer) return;
+  room.drawOffer = null;
+  broadcast(room, { type: 'draw-declined', by: ws.color });
+  broadcast(room, snapshot(room));
 }
 
 function presence(room: Room): PlayerSlots {
@@ -449,6 +491,8 @@ function snapshot(room: Room): ServerMessage {
     board: room.game.board,
     turn: room.game.turn,
     winner: room.game.winner,
+    draw: room.game.draw ?? null,
+    drawOffer: room.drawOffer,
     names: room.names,
     seated: { red: !!room.seats.red, silver: !!room.seats.silver },
     online: presence(room),
@@ -566,6 +610,9 @@ async function handle(ws: Client, msg: ClientMessage) {
   if (msg.type === 'rematch') return onRematch(ws, msg);
   if (msg.type === 'rematch-decline') return onRematchDecline(ws);
   if (msg.type === 'leave') return onLeave(ws);
+  if (msg.type === 'resign') return onResign(ws);
+  if (msg.type === 'draw-offer') return onDrawOffer(ws);
+  if (msg.type === 'draw-decline') return onDrawDecline(ws);
   if (msg.type === 'chat') {
     const room = ws.room;
     if (room && ws.name)
@@ -634,7 +681,7 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
   room.clients.add(ws);
 
   // (Re)start the clock once a seat is taken and both players are present.
-  if (color && bothSeated(room) && !room.game.winner) startTurnClock(room);
+  if (color && bothSeated(room) && !isGameOver(room.game)) startTurnClock(room);
   refreshForfeit(room); // a returning player cancels their own forfeit; keeps the opponent's ticking
 
   send(ws, { type: 'joined', code: room.code, you: color, spectator: !color });
@@ -648,7 +695,7 @@ async function onJoin(ws: Client, msg: Extract<ClientMessage, { type: 'join' }>)
 // "the authoritative engine validated it and everyone was told" - a bot is
 // never a special case here, just another caller.
 function applyGameAction(room: Room, color: Color, action: Action): { ok: boolean; error?: string } {
-  if (room.game.winner) return { ok: false, error: 'game-over' };
+  if (isGameOver(room.game)) return { ok: false, error: 'game-over' };
 
   const result = applyAction(room.game, color, action);
   if (!result.ok) return { ok: false, error: result.error };
@@ -656,11 +703,16 @@ function applyGameAction(room: Room, color: Color, action: Action): { ok: boolea
   room.game.board = result.board;
   room.game.turn = result.turn;
   room.game.winner = result.winner;
+  room.game.draw = result.draw;
+  room.game.quietPlies = result.quietPlies;
   room.game.moveCount++;
+  // Making a move answers any pending draw offer with "no" (and withdraws your own).
+  const hadDrawOffer = room.drawOffer != null;
+  room.drawOffer = null;
 
-  if (result.winner) {
+  if (result.winner || result.draw) {
     stopTurnClock(room);
-    recordGameEnd(room, result.winner, 'completed');
+    recordGameEnd(room, result.winner, result.draw ? 'draw' : 'completed');
     void finalizeRanked(room, result.winner).catch((e) => console.error('finalizeRanked failed:', e));
   } else {
     resetTurnClockForNewTurn(room); // reset the clock for the next player's turn
@@ -677,9 +729,11 @@ function applyGameAction(room: Room, color: Color, action: Action): { ok: boolea
     board: result.board,
     turn: result.turn,
     winner: result.winner,
+    draw: result.draw,
     perMoveMs: room.perMoveMs,
     turnEndsIn: turnEndsIn(room),
   });
+  if (hadDrawOffer) broadcast(room, snapshot(room));
 
   maybeTriggerBot(room);
   return { ok: true };
@@ -698,7 +752,7 @@ function onAction(ws: Client, msg: Extract<ClientMessage, { type: 'action' }>) {
 // used for human moves. botThinking guards against dispatching twice if this
 // is called again (e.g. from onJoin) before the first request resolves.
 function maybeTriggerBot(room: Room) {
-  if (room.game.winner || room.botThinking) return;
+  if (isGameOver(room.game) || room.botThinking) return;
   const color = room.game.turn;
   const difficulty = room.botDifficulty[color];
   if (!difficulty) return;
@@ -716,20 +770,30 @@ function maybeTriggerBot(room: Room) {
     });
 }
 
+const rematchesInFlight = new WeakSet<Room>();
+
 // A rematch needs BOTH players to agree. The first click records that player's
 // vote and the opponent is shown "… wants a rematch"; once both have voted the
 // game actually resets (with sides swapped).
 async function onRematch(ws: Client, msg: Extract<ClientMessage, { type: 'rematch' }>) {
   const room = ws.room;
   if (!room || !ws.color) return;
-  if (!room.game.winner) return; // rematch only makes sense once the game is over
+  if (!isGameOver(room.game)) return; // rematch only makes sense once the game is over
   room.rematch[ws.color] = true;
   // A bot seat can never send a `rematch` message itself, so treat it as an
   // automatic yes - otherwise a human-vs-bot rematch would hang forever.
   const redAgreed = room.rematch.red || !!room.botDifficulty.red;
   const silverAgreed = room.rematch.silver || !!room.botDifficulty.silver;
   if (redAgreed && silverAgreed) {
-    await performRematch(room, msg.setup);
+    // performRematch awaits before swapping seats; a second consent arriving
+    // in that window would otherwise swap them back.
+    if (rematchesInFlight.has(room)) return;
+    rematchesInFlight.add(room);
+    try {
+      await performRematch(room, msg.setup);
+    } finally {
+      rematchesInFlight.delete(room);
+    }
   } else {
     broadcast(room, snapshot(room)); // tells the opponent someone wants a rematch
   }
@@ -744,9 +808,31 @@ function onRematchDecline(ws: Client) {
   broadcast(room, snapshot(room));
 }
 
+// A ranked bot's difficulty was chosen from the human's rank at queue time.
+// Rematching keeps the room, so re-pick it from the rank the human has *now* -
+// otherwise a player can farm the same easy bot all the way to Master.
+async function rescaleRankedBot(room: Room) {
+  const botColor = (['red', 'silver'] as const).find((c) => room.botDifficulty[c]);
+  if (!botColor) return;
+  const humanId = room.rankedUserIds[opposite(botColor)];
+  if (!humanId) return;
+
+  await room.rankSettling; // the previous game's rank change must land first
+  const rec = await getStore().getRating(humanId, room.rankedGameSlug);
+  const difficulty = getBotDifficultyForRating(normalizeRating(rec?.rating));
+  if (difficulty === room.botDifficulty[botColor]) return;
+
+  const botId = `bot:${difficulty}:${crypto.randomUUID()}`;
+  room.botDifficulty[botColor] = difficulty;
+  room.seats[botColor] = botId;
+  room.rankedUserIds[botColor] = botId;
+}
+
 async function performRematch(room: Room, requestedSetup?: string) {
   const known = (await listSetups()).some((s) => s.name === requestedSetup);
-  const setup = requestedSetup && known ? requestedSetup : room.game.setup;
+  // Ranked rematches re-roll from the built-in pool rather than trusting a
+  // client-requested (possibly custom) setup.
+  const setup = room.isRanked ? randomRankedSetup() : requestedSetup && known ? requestedSetup : room.game.setup;
   const oldSeats = { ...room.seats },
     oldNames = { ...room.names },
     oldBotDifficulty = { ...room.botDifficulty };
@@ -759,12 +845,15 @@ async function performRematch(room: Room, requestedSetup?: string) {
   if (room.isRanked) {
     room.rankedUserIds = { red: room.rankedUserIds.silver, silver: room.rankedUserIds.red };
     room.rankedSettled = false;
+    await rescaleRankedBot(room);
   }
   for (const c of room.clients) {
     if (c.playerId && seatOf(room, c.playerId)) c.color = seatOf(room, c.playerId);
   }
   room.game = await createGame(setup);
   room.rematch = { red: false, silver: false };
+  room.drawOffer = null;
+  room.drawOfferedAtMove = { red: null, silver: null };
   clearForfeit(room);
   if (bothSeated(room)) resetTurnClockForNewTurn(room);
   else stopTurnClock(room);

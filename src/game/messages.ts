@@ -1,5 +1,5 @@
 // Wire protocol shared between client and server.
-import type { Action, Board, Color, Hit, LaserPoint } from './types';
+import type { Action, Board, Color, DrawReason, Hit, LaserPoint } from './types';
 import type { Difficulty } from './bot/types';
 
 export interface PlayerSlots {
@@ -18,6 +18,9 @@ export type ClientMessage =
   | { type: 'rematch'; setup?: string } // request or accept a rematch
   | { type: 'rematch-decline' } // decline / cancel a pending rematch
   | { type: 'leave' } // deliberately quitting a live game - an immediate loss
+  | { type: 'resign' } // conceding while staying in the room
+  | { type: 'draw-offer' } // offer (or accept, if the opponent already offered) a draw
+  | { type: 'draw-decline' } // decline the opponent's offer, or withdraw your own
   | { type: 'chat'; text: string };
 
 // ---- server → client -------------------------------------------------------
@@ -30,6 +33,8 @@ export type ServerMessage =
       board: Board;
       turn: Color;
       winner: Color | null;
+      draw: DrawReason | null;
+      drawOffer: Color | null; // who has a draw offer pending, if anyone
       names: Names;
       seated: PlayerSlots;
       online: PlayerSlots;
@@ -49,11 +54,15 @@ export type ServerMessage =
       board: Board;
       turn: Color;
       winner: Color | null;
+      draw: DrawReason | null;
       perMoveMs: number;
       turnEndsIn: number | null;
     }
   | { type: 'timeout'; winner: Color } // a player ran out of time
   | { type: 'forfeit'; winner: Color } // opponent disconnected and didn't return in time
+  | { type: 'resign'; winner: Color } // the other player resigned
+  | { type: 'draw'; reason: DrawReason } // the game ended in a draw outside of a move (i.e. by agreement)
+  | { type: 'draw-declined'; by: Color } // a pending draw offer was declined or withdrawn
   | { type: 'rematch' } // both agreed - the game has been reset
   | { type: 'rematch-declined'; by: Color } // opponent declined/cancelled the rematch
   | { type: 'reseat'; you: Color | null }

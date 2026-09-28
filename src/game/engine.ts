@@ -4,7 +4,7 @@
 // Coordinate system:  board[y][x]   x = column 0..9 (left→right),  y = row 0..7 (top→bottom)
 // Directions:         0=N 1=E 2=S 3=W   (index into DIRS)
 // Colors:             'red' (top of board) and 'silver' (bottom)
-import type { Action, Board, Color, GameState, Hit, LaserPoint, Piece } from './types';
+import type { Action, Board, Color, DrawReason, GameState, Hit, LaserPoint, Piece } from './types';
 
 export const COLS = 10;
 export const ROWS = 8;
@@ -151,6 +151,35 @@ export function legalActionsFor(board: Board, color: Color, x: number, y: number
   return actions;
 }
 
+// How many actions `color` has - the same count as summing legalActionsFor over
+// every piece, without building the lists. The bot's evaluation calls this for
+// both sides at every leaf.
+export function countLegalActions(board: Board, color: Color): number {
+  let n = 0;
+  for (let y = 0; y < ROWS; y++)
+    for (let x = 0; x < COLS; x++) {
+      const p = board[y][x];
+      if (!p || p.color !== color) continue;
+      if (p.type === 'sphinx') {
+        for (const o of sphinxLegalOrients(x, y)) if (o !== p.orient) n++;
+        continue;
+      }
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const tx = x + dx,
+            ty = y + dy;
+          if (!inBounds(tx, ty)) continue;
+          if (tx === 0 && color !== 'red') continue;
+          if (tx === COLS - 1 && color !== 'silver') continue;
+          const target = board[ty][tx];
+          if (!target || (p.type === 'scarab' && canSwap(target.type))) n++;
+        }
+      if (p.type !== 'pharaoh') n += 2;
+    }
+  return n;
+}
+
 function actionAllowed(board: Board, color: Color, action: Action): boolean {
   const list = legalActionsFor(board, color, action.x, action.y);
   return list.some((a) => {
@@ -176,31 +205,75 @@ export function applyMoveOnly(board: Board, action: Action): Board {
   return b;
 }
 
-// Full authoritative turn: validate → move → fire laser → remove → detect win.
+export function isGameOver(state: GameState): boolean {
+  return !!state.winner || !!state.draw;
+}
+
+// 50 moves by each side without a piece being destroyed is a draw, as in chess.
+export const FIFTY_MOVE_PLIES = 100;
+
+// Runs after every action (including inside the bot's search), so it bails on
+// the first piece that can obviously act: every piece but the pharaoh and the
+// sphinx can always rotate.
+function hasAnyLegalAction(board: Board, color: Color): boolean {
+  for (let y = 0; y < ROWS; y++)
+    for (let x = 0; x < COLS; x++) {
+      const p = board[y][x];
+      if (!p || p.color !== color) continue;
+      if (p.type !== 'pharaoh' && p.type !== 'sphinx') return true;
+      if (legalActionsFor(board, color, x, y).length > 0) return true;
+    }
+  return false;
+}
+
+// Full authoritative turn: validate → move → fire laser → remove → detect win or draw.
 export function applyAction(state: GameState, color: Color, action: Action) {
-  if (state.winner) return { ok: false as const, error: 'game-over' };
+  if (isGameOver(state)) return { ok: false as const, error: 'game-over' };
   if (state.turn !== color) return { ok: false as const, error: 'not-your-turn' };
   if (!actionAllowed(state.board, color, action)) return { ok: false as const, error: 'illegal' };
+  return resolveAction(state, color, action);
+}
 
-  const preLaser = applyMoveOnly(state.board, action);
-  const { path, hit } = fireLaser(preLaser, color);
+// The turn itself, for an action already known to be legal - the bot's search
+// generates its own actions and calls this at every node, skipping validation.
+// Pieces are never mutated in place, so the new board shares every untouched
+// piece with the old one and only copies the rows and the one rotated piece.
+export function resolveAction(state: GameState, color: Color, action: Action) {
+  const board = state.board.map((row) => row.slice());
+  const p = board[action.y][action.x]!;
+  if (action.type === 'rotate') {
+    board[action.y][action.x] = { ...p, orient: action.orient };
+  } else {
+    const target = board[action.ty][action.tx];
+    board[action.ty][action.tx] = p;
+    board[action.y][action.x] = target; // swap leaves the other piece behind
+  }
+  const { path, hit } = fireLaser(board, color);
 
   let removed: Hit | null = null;
-  const resolved = cloneBoard(preLaser);
   if (hit) {
     removed = { x: hit.x, y: hit.y, piece: hit.piece };
-    resolved[hit.y][hit.x] = null;
+    board[hit.y][hit.x] = null;
   }
 
   let winner: Color | null = null;
   if (hit && hit.piece.type === 'pharaoh') winner = opposite(hit.piece.color);
 
+  const quietPlies = removed ? 0 : (state.quietPlies ?? 0) + 1;
+  let draw: DrawReason | null = null;
+  if (!winner) {
+    if (quietPlies >= FIFTY_MOVE_PLIES) draw = 'fifty-move';
+    else if (!hasAnyLegalAction(board, opposite(color))) draw = 'stalemate';
+  }
+
   return {
     ok: true as const,
-    board: resolved,
+    board,
     laser: path,
     removed,
     winner,
-    turn: winner ? state.turn : opposite(color),
+    draw,
+    quietPlies,
+    turn: winner ? state.turn : opposite(color), // on a stalemate this is the side left without a move
   };
 }

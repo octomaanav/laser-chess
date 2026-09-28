@@ -1,33 +1,38 @@
-import { search } from './search';
+import { search, type SearchOptions } from './search';
 import type { Difficulty } from './types';
 import type { Action, Color, GameState } from '../types';
 
-// All three tiers run the identical search/eval code (search.ts) - the time
-// budget, eval noise, and max search depth differ. Easy adds noise so it
-// doesn't always play the objectively-best move (reads as "beatable," not
-// "broken"). A time budget alone barely separates the tiers in practice -
-// depth cost grows roughly 83x per ply in this game, so a shared time budget
-// alone mostly lands at the same depth on typical hardware. An explicit
-// per-tier depth cap makes the tiers meaningfully distinct regardless of
-// hardware speed; hard is left uncapped (limited only by its time budget).
-const BUDGET_MS: Record<Difficulty, number> = {
-  easy: 300,
-  medium: 1000,
-  hard: 6000,
-};
-const NOISE: Record<Difficulty, number> = {
-  easy: 15,
-  medium: 0,
-  hard: 0,
-};
-const MAX_DEPTH: Record<Difficulty, number> = {
-  easy: 1,
-  medium: 2,
-  hard: Infinity,
+// All tiers run the same search/eval code (search.ts) - what differs is the
+// time budget, eval noise, max depth, and which search extensions are on.
+//
+// - easy: one ply with noise, so it doesn't always play the objectively-best
+//   move (reads as "beatable," not "broken").
+// - medium: two plies - sees your direct reply to its move.
+// - hard: plain alpha-beta, as deep as 3s allows (typically 4 plies).
+// - extreme: everything on, no depth cap, long think. Quiescence follows laser
+//   captures past the horizon (it won't walk into a shot, or miss one it
+//   has); late-move reductions spend the time on the lines that matter. Each
+//   was kept only after beating the search without it in self-play.
+//
+// Depth cost grows roughly 83x per ply in this game, so a time budget alone
+// barely separates tiers on fast hardware - the explicit depth caps keep
+// easy and medium where they are regardless of the machine.
+export interface TierConfig {
+  budgetMs: number;
+  noise: number;
+  maxDepth: number;
+  options: SearchOptions;
+}
+
+export const TIERS: Record<Difficulty, TierConfig> = {
+  easy: { budgetMs: 300, noise: 15, maxDepth: 1, options: {} },
+  medium: { budgetMs: 1000, noise: 0, maxDepth: 2, options: {} },
+  hard: { budgetMs: 3000, noise: 0, maxDepth: Infinity, options: {} },
+  extreme: { budgetMs: 10_000, noise: 0, maxDepth: Infinity, options: { quiescence: true, lmr: true } },
 };
 
 export function chooseMove(state: GameState, color: Color, difficulty: Difficulty): Action {
-  const deadline = Date.now() + BUDGET_MS[difficulty];
-  const { action } = search(state, color, deadline, NOISE[difficulty], MAX_DEPTH[difficulty]);
-  return action;
+  const tier = TIERS[difficulty];
+  const deadline = Date.now() + tier.budgetMs;
+  return search(state, color, deadline, tier.noise, tier.maxDepth, undefined, tier.options).action;
 }
