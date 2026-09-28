@@ -1,3 +1,4 @@
+import { MousePointerClick, Timer } from 'lucide-react';
 import BoardDemo, { emptyBoard, piece, place, type DemoStep } from './BoardDemo';
 import GamePieceIcon from './GamePieceIcon';
 import type { TutorialStep } from './TutorialModal';
@@ -148,6 +149,29 @@ export const LASER_CHESS_TUTORIAL_STEPS: TutorialStep[] = [
           move any piece, including a Scarab, into a square reserved for your opponent.
         </li>
         <li>Rotating the Sphinx to fire down a different row or column counts as your whole turn, just like moving a piece.</li>
+      </ul>
+    ),
+  },
+  {
+    title: 'Planning ahead: arrows & premoves',
+    visual: (
+      <div className="grid grid-cols-2 gap-4">
+        <Tile label="Right-click drag"><MousePointerClick className="size-8 text-laser" /></Tile>
+        <Tile label="Queue a move"><Timer className="size-8 text-laser" /></Tile>
+      </div>
+    ),
+    body: (
+      <ul className="list-disc space-y-1.5 pl-5">
+        <li>
+          <span className="font-semibold text-foreground">Arrows</span>: right-click-drag (or press-and-hold on touch) from a piece to
+          draw an arrow showing a move you&apos;re considering, or drop it back on the piece&apos;s own rotate handle to mark a planned
+          rotation. Arrows are only visible to you and clear the moment you make a real move.
+        </li>
+        <li>
+          <span className="font-semibold text-foreground">Premoves</span>: during your opponent&apos;s turn, select one of your pieces
+          and choose its next move or rotation ahead of time. It fires automatically the instant your turn starts &mdash; unless the
+          opponent&apos;s move makes it illegal, in which case it&apos;s cancelled with a notice instead.
+        </li>
       </ul>
     ),
   },

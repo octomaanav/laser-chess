@@ -120,6 +120,9 @@ function applyThemePalette(dark: boolean) {
 const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 const TAU = Math.PI * 2;
 const SQ2 = Math.SQRT2;
+// Fixed color for board annotations (arrows/rotate badges), independent of the
+// light/dark palette — matches chess.com using one consistent markup color.
+const ANNOTATION_COLOR = 'rgba(255,170,0,0.85)';
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 // smoothstep: eases in AND out, so a piece clearly starts at rest on its old square
@@ -163,6 +166,10 @@ interface Handle {
 }
 export type Pick = { kind: 'action'; action: Action } | { kind: 'cell'; x: number; y: number } | null;
 
+export type Annotation =
+  | { kind: 'move'; from: { x: number; y: number }; to: { x: number; y: number } }
+  | { kind: 'rotate'; at: { x: number; y: number }; dir: 1 | -1 };
+
 interface PieceAnim {
   endBoard: Board;
   resolve?: () => void;
@@ -186,6 +193,10 @@ export class Renderer {
   targets: Target[] = [];
   handles: Handle[] = [];
   reviewMark: { x: number; y: number }[] = [];
+  annotations: Annotation[] = [];
+  premoveMark: { x: number; y: number }[] = [];
+  private _annoDrag: { x: number; y: number } | null = null;
+  private _annoPreview: { x: number; y: number } | null = null;
   geom = { ox: 0, oy: 0, cell: 40, w: 0, h: 0 };
   private _pieceAnim: PieceAnim | null = null;
   private _fx: FxAnim[] = [];
@@ -605,6 +616,80 @@ export class Renderer {
     this.drawFx();
   }
 
+  // Highlight the from/to squares of a queued premove, visually distinct from
+  // setReviewMark's history highlight (dashed, amber) so the two are never confused.
+  setPremoveMark(action: Action | null) {
+    this.premoveMark = [];
+    if (action) {
+      this.premoveMark.push({ x: action.x, y: action.y });
+      if (action.type === 'move') this.premoveMark.push({ x: action.tx, y: action.ty });
+    }
+    this.drawFx();
+  }
+
+  // The two rotate-annotation hit zones for a cell, positioned the same way the
+  // real rotate handles are in rebuildFxElements (top-left = CCW, top-right = CW),
+  // but computed on demand for ANY cell (not just the currently selected piece).
+  private rotateZonesFor(x: number, y: number): { px: number; py: number; r: number; dir: 1 | -1 }[] {
+    const s = this.geom.cell;
+    const c = this.cellCenterPx(x, y);
+    const r = Math.max(9, s * 0.16);
+    return [
+      { px: c.x - s * 0.4, py: c.y - s * 0.4, r, dir: -1 },
+      { px: c.x + s * 0.4, py: c.y - s * 0.4, r, dir: 1 },
+    ];
+  }
+
+  beginAnnotationDrag(clientX: number, clientY: number) {
+    const cell = this.cellFromClient(clientX, clientY);
+    if (!cell || !this.board?.[cell.y]?.[cell.x]) {
+      this._annoDrag = null;
+      return;
+    }
+    this._annoDrag = cell;
+    this._annoPreview = cell;
+    this.drawFx();
+  }
+
+  updateAnnotationDrag(clientX: number, clientY: number) {
+    if (!this._annoDrag) return;
+    this._annoPreview = this.cellFromClient(clientX, clientY) ?? this._annoDrag;
+    this.drawFx();
+  }
+
+  endAnnotationDrag(clientX: number, clientY: number) {
+    const origin = this._annoDrag;
+    this._annoDrag = null;
+    this._annoPreview = null;
+    if (!origin) return;
+    const r = this.fxCanvas.getBoundingClientRect();
+    const px = clientX - r.left,
+      py = clientY - r.top;
+    for (const z of this.rotateZonesFor(origin.x, origin.y)) {
+      if (Math.hypot(px - z.px, py - z.py) <= Math.max(14, z.r * 1.5)) {
+        this.annotations = this.annotations.filter((a) => !(a.kind === 'rotate' && a.at.x === origin.x && a.at.y === origin.y));
+        this.annotations.push({ kind: 'rotate', at: origin, dir: z.dir });
+        this.drawFx();
+        return;
+      }
+    }
+    const cell = this.cellFromClient(clientX, clientY);
+    if (!cell || (cell.x === origin.x && cell.y === origin.y)) {
+      this.drawFx();
+      return;
+    }
+    this.annotations.push({ kind: 'move', from: origin, to: cell });
+    this.drawFx();
+  }
+
+  clearAnnotations() {
+    if (this.annotations.length === 0 && !this._annoDrag) return;
+    this.annotations = [];
+    this._annoDrag = null;
+    this._annoPreview = null;
+    this.drawFx();
+  }
+
   pick(clientX: number, clientY: number): Pick {
     const r = this.fxCanvas.getBoundingClientRect();
     const px = clientX - r.left,
@@ -658,6 +743,18 @@ export class Renderer {
       ctx.restore();
     }
     for (const h of this.handles) this._drawHandle(ctx, h);
+    this._drawAnnotations(ctx);
+    for (const m of this.premoveMark) {
+      const c = this.cellCenterPx(m.x, m.y);
+      const s = this.geom.cell;
+      ctx.save();
+      ctx.strokeStyle = ANNOTATION_COLOR;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([s * 0.1, s * 0.08]);
+      roundRect(ctx, c.x - s * 0.46, c.y - s * 0.46, s * 0.92, s * 0.92, 8);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (this._fx.length) {
       const t = now ?? performance.now();
@@ -691,14 +788,71 @@ export class Renderer {
     ctx.restore();
   }
 
+  private _drawArrow(ctx: Ctx, from: { x: number; y: number }, to: { x: number; y: number }) {
+    const a = this.cellCenterPx(from.x, from.y);
+    const b = this.cellCenterPx(to.x, to.y);
+    const s = this.geom.cell;
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    const shorten = s * 0.38;
+    const tipX = b.x - Math.cos(angle) * shorten;
+    const tipY = b.y - Math.sin(angle) * shorten;
+    ctx.save();
+    ctx.strokeStyle = ANNOTATION_COLOR;
+    ctx.fillStyle = ANNOTATION_COLOR;
+    ctx.lineWidth = Math.max(3, s * 0.12);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    const headLen = s * 0.3,
+      headW = s * 0.18;
+    const perpX = Math.cos(angle + Math.PI / 2),
+      perpY = Math.sin(angle + Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(tipX + Math.cos(angle) * headLen * 0.3, tipY + Math.sin(angle) * headLen * 0.3);
+    ctx.lineTo(tipX - Math.cos(angle) * headLen + perpX * headW, tipY - Math.sin(angle) * headLen + perpY * headW);
+    ctx.lineTo(tipX - Math.cos(angle) * headLen - perpX * headW, tipY - Math.sin(angle) * headLen - perpY * headW);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private _drawAnnotations(ctx: Ctx) {
+    for (const a of this.annotations) {
+      if (a.kind === 'move') {
+        this._drawArrow(ctx, a.from, a.to);
+        continue;
+      }
+      const zone = this.rotateZonesFor(a.at.x, a.at.y).find((z) => z.dir === a.dir);
+      if (!zone) continue;
+      ctx.save();
+      ctx.translate(zone.px, zone.py);
+      ctx.strokeStyle = ANNOTATION_COLOR;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, zone.r, 0, TAU);
+      ctx.stroke();
+      if (a.dir < 0) ctx.scale(-1, 1);
+      this._rotateGlyph(ctx, zone.r, ANNOTATION_COLOR);
+      ctx.restore();
+    }
+    if (this._annoDrag && this._annoPreview && (this._annoPreview.x !== this._annoDrag.x || this._annoPreview.y !== this._annoDrag.y)) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      this._drawArrow(ctx, this._annoDrag, this._annoPreview);
+      ctx.restore();
+    }
+  }
+
   // A clean "rotate" icon: a ~270° arc with a filled triangular arrowhead at
   // its leading tip. Drawn clockwise; the caller mirrors it for CCW handles.
-  private _rotateGlyph(ctx: Ctx, R: number) {
+  private _rotateGlyph(ctx: Ctx, R: number, color: string = INK) {
     const rr = R * 0.5;
     const start = Math.PI * 0.72; // 130°
     const end = start + Math.PI * 1.5; // sweep 270° clockwise (canvas y-down)
-    ctx.strokeStyle = INK;
-    ctx.fillStyle = INK;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = Math.max(1.2, R * 0.16);
     ctx.lineCap = 'round';
     ctx.beginPath();

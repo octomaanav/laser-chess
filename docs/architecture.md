@@ -65,6 +65,19 @@ animation loop fighting React's reconciler for the same frame budget is a
 common source of jank, so the two are kept structurally separate rather than
 papered over with `useEffect` timing tricks.
 
+## Client-only annotations and premoves
+
+Board arrows (right-click-drag move/rotate markup) and the single-slot
+premove both live entirely in `src/lib/render.ts` and
+`src/client/controller.ts` - neither touches the server, the WebSocket
+protocol, or persisted state. Arrows are private per-viewer scratch state on
+the `Renderer` (`annotations`), cleared on any real move or a fresh
+left-click. A premove reuses the existing move-selection path
+(`legalActionsFor`) but, when it's not your turn, stores the chosen action
+instead of sending it; it's re-validated against the live board (never
+trusted from when it was queued) the instant the server signals your turn
+has started, and is sent or silently discarded accordingly.
+
 ## Persistence: one interface, two backends
 
 [`src/server/store/`](../src/server/store) defines a single `Store`
