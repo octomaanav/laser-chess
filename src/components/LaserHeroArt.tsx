@@ -1,5 +1,8 @@
 'use client';
 
+import GamePieceIcon from './tutorials/GamePieceIcon';
+import type { Color, PieceType } from '@/game/types';
+
 const COLS = [0, 1, 2, 3, 4, 5] as const;
 const ROWS = [0, 1, 2] as const;
 const CELL = 34;
@@ -9,6 +12,18 @@ const ORIGIN_Y = 11;
 
 const cx = (col: number) => ORIGIN_X + col * STEP + CELL / 2;
 const cy = (row: number) => ORIGIN_Y + row * STEP + CELL / 2;
+
+// Orientations follow the engine's mirror tables so the beam path below is exactly what the real game would do
+// (checked with fireLaser): sphinx fires N, pyramid (0,0) N->E, pyramid (3,0) E->S, pyramid (3,2) S->E, hits pharaoh.
+const HERO_PIECES: { col: number; row: number; type: PieceType; color: Color; orient: number; dim?: boolean }[] = [
+  { col: 0, row: 2, type: 'sphinx', color: 'silver', orient: 0 },
+  { col: 0, row: 0, type: 'pyramid', color: 'silver', orient: 1 },
+  { col: 3, row: 0, type: 'pyramid', color: 'silver', orient: 2 },
+  { col: 3, row: 2, type: 'pyramid', color: 'red', orient: 0 },
+  { col: 5, row: 2, type: 'pharaoh', color: 'red', orient: 0 },
+  { col: 1, row: 2, type: 'anubis', color: 'silver', orient: 0, dim: true },
+  { col: 4, row: 1, type: 'pyramid', color: 'red', orient: 3, dim: true },
+];
 
 export default function LaserHeroArt() {
   const beamPath = `M ${cx(0)} ${cy(2) - 10} L ${cx(0)} ${cy(0)} L ${cx(3)} ${cy(0)} L ${cx(3)} ${cy(2)} L ${cx(5) - 11} ${cy(2)}`;
@@ -68,43 +83,17 @@ export default function LaserHeroArt() {
           }),
         )}
 
-        {/* Unhit tactical pieces for board depth */}
-        {/* Teal Defender at (1, 2) */}
-        <g transform={`translate(${cx(1)}, ${cy(2)})`}>
-          <rect
-            x={-10}
-            y={-10}
-            width={20}
-            height={20}
-            rx={4}
-            fill="color-mix(in oklab, var(--player-teal) 18%, var(--card))"
-            stroke="var(--player-teal)"
-            strokeOpacity={0.55}
-            strokeWidth={1.4}
-          />
-          <line
-            x1={-7}
-            y1={-10}
-            x2={7}
-            y2={-10}
-            stroke="var(--player-teal)"
-            strokeWidth={2.6}
-            strokeLinecap="round"
-          />
-        </g>
-
-        {/* Red Deflector at (4, 1) */}
-        <g transform={`translate(${cx(4)}, ${cy(1)})`}>
-          <polygon
-            points="-9,-9 9,-9 -9,9"
-            fill="color-mix(in oklab, var(--player-red) 20%, var(--card))"
-            stroke="var(--player-red)"
-            strokeOpacity={0.55}
-            strokeWidth={1.3}
-            strokeLinejoin="round"
-          />
-        </g>
-
+        {/* Pulse behind the Pharaoh target */}
+        <circle
+          cx={cx(5)}
+          cy={cy(2)}
+          r={15}
+          fill="color-mix(in oklab, var(--player-red) 22%, transparent)"
+          stroke="var(--player-red)"
+          strokeOpacity={0.55}
+          strokeWidth={1.25}
+          className="laser-hero-pulse"
+        />
         {/* Laser beam outer glow + core + animated dash */}
         <path
           d={beamPath}
@@ -135,113 +124,14 @@ export default function LaserHeroArt() {
           className="laser-hero-beam"
         />
 
-        {/* Mirror 1 at (0, 0): '/' bounces North -> East */}
-        <g transform={`translate(${cx(0)}, ${cy(0)})`}>
-          <polygon
-            points="-10,-10 10,-10 -10,10"
-            fill="color-mix(in oklab, var(--player-teal) 26%, var(--card))"
-            stroke="var(--player-teal)"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
-          <line
-            x1={-10}
-            y1={10}
-            x2={10}
-            y2={-10}
-            stroke="var(--laser)"
-            strokeWidth={2.4}
-            strokeLinecap="round"
-          />
-          <circle r={2.6} fill="var(--laser)" />
-        </g>
-
-        {/* Mirror 2 at (3, 0): '\' bounces East -> South */}
-        <g transform={`translate(${cx(3)}, ${cy(0)})`}>
-          <polygon
-            points="-10,-10 10,-10 10,10"
-            fill="color-mix(in oklab, var(--player-teal) 26%, var(--card))"
-            stroke="var(--player-teal)"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
-          <line
-            x1={-10}
-            y1={-10}
-            x2={10}
-            y2={10}
-            stroke="var(--laser)"
-            strokeWidth={2.4}
-            strokeLinecap="round"
-          />
-          <circle r={2.6} fill="var(--laser)" />
-        </g>
-
-        {/* Mirror 3 at (3, 2): '\' bounces South -> East */}
-        <g transform={`translate(${cx(3)}, ${cy(2)})`}>
-          <polygon
-            points="-10,-10 -10,10 10,10"
-            fill="color-mix(in oklab, var(--player-red) 24%, var(--card))"
-            stroke="var(--player-red)"
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
-          <line
-            x1={-10}
-            y1={-10}
-            x2={10}
-            y2={10}
-            stroke="var(--laser)"
-            strokeWidth={2.4}
-            strokeLinecap="round"
-          />
-          <circle r={2.6} fill="var(--laser)" />
-        </g>
-
-        {/* Teal Sphinx at (0, 2) emitting North */}
-        <g transform={`translate(${cx(0)}, ${cy(2)})`}>
-          <rect
-            x={-11}
-            y={-11}
-            width={22}
-            height={22}
-            rx={5}
-            fill="color-mix(in oklab, var(--player-teal) 28%, var(--card))"
-            stroke="var(--player-teal)"
-            strokeWidth={1.75}
-          />
-          <polygon points="0,-13 -5,-4 5,-4" fill="var(--player-teal)" />
-          <circle cy={2} r={3.5} fill="var(--laser)" />
-        </g>
-
-        {/* Red Pharaoh target at (5, 2) */}
-        <g transform={`translate(${cx(5)}, ${cy(2)})`}>
-          <circle
-            r={15}
-            fill="color-mix(in oklab, var(--player-red) 22%, transparent)"
-            stroke="var(--player-red)"
-            strokeOpacity={0.55}
-            strokeWidth={1.25}
-            className="laser-hero-pulse"
-          />
-          <rect
-            x={-11}
-            y={-11}
-            width={22}
-            height={22}
-            rx={5}
-            fill="color-mix(in oklab, var(--player-red) 28%, var(--card))"
-            stroke="var(--player-red)"
-            strokeWidth={1.75}
-          />
-          {/* Crown / Pharaoh emblem */}
-          <path
-            d="M -6 5 L -7 -4 L -3 0 L 0 -5 L 3 0 L 7 -4 L 6 5 Z"
-            fill="var(--player-red)"
-          />
-          {/* Beam impact spark on west edge */}
-          <circle cx={-11} cy={0} r={3.2} fill="var(--laser)" className="laser-hero-pulse" />
-        </g>
+        {/* Real game pieces (same Renderer as the live board), drawn over the beam */}
+        {HERO_PIECES.map((p) => (
+          <foreignObject key={`${p.col}-${p.row}`} x={cx(p.col) - CELL / 2} y={cy(p.row) - CELL / 2} width={CELL} height={CELL}>
+            <div style={{ width: CELL * 2, height: CELL * 2, transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+              <GamePieceIcon type={p.type} color={p.color} orient={p.orient} size={CELL * 2} className={p.dim ? 'opacity-60' : undefined} />
+            </div>
+          </foreignObject>
+        ))}
       </svg>
     </div>
   );

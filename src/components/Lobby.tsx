@@ -255,7 +255,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                   <TabsContent
                     value="casual"
                     forceMount
-                    className="col-start-1 row-start-1 flex flex-col gap-3.5 data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible"
+                    className="col-start-1 row-start-1 flex flex-col gap-3.5 data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible data-[state=inactive]:[&_*]:transition-none"
                   >
                     <NameField name={name} onChange={setName} isSignedIn={!!user} />
 
@@ -348,7 +348,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                   <TabsContent
                     value="ranked"
                     forceMount
-                    className="col-start-1 row-start-1 flex flex-col justify-between gap-5 py-1 data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible"
+                    className="col-start-1 row-start-1 flex flex-col justify-between gap-5 py-1 data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible data-[state=inactive]:[&_*]:transition-none"
                   >
                     {user ? (
                       <>
