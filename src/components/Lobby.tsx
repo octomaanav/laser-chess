@@ -322,6 +322,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                               <SelectItem value="easy">Bot (Easy)</SelectItem>
                               <SelectItem value="medium">Bot (Medium)</SelectItem>
                               <SelectItem value="hard">Bot (Hard)</SelectItem>
+                              <SelectItem value="extreme">Bot (Extreme)</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -354,7 +355,7 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                       <>
                         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
                           <div className="flex w-full items-center justify-center rounded-2xl border border-border/80 bg-muted/25 p-6">
-                            <RankBadge rating={gameRank?.rating ?? null} size="md" />
+                            <RankBadge rating={gameRank?.rating ?? null} stars={gameRank?.stars} starsToPromote={gameRank?.starsToPromote} size="md" />
                           </div>
                           <p className="px-2 text-sm leading-relaxed text-muted-foreground">
                             Win games to climb the ranks. Each win promotes you 1 rank, each loss demotes you 1 rank.

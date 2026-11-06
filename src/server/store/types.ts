@@ -28,6 +28,7 @@ export interface PlayerRating {
   userId: string;
   gameSlug: string;
   rating: number;
+  stars?: number; // progress toward the next rank; missing on rows written before stars existed
   peakRating: number;
   wins: number;
   losses: number;
@@ -96,7 +97,7 @@ export interface GameMatch {
   isBot?: boolean;
   botDifficulty?: string | null;
   isRanked?: boolean;
-  status: 'completed' | 'forfeit' | 'timeout' | 'resigned';
+  status: 'completed' | 'forfeit' | 'timeout' | 'resigned' | 'draw';
   winnerName?: string | null;
   winnerColor?: string | null;
   winnerUserId?: string | null;

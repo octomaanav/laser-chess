@@ -210,6 +210,12 @@ export const MIGRATIONS: Migration[] = [
       create index if not exists idx_flip7_rooms_updated_at on flip7_rooms(updated_at);
     `,
   },
+  {
+    id: '00005_rank_stars',
+    sql: `
+      alter table player_ratings add column if not exists stars int not null default 0;
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<{ applied: string[]; alreadyApplied: string[] }> {

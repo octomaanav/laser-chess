@@ -32,11 +32,13 @@ type SocialEvent =
   | { type: 'friend-removed'; userId: string }
   | { type: 'game-invite'; from: SocialUser; gameSlug: string; code: string }
   | { type: 'ranked-matched'; code: string; gameSlug: string; opponent: SocialUser }
-  | { type: 'rating-updated'; gameSlug: string; newRating: number; delta: number; rankName: string };
+  | { type: 'rating-updated'; gameSlug: string; newRating: number; delta: number; stars: number; starsToPromote: number; rankName: string };
 
 export interface RankInfo {
   rating: number;
   rank: string;
+  stars: number; // progress toward the next rank
+  starsToPromote: number; // 0 at Master
 }
 
 export type RankInfoMap = Record<string, RankInfo>;
@@ -85,7 +87,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const r = await fetch(`/api/ranked/rating?gameSlug=${encodeURIComponent(gameSlug)}`, { cache: 'no-store' });
       if (!r.ok) return;
       const d = await r.json();
-      setRankInfo((prev) => ({ ...prev, [gameSlug]: { rating: d.rating, rank: d.rank } }));
+      setRankInfo((prev) => ({
+        ...prev,
+        [gameSlug]: { rating: d.rating, rank: d.rank, stars: d.stars ?? 0, starsToPromote: d.starsToPromote ?? 0 },
+      }));
     } catch {
       /* offline */
     }
@@ -138,7 +143,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           // delta 0 = already at the floor or ceiling; nothing to animate.
           if (m.delta !== 0)
             setRankTransition({ oldRating: m.newRating - m.delta, newRating: m.newRating, gameSlug: m.gameSlug });
-          setRankInfo((prev) => ({ ...prev, [m.gameSlug]: { rating: m.newRating, rank: m.rankName } }));
+          setRankInfo((prev) => ({
+            ...prev,
+            [m.gameSlug]: { rating: m.newRating, rank: m.rankName, stars: m.stars, starsToPromote: m.starsToPromote },
+          }));
           break;
         }
       }

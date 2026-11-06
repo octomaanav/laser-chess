@@ -81,7 +81,7 @@ export class PgStore implements Store {
     const playerCount = (room.seats.red ? 1 : 0) + (room.seats.silver ? 1 : 0);
 
     let status = 'waiting';
-    if (room.game?.winner) status = 'finished';
+    if (room.game?.winner || room.game?.draw) status = 'finished';
     else if (room.seats.red && room.seats.silver) status = 'in_progress';
 
     const winnerName = room.game?.winner ? room.names[room.game.winner] ?? room.game.winner : null;
@@ -307,7 +307,7 @@ export class PgStore implements Store {
 
   async getRating(userId: string, gameSlug: string): Promise<PlayerRating | null> {
     const r = await this.q(
-      'select user_id, game_slug, rating, peak_rating, wins, losses, updated_at from player_ratings where user_id = $1 and game_slug = $2',
+      'select user_id, game_slug, rating, stars, peak_rating, wins, losses, updated_at from player_ratings where user_id = $1 and game_slug = $2',
       [userId, gameSlug],
     );
     if (!r.rows[0]) return null;
@@ -316,6 +316,7 @@ export class PgStore implements Store {
       userId: row.user_id,
       gameSlug: row.game_slug,
       rating: row.rating,
+      stars: row.stars,
       peakRating: row.peak_rating,
       wins: row.wins,
       losses: row.losses,
@@ -325,15 +326,16 @@ export class PgStore implements Store {
 
   async upsertRating(rt: PlayerRating): Promise<void> {
     await this.q(
-      `insert into player_ratings(user_id, game_slug, rating, peak_rating, wins, losses, updated_at)
-       values($1, $2, $3, $4, $5, $6, to_timestamp($7 / 1000.0))
+      `insert into player_ratings(user_id, game_slug, rating, stars, peak_rating, wins, losses, updated_at)
+       values($1, $2, $3, $4, $5, $6, $7, to_timestamp($8 / 1000.0))
        on conflict(user_id, game_slug) do update set
          rating = excluded.rating,
+         stars = excluded.stars,
          peak_rating = excluded.peak_rating,
          wins = excluded.wins,
          losses = excluded.losses,
          updated_at = excluded.updated_at`,
-      [rt.userId, rt.gameSlug, rt.rating, rt.peakRating, rt.wins, rt.losses, rt.updatedAt],
+      [rt.userId, rt.gameSlug, rt.rating, rt.stars ?? 0, rt.peakRating, rt.wins, rt.losses, rt.updatedAt],
     );
   }
 

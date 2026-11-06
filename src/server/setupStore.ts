@@ -29,6 +29,12 @@ export function isDefault(name: string): boolean {
   return DEFAULT_SETUPS.some((d) => d.name === name);
 }
 
+// Ranked games draw from the built-in maps only: custom admin setups aren't
+// vetted for balance, so they shouldn't affect ratings.
+export function randomRankedSetup(): string {
+  return DEFAULT_SETUPS[Math.floor(Math.random() * DEFAULT_SETUPS.length)].name;
+}
+
 export async function createGame(name = 'Classic'): Promise<GameState> {
   const def = (await getSetup(name)) ?? (await getSetup('Classic')) ?? DEFAULT_SETUPS[0];
   return { setup: def.name, board: buildBoardFromDef(def), turn: 'silver', winner: null, moveCount: 0 };
