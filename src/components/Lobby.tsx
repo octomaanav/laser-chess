@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Radio, Share2, ShieldCheck, Trophy } from 'lucide-react';
 import type { GameController, ViewState } from '@/client/controller';
 import { useSession } from '@/client/useSession';
 import type { Difficulty } from '@/game/bot/types';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Footer from './Footer';
+import LaserHeroArt from './LaserHeroArt';
 import MatchmakingModal from './MatchmakingModal';
 import Navbar from './Navbar';
 import RankBadge from './RankBadge';
@@ -21,10 +22,87 @@ import { LASER_CHESS_TUTORIAL_STEPS } from './tutorials/laserChessTutorial';
 import { useSocial } from '@/client/social/SocialProvider';
 
 const PERKS = [
-  { c: 'bg-laser/15 border-laser/60', t: 'No account needed. Just share a link or code' },
-  { c: 'bg-player-red/15 border-player-red/60', t: 'Authoritative server resolves every laser trace' },
-  { c: 'bg-player-teal/15 border-player-teal/60', t: 'Spectators, live presence, reconnect & move timers' },
+  {
+    icon: Share2,
+    c: 'bg-laser/15 border-laser/40 text-laser',
+    t: 'No account needed. Just share a link or code',
+  },
+  {
+    icon: ShieldCheck,
+    c: 'bg-player-red/15 border-player-red/40 text-player-red',
+    t: 'Authoritative server resolves every laser trace',
+  },
+  {
+    icon: Radio,
+    c: 'bg-player-teal/15 border-player-teal/40 text-player-teal',
+    t: 'Spectators, live presence, reconnect & move timers',
+  },
 ];
+
+function NameField({
+  name,
+  onChange,
+  isSignedIn,
+}: {
+  name: string;
+  onChange: (value: string) => void;
+  isSignedIn: boolean;
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor="name">Your name</Label>
+      <Input
+        id="name"
+        maxLength={24}
+        placeholder="Player"
+        value={name}
+        readOnly={isSignedIn}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 rounded-lg bg-background/60 transition-colors focus-visible:bg-background"
+      />
+      {isSignedIn && (
+        <p className="text-xs text-muted-foreground">
+          Playing as your account name.{' '}
+          <a className="font-medium text-laser underline-offset-4 hover:underline" href="/account">
+            Change in Account
+          </a>
+          .
+        </p>
+      )}
+    </div>
+  );
+}
+
+function JoinCodeRow({
+  code,
+  onChange,
+  onJoin,
+}: {
+  code: string;
+  onChange: (value: string) => void;
+  onJoin: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <Input
+        aria-label="Room code"
+        maxLength={5}
+        placeholder="CODE"
+        value={code}
+        onChange={(e) => onChange(e.target.value.toUpperCase())}
+        onKeyDown={(e) => e.key === 'Enter' && onJoin()}
+        className="h-10 flex-1 rounded-lg bg-background/60 text-center font-mono text-base font-bold uppercase tracking-[0.35em] transition-colors focus-visible:bg-background"
+      />
+      <Button
+        variant="secondary"
+        onClick={onJoin}
+        className="h-10 shrink-0 rounded-lg border border-border/80 px-5 font-semibold transition-colors hover:border-laser/40 hover:bg-secondary/90"
+      >
+        Join
+      </Button>
+    </div>
+  );
+}
 
 export default function Lobby({ controller, gameSlug }: { controller: GameController; view: ViewState; gameSlug: string }) {
   const [name, setName] = useState('');
@@ -82,16 +160,16 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
   };
 
   return (
-    <section className="relative flex min-h-dvh flex-col w-full max-w-full overflow-x-hidden">
+    <section className="relative flex min-h-dvh w-full max-w-full flex-col overflow-x-hidden">
       <Navbar game="laser-chess" showBackToGames className="border-b-0" />
 
       <main className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8">
-        <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-16">
+        <div className="grid w-full max-w-5xl items-center gap-10 md:grid-cols-2 md:gap-14 lg:gap-16">
           {/* hero */}
-          <div className="mx-auto max-w-lg text-center md:mx-0 md:text-left">
+          <div className="mx-auto w-full max-w-lg text-center md:mx-0 md:text-left">
             <Badge
               variant="outline"
-              className="mb-6 gap-2 border-laser/30 bg-laser/10 py-1.5 pl-2.5 text-[12px] font-semibold text-laser"
+              className="mb-5 gap-2 border-laser/30 bg-laser/10 py-1.5 pl-2.5 text-[12px] font-semibold text-laser"
             >
               <span className="relative flex size-2">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-laser opacity-70" />
@@ -99,25 +177,36 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
               </span>
               Real-time multiplayer · free · no install
             </Badge>
-            <h1 className="font-display text-5xl font-bold leading-[1.02] tracking-tight sm:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-[1.03] tracking-tight sm:text-5xl">
               Deflect the beam.
               <br />
               Burn the <span className="text-laser text-glow">Pharaoh.</span>
             </h1>
-            <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground md:mx-0">
+            <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted-foreground md:mx-0">
               A fast head-to-head duel of mirrors and lasers. Spin up a board, share the link, and play a friend in
               seconds, right in the browser.
             </p>
-            <ul className="mx-auto mt-7 hidden max-w-md flex-col gap-3 text-left sm:flex md:mx-0">
-              {PERKS.map((p) => (
-                <li key={p.t} className="flex items-center gap-3 text-sm font-medium text-foreground/90">
-                  <span className={`size-4 shrink-0 rounded-[5px] border-2 ${p.c}`} />
-                  {p.t}
-                </li>
-              ))}
+
+            <LaserHeroArt />
+
+            <ul className="mx-auto mt-6 hidden max-w-md flex-col gap-2.5 text-left sm:flex md:mx-0">
+              {PERKS.map((p) => {
+                const Icon = p.icon;
+                return (
+                  <li key={p.t} className="flex items-center gap-3 text-sm font-medium text-foreground/90">
+                    <span
+                      aria-hidden="true"
+                      className={`inline-flex size-7 shrink-0 items-center justify-center rounded-lg border ${p.c}`}
+                    >
+                      <Icon className="size-3.5" />
+                    </span>
+                    <span className="min-w-0 leading-snug">{p.t}</span>
+                  </li>
+                );
+              })}
             </ul>
-            <div className="mt-6">
-              <Button variant="link" className="h-auto p-0 text-laser" onClick={() => setTutorialOpen(true)}>
+            <div className="mt-5">
+              <Button variant="link" className="h-auto p-0 font-semibold text-laser" onClick={() => setTutorialOpen(true)}>
                 How to play →
               </Button>
               <TutorialModal
@@ -131,179 +220,150 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
           </div>
 
           {/* play card */}
-          <Card className="glow-primary relative mx-auto w-full max-w-md border-border/70 bg-card/80 backdrop-blur">
-            <CardContent className="flex flex-col gap-4">
+          <Card className="glow-primary relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border-border/80 bg-card/85 py-5 backdrop-blur-md">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-laser/60 to-transparent"
+            />
+            <CardContent className="flex flex-col gap-4 px-5 sm:px-6">
               {invited ? (
-                <>
+                <div className="flex flex-col gap-4 py-1">
                   <div>
                     <h2 className="font-display text-2xl font-bold tracking-tight">Join the game</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                       You're invited to {code}. Enter a name and join.
                     </p>
                   </div>
-                  <div className="grid gap-1.5 mt-2">
-                    <Label htmlFor="name">Your name</Label>
-                    <Input
-                      id="name"
-                      maxLength={24}
-                      placeholder="Player"
-                      value={name}
-                      readOnly={!!user}
-                      onChange={(e) => setName(e.target.value)}
-                    />
-                    {user && (
-                      <p className="text-xs text-muted-foreground">
-                        Playing as your account name.{' '}
-                        <a className="text-laser hover:underline" href="/account">
-                          Change in Account
-                        </a>
-                        .
-                      </p>
-                    )}
+                  <NameField name={name} onChange={setName} isSignedIn={!!user} />
+                  <div className="pt-1">
+                    <JoinCodeRow code={code} onChange={setCode} onJoin={join} />
                   </div>
-                  <div className="flex gap-2.5 mt-4">
-                    <Input
-                      maxLength={5}
-                      placeholder="CODE"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase())}
-                      onKeyDown={(e) => e.key === 'Enter' && join()}
-                      className="text-center font-mono text-base font-bold uppercase tracking-[0.35em]"
-                    />
-                    <Button variant="secondary" onClick={join}>
-                      Join
-                    </Button>
-                  </div>
-                </>
+                </div>
               ) : (
-                <Tabs defaultValue="casual" className="w-full mt-2">
-                  <TabsList className="grid w-full grid-cols-2 mb-6 h-12 rounded-xl">
-                    <TabsTrigger value="casual" className="text-base font-semibold h-full rounded-lg">Casual</TabsTrigger>
-                    <TabsTrigger value="ranked" className="text-base font-semibold h-full rounded-lg">Ranked</TabsTrigger>
+                <Tabs defaultValue="casual" className="w-full">
+                  <TabsList className="mb-4 grid h-11 w-full grid-cols-2 rounded-xl border border-border/60 bg-muted/60 p-1">
+                    <TabsTrigger value="casual" className="h-full rounded-lg text-sm font-semibold sm:text-base">
+                      Casual
+                    </TabsTrigger>
+                    <TabsTrigger value="ranked" className="h-full rounded-lg text-sm font-semibold sm:text-base">
+                      Ranked
+                    </TabsTrigger>
                   </TabsList>
-                  
-                  <TabsContent value="casual" className="flex flex-col gap-4">
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="name">Your name</Label>
-                      <Input
-                        id="name"
-                        maxLength={24}
-                        placeholder="Player"
-                        value={name}
-                        readOnly={!!user}
-                        onChange={(e) => setName(e.target.value)}
-                      />
-                      {user && (
-                        <p className="text-xs text-muted-foreground">
-                          Playing as your account name.{' '}
-                          <a className="text-laser hover:underline" href="/account">
-                            Change in Account
-                          </a>
-                          .
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="grid gap-1.5">
-                        <Label>Board</Label>
-                        <Select value={setup} onValueChange={setSetup}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {names.map((n) => (
-                              <SelectItem key={n} value={n}>
-                                {n}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+
+                  {/* Both panels share one grid cell so the card is always as tall as the taller panel. */}
+                  <div className="grid">
+                  <TabsContent
+                    value="casual"
+                    forceMount
+                    className="col-start-1 row-start-1 flex flex-col gap-3.5 data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible data-[state=inactive]:[&_*]:transition-none"
+                  >
+                    <NameField name={name} onChange={setName} isSignedIn={!!user} />
+
+                    <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/25 p-3.5">
+                      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                        <div className="grid min-w-0 gap-1.5">
+                          <Label>Board</Label>
+                          <Select value={setup} onValueChange={setSetup}>
+                            <SelectTrigger className="w-full min-w-0 rounded-lg bg-background/70">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {names.map((n) => (
+                                <SelectItem key={n} value={n}>
+                                  {n}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid min-w-0 gap-1.5">
+                          <Label>Play as</Label>
+                          <Select value={color} onValueChange={(v) => setColor(v as 'random' | 'silver' | 'red')}>
+                            <SelectTrigger className="w-full min-w-0 rounded-lg bg-background/70">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="random">Random</SelectItem>
+                              <SelectItem value="silver">Teal (moves first)</SelectItem>
+                              <SelectItem value="red">Red</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="grid gap-1.5">
-                        <Label>Play as</Label>
-                        <Select value={color} onValueChange={(v) => setColor(v as 'random' | 'silver' | 'red')}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="random">Random</SelectItem>
-                            <SelectItem value="silver">Teal (moves first)</SelectItem>
-                            <SelectItem value="red">Red</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+                      <div className="grid grid-cols-1 gap-2.5 min-[400px]:grid-cols-2 sm:gap-3">
+                        <div className="grid min-w-0 gap-1.5">
+                          <Label>Time per move</Label>
+                          <Select value={String(perMove)} onValueChange={(v) => setPerMove(Number(v))}>
+                            <SelectTrigger className="w-full min-w-0 rounded-lg bg-background/70">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="0">No timer</SelectItem>
+                              <SelectItem value="1">1 minute</SelectItem>
+                              <SelectItem value="2">2 minutes</SelectItem>
+                              <SelectItem value="3">3 minutes</SelectItem>
+                              <SelectItem value="5">5 minutes</SelectItem>
+                              <SelectItem value="10">10 minutes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid min-w-0 gap-1.5">
+                          <Label>Opponent</Label>
+                          <Select
+                            value={botDifficulty ?? 'human'}
+                            onValueChange={(v) => setBotDifficulty(v === 'human' ? null : (v as Difficulty))}
+                          >
+                            <SelectTrigger className="w-full min-w-0 rounded-lg bg-background/70">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="human">Another player</SelectItem>
+                              <SelectItem value="easy">Bot (Easy)</SelectItem>
+                              <SelectItem value="medium">Bot (Medium)</SelectItem>
+                              <SelectItem value="hard">Bot (Hard)</SelectItem>
+                              <SelectItem value="extreme">Bot (Extreme)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
-                    <div className="grid gap-1.5">
-                      <Label>Time per move</Label>
-                      <Select value={String(perMove)} onValueChange={(v) => setPerMove(Number(v))}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">No timer</SelectItem>
-                          <SelectItem value="1">1 minute</SelectItem>
-                          <SelectItem value="2">2 minutes</SelectItem>
-                          <SelectItem value="3">3 minutes</SelectItem>
-                          <SelectItem value="5">5 minutes</SelectItem>
-                          <SelectItem value="10">10 minutes</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label>Opponent</Label>
-                      <Select
-                        value={botDifficulty ?? 'human'}
-                        onValueChange={(v) => setBotDifficulty(v === 'human' ? null : (v as Difficulty))}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="human">Another player</SelectItem>
-                          <SelectItem value="easy">Bot (Easy)</SelectItem>
-                          <SelectItem value="medium">Bot (Medium)</SelectItem>
-                          <SelectItem value="hard">Bot (Hard)</SelectItem>
-                          <SelectItem value="extreme">Bot (Extreme)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button size="lg" className="glow-primary mt-1 w-full font-semibold" onClick={create}>
+
+                    <Button
+                      size="lg"
+                      className="glow-primary h-11 w-full rounded-xl font-semibold shadow-sm transition-all hover:brightness-105"
+                      onClick={create}
+                    >
                       {botDifficulty ? 'Play vs Bot' : 'Create game & get share link'} <ArrowRight className="size-4" />
                     </Button>
-                    <div className="relative my-1 flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="h-px flex-1 bg-border" />
+
+                    <div className="relative flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                      <span className="h-px flex-1 bg-border/80" />
                       or join a game
-                      <span className="h-px flex-1 bg-border" />
+                      <span className="h-px flex-1 bg-border/80" />
                     </div>
-                    <div className="flex gap-2.5">
-                      <Input
-                        maxLength={5}
-                        placeholder="CODE"
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
-                        onKeyDown={(e) => e.key === 'Enter' && join()}
-                        className="text-center font-mono text-base font-bold uppercase tracking-[0.35em]"
-                      />
-                      <Button variant="secondary" onClick={join}>
-                        Join
-                      </Button>
-                    </div>
+
+                    <JoinCodeRow code={code} onChange={setCode} onJoin={join} />
                   </TabsContent>
-                  
-                  <TabsContent value="ranked" className="flex flex-col gap-6 py-2">
+
+                  <TabsContent
+                    value="ranked"
+                    forceMount
+                    className="col-start-1 row-start-1 flex flex-col justify-between gap-5 py-1 data-[state=inactive]:pointer-events-none data-[state=inactive]:invisible data-[state=inactive]:[&_*]:transition-none"
+                  >
                     {user ? (
                       <>
-                        <div className="flex flex-col items-center justify-center gap-4 text-center">
-                          <div className="rounded-2xl bg-muted/20 p-6 border border-border w-full flex items-center justify-center">
+                        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+                          <div className="flex w-full items-center justify-center rounded-2xl border border-border/80 bg-muted/25 p-6">
                             <RankBadge rating={gameRank?.rating ?? null} stars={gameRank?.stars} starsToPromote={gameRank?.starsToPromote} size="md" />
                           </div>
-                          <p className="text-sm text-muted-foreground px-2">
+                          <p className="px-2 text-sm leading-relaxed text-muted-foreground">
                             Win games to climb the ranks. Each win promotes you 1 rank, each loss demotes you 1 rank.
                           </p>
                         </div>
                         <Button
                           size="lg"
-                          className="glow-primary w-full font-semibold"
+                          className="glow-primary h-11 w-full rounded-xl font-semibold shadow-sm transition-all hover:brightness-105"
                           onClick={async () => {
                             await fetch('/api/ranked/queue', {
                               method: 'POST',
@@ -317,19 +377,24 @@ export default function Lobby({ controller, gameSlug }: { controller: GameContro
                         </Button>
                       </>
                     ) : (
-                      <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-                        <div className="rounded-full bg-muted/30 p-4 border border-border text-4xl">
-                          🏆
+                      <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-border/60 bg-muted/15 px-5 py-8 text-center">
+                        <div className="flex size-14 items-center justify-center rounded-2xl border border-laser/35 bg-laser/10 text-laser shadow-xs">
+                          <Trophy className="size-7" aria-hidden="true" />
                         </div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
                           Sign in to play ranked matches and climb the leaderboard.
                         </p>
-                        <Button variant="outline" onClick={() => window.location.href = '/account'}>
+                        <Button
+                          variant="outline"
+                          className="mt-1 rounded-lg border-border/80 px-6 font-semibold hover:border-laser/40"
+                          onClick={() => (window.location.href = '/account')}
+                        >
                           Sign in
                         </Button>
                       </div>
                     )}
                   </TabsContent>
+                  </div>
                 </Tabs>
               )}
             </CardContent>

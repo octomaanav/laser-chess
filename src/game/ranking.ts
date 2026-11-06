@@ -1,3 +1,4 @@
+// Rank ladder: maps integer ratings to tier/sub-rank info and moves them one step per win/loss.
 // 16 rank levels stored as an integer index: 0 = Bronze 1, 14 = Diamond 3, 15 = Master.
 // Within a rank you collect stars; a full set promotes you. Each tier asks for
 // more stars than the last, and losses cost more near the top, so Master takes
