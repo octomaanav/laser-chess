@@ -500,3 +500,44 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--laser) 35%, transparent) transparent;
 }
+
+/* ---- Laser Chess hero mini-board animation ------------------------------ */
+@keyframes laser-beam-flow {
+  0% {
+    stroke-dashoffset: 36;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes laser-hit-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: scale(1.16);
+  }
+}
+
+.laser-hero-beam {
+  animation: laser-beam-flow 1.4s linear infinite;
+}
+
+.laser-hero-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: laser-hit-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .laser-hero-beam,
+  .laser-hero-pulse {
+    animation: none;
+  }
+}
