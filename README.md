@@ -85,6 +85,16 @@ To play both sides locally, open the game in a normal window **and** an incognit
 window (each needs its own identity - two tabs in the same window share one player,
 which is what lets you close/reopen a tab and reconnect to your seat).
 
+## Running tests
+
+```bash
+npm test             # vitest run: engine rules, game logic, server helpers
+npm run typecheck    # tsc --noEmit
+```
+
+Tests live next to the code as `*.test.ts`. To run a single file, use
+`npx vitest run src/game/engine.test.ts`.
+
 ## How to play
 
 Each turn, **move** a piece one square (any direction) **or rotate** it 90°; then your laser

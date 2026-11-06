@@ -1,3 +1,4 @@
+// Rank ladder: maps integer ratings to tier/sub-rank info and moves them one step per win/loss.
 // 16 rank levels stored as an integer index: 0 = Bronze 1, 14 = Diamond 3, 15 = Master.
 // Win → index + 1 (max 15), Loss → index - 1 (min 0).
 // No Elo formula - every game moves you exactly one sub-rank.
